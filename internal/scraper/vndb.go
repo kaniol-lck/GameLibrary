@@ -12,16 +12,25 @@ import (
 )
 
 type VNDBScraper struct {
-	client *http.Client
+	client   *http.Client
+	language string
 }
 
 func NewVNDBScraper() *VNDBScraper {
 	return &VNDBScraper{
-		client: &http.Client{Timeout: 15 * time.Second},
+		client:   &http.Client{Timeout: 15 * time.Second},
+		language: "en",
 	}
 }
 
 func (s *VNDBScraper) Key() string { return "vndb" }
+
+func (s *VNDBScraper) Configure(lang string, settings map[string]string) {
+	_ = settings
+	if lang != "" {
+		s.language = vndbLangCode(lang)
+	}
+}
 
 func (s *VNDBScraper) Search(gameDir string, appID string) (*Result, error) {
 	_ = appID
@@ -32,7 +41,7 @@ func (s *VNDBScraper) Search(gameDir string, appID string) (*Result, error) {
 func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 	query := map[string]interface{}{
 		"filters": []interface{}{"search", "=", name},
-		"fields":  "title, alttitle, released, description, developers.name, tags.name, image.url, image.sexual",
+		"fields":  "title, alttitle, lang_image, released, description, developers.name, tags.name, image{url, sexual, dims}",
 		"results": 3,
 		"sort":    "searchrank",
 	}
@@ -58,6 +67,7 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 			AltTitle    string `json:"alttitle"`
 			Description string `json:"description"`
 			Released    string `json:"released"`
+			LangImage   string `json:"lang_image"`
 			Developers  []struct {
 				Name string `json:"name"`
 			} `json:"developers"`
@@ -109,7 +119,7 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 		releaseDate = vn.Released[:10]
 	}
 
-	result := &Result{
+	return &Result{
 		Title:             vn.Title,
 		TitleNative:       vn.AltTitle,
 		Description:       desc,
@@ -121,7 +131,16 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 		Links: map[string]string{
 			"vndb": fmt.Sprintf("https://vndb.org/v?q=%s", name),
 		},
-	}
+	}, nil
+}
 
-	return result, nil
+func vndbLangCode(lang string) string {
+	switch lang {
+	case "zh-CN":
+		return "zh-Hans"
+	case "ja-JP":
+		return "ja"
+	default:
+		return "en"
+	}
 }

@@ -4,13 +4,31 @@ import { config } from '../../wailsjs/go/models';
 
 interface SourceMeta {
   description: string;
+  settings: { key: string; label: string; placeholder: string; type: string }[];
 }
 
 const SOURCE_META: Record<string, SourceMeta> = {
-  steam:  { description: 'Primary source. Detected from steam_appid.txt in game folders.' },
-  vndb:   { description: 'Visual Novel Database. Best for VN titles with Japanese origin.' },
-  dlsite: { description: 'Japanese indie/doujin game store. Matches by RJ number.' },
-  igdb:   { description: 'Internet Game Database. Large general-purpose game database via Twitch API.' },
+  steam: {
+    description: 'Primary source. Detected from steam_appid.txt in game folders.',
+    settings: [
+      { key: 'apiKey', label: 'Steam Web API Key', placeholder: 'Optional: for higher rate limits', type: 'password' },
+    ],
+  },
+  vndb: {
+    description: 'Visual Novel Database. Best for VN titles with Japanese origin.',
+    settings: [],
+  },
+  dlsite: {
+    description: 'Japanese indie/doujin game store. Matches by RJ number.',
+    settings: [],
+  },
+  igdb: {
+    description: 'Internet Game Database. Large general-purpose game database via Twitch API.',
+    settings: [
+      { key: 'clientId', label: 'Twitch Client ID', placeholder: 'Required for IGDB access', type: 'text' },
+      { key: 'clientSecret', label: 'Twitch Client Secret', placeholder: 'Required for IGDB access', type: 'password' },
+    ],
+  },
 };
 
 export default function Settings() {
@@ -18,6 +36,7 @@ export default function Settings() {
   const [host, setHost] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [expandedSource, setExpandedSource] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -83,6 +102,17 @@ export default function Settings() {
     updateCfg({ metadataSources: sources });
   };
 
+  const updateSourceSetting = (srcKey: string, settingKey: string, value: string) => {
+    if (!cfg) return;
+    const sources = cfg.metadataSources.map((s) => {
+      if (s.key !== srcKey) return s;
+      const settings = { ...(s.settings || {}), [settingKey]: value };
+      if (!value) delete (settings as Record<string, string>)[settingKey];
+      return config.MetadataSource.createFrom({ ...s, settings });
+    });
+    updateCfg({ metadataSources: sources });
+  };
+
   if (!cfg) {
     return (
       <div className="settings-loading">
@@ -131,20 +161,12 @@ export default function Settings() {
                 {cfg.gameDirectories.map((dir: string, i: number) => (
                   <div key={i} className="dir-item">
                     <span className="dir-path">{dir}</span>
-                    <button
-                      className="btn-icon-sm"
-                      onClick={() => removeGameDir(i)}
-                      title="Remove"
-                    >
-                      &times;
-                    </button>
+                    <button className="btn-icon-sm" onClick={() => removeGameDir(i)} title="Remove">&times;</button>
                   </div>
                 ))}
               </div>
               <div className="dir-add">
-                <button className="btn btn-secondary" onClick={browseDirectory}>
-                  Browse...
-                </button>
+                <button className="btn btn-secondary" onClick={browseDirectory}>Browse...</button>
               </div>
             </div>
           </section>
@@ -162,10 +184,7 @@ export default function Settings() {
                 <div className="form-row">
                   <span className="form-label-sm">Shallow (1)</span>
                   <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    value={cfg.maxScanDepth}
+                    type="range" min={1} max={10} value={cfg.maxScanDepth}
                     onChange={(e) => updateCfg({ maxScanDepth: parseInt(e.target.value) })}
                   />
                   <span className="form-label-sm">Deep (10)</span>
@@ -183,15 +202,12 @@ export default function Settings() {
               <span className="settings-card-icon">&#127760;</span>
               <div>
                 <h3>Language</h3>
-                <p className="form-hint">Preferred language for scraped metadata.</p>
+                <p className="form-hint">Preferred language for scraped metadata. Affects Steam and VNDB results.</p>
               </div>
             </div>
             <div className="settings-card-body">
               <div className="form-group">
-                <select
-                  value={cfg.language}
-                  onChange={(e) => updateCfg({ language: e.target.value })}
-                >
+                <select value={cfg.language} onChange={(e) => updateCfg({ language: e.target.value })}>
                   <option value="zh-CN">简体中文</option>
                   <option value="en-US">English</option>
                   <option value="ja-JP">日本語</option>
@@ -206,52 +222,62 @@ export default function Settings() {
               <div>
                 <h3>Metadata Sources</h3>
                 <p className="form-hint">
-                  Enable and prioritize metadata providers. Sources are queried in order; the first match wins.
+                  Enable and prioritize providers. Click a source to configure its settings.
                 </p>
               </div>
             </div>
             <div className="settings-card-body">
               <div className="source-list">
                 {cfg.metadataSources.map((src: config.MetadataSource, i: number) => {
-                  const meta = SOURCE_META[src.key] || { description: '' };
+                  const meta = SOURCE_META[src.key] || { description: '', settings: [] };
+                  const isExpanded = expandedSource === src.key;
+                  const hasSettings = meta.settings.length > 0;
                   return (
-                    <div
-                      key={src.key}
-                      className={`source-item ${src.enabled ? '' : 'source-disabled'}`}
-                    >
-                      <button
-                        className={`toggle-switch ${src.enabled ? 'toggle-on' : ''}`}
-                        onClick={() => toggleSource(i)}
-                        title={src.enabled ? 'Disable' : 'Enable'}
-                        role="switch"
-                        aria-checked={src.enabled}
-                      >
-                        <span className="toggle-knob" />
-                      </button>
+                    <div key={src.key}>
+                      <div className={`source-item ${src.enabled ? '' : 'source-disabled'}`}>
+                        <button
+                          className={`toggle-switch ${src.enabled ? 'toggle-on' : ''}`}
+                          onClick={() => toggleSource(i)}
+                          role="switch" aria-checked={src.enabled}
+                        >
+                          <span className="toggle-knob" />
+                        </button>
 
-                      <div className="source-info">
-                        <span className="source-name">{src.name}</span>
-                        <span className="source-desc">{meta.description}</span>
+                        <div
+                          className="source-info"
+                          onClick={() => hasSettings && setExpandedSource(isExpanded ? null : src.key)}
+                          style={{ cursor: hasSettings ? 'pointer' : 'default' }}
+                        >
+                          <span className="source-name">
+                            {src.name}
+                            {hasSettings && (
+                              <span className="source-settings-icon">{isExpanded ? ' ▾' : ' ▸'}</span>
+                            )}
+                          </span>
+                          <span className="source-desc">{meta.description}</span>
+                        </div>
+
+                        <div className="source-order">
+                          <button className="btn-order" onClick={() => moveSource(i, -1)} disabled={i === 0} title="Move up">&#9650;</button>
+                          <button className="btn-order" onClick={() => moveSource(i, 1)} disabled={i === cfg.metadataSources.length - 1} title="Move down">&#9660;</button>
+                        </div>
                       </div>
 
-                      <div className="source-order">
-                        <button
-                          className="btn-order"
-                          onClick={() => moveSource(i, -1)}
-                          disabled={i === 0}
-                          title="Move up"
-                        >
-                          &#9650;
-                        </button>
-                        <button
-                          className="btn-order"
-                          onClick={() => moveSource(i, 1)}
-                          disabled={i === cfg.metadataSources.length - 1}
-                          title="Move down"
-                        >
-                          &#9660;
-                        </button>
-                      </div>
+                      {isExpanded && hasSettings && (
+                        <div className="source-settings-panel">
+                          {meta.settings.map((field) => (
+                            <div key={field.key} className="form-group">
+                              <label>{field.label}</label>
+                              <input
+                                type={field.type}
+                                value={(src.settings || {})[field.key] || ''}
+                                onChange={(e) => updateSourceSetting(src.key, field.key, e.target.value)}
+                                placeholder={field.placeholder}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -264,9 +290,7 @@ export default function Settings() {
               <span className="settings-card-icon">&#128187;</span>
               <div>
                 <h3>About</h3>
-                <p className="form-hint">
-                  Machine name is auto-detected from your system hostname.
-                </p>
+                <p className="form-hint">Machine name is auto-detected from your system hostname.</p>
               </div>
             </div>
             <div className="settings-card-body">

@@ -4,6 +4,7 @@ export namespace config {
 	    key: string;
 	    name: string;
 	    enabled: boolean;
+	    settings?: Record<string, string>;
 	
 	    static createFrom(source: any = {}) {
 	        return new MetadataSource(source);
@@ -14,6 +15,7 @@ export namespace config {
 	        this.key = source["key"];
 	        this.name = source["name"];
 	        this.enabled = source["enabled"];
+	        this.settings = source["settings"];
 	    }
 	}
 	export class Config {
@@ -21,7 +23,6 @@ export namespace config {
 	    gameDirectories: string[];
 	    maxScanDepth: number;
 	    language: string;
-	    steamApiKey: string;
 	    metadataSources: MetadataSource[];
 	
 	    static createFrom(source: any = {}) {
@@ -34,7 +35,6 @@ export namespace config {
 	        this.gameDirectories = source["gameDirectories"];
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];
-	        this.steamApiKey = source["steamApiKey"];
 	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);
 	    }
 	

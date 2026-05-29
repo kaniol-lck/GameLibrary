@@ -7,9 +7,10 @@ import (
 )
 
 type MetadataSource struct {
-	Key     string `json:"key"`
-	Name    string `json:"name"`
-	Enabled bool   `json:"enabled"`
+	Key      string            `json:"key"`
+	Name     string            `json:"name"`
+	Enabled  bool              `json:"enabled"`
+	Settings map[string]string `json:"settings,omitempty"`
 }
 
 type Config struct {
@@ -17,7 +18,6 @@ type Config struct {
 	GameDirectories []string         `json:"gameDirectories"`
 	MaxScanDepth    int              `json:"maxScanDepth"`
 	Language        string           `json:"language"`
-	SteamAPIKey     string           `json:"steamApiKey"`
 	Sources         []MetadataSource `json:"metadataSources"`
 }
 
@@ -114,6 +114,15 @@ func (c *Config) Save(exeDir string) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0644)
+}
+
+func (c *Config) SourceSettings(key string) map[string]string {
+	for _, s := range c.Sources {
+		if s.Key == key {
+			return s.Settings
+		}
+	}
+	return nil
 }
 
 func generateMachineID() string {

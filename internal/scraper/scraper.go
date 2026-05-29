@@ -24,19 +24,19 @@ type Source interface {
 }
 
 type Pipeline struct {
-	config   *config.Config
-	registry map[string]Source
+	config *config.Config
+	source map[string]Source
 }
 
 func NewPipeline(cfg *config.Config) *Pipeline {
 	return &Pipeline{
-		config:   cfg,
-		registry: make(map[string]Source),
+		config: cfg,
+		source: make(map[string]Source),
 	}
 }
 
 func (p *Pipeline) Register(src Source) {
-	p.registry[src.Key()] = src
+	p.source[src.Key()] = src
 }
 
 func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, string, error) {
@@ -44,7 +44,7 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 		if !srcCfg.Enabled {
 			continue
 		}
-		scraper, ok := p.registry[srcCfg.Key]
+		scraper, ok := p.source[srcCfg.Key]
 		if !ok {
 			continue
 		}

@@ -827,6 +827,38 @@
   line-height: 1.4;
 }
 
+.source-settings-icon {
+  font-size: 10px;
+  color: #666;
+  margin-left: 4px;
+}
+
+.source-settings-panel {
+  margin: 0 0 4px 48px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.source-settings-panel .form-group {
+  margin-bottom: 8px;
+}
+
+.source-settings-panel .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.source-settings-panel .form-group label {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.source-settings-panel .form-group input {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 .source-order {
   display: flex;
   flex-direction: column;

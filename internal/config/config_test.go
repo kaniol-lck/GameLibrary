@@ -100,9 +100,8 @@ func TestLegacyMigration(t *testing.T) {
 func TestJSONRoundtrip(t *testing.T) {
 	cfg := Default()
 	cfg.MachineID = "json-test"
-	cfg.SteamAPIKey = "secret-key-123"
 	cfg.Sources = []MetadataSource{
-		{Key: "steam", Name: "Steam", Enabled: true},
+		{Key: "steam", Name: "Steam", Enabled: true, Settings: map[string]string{"apiKey": "secret-key-123"}},
 		{Key: "vndb", Name: "VNDB", Enabled: false},
 	}
 
@@ -120,14 +119,34 @@ func TestJSONRoundtrip(t *testing.T) {
 	if decoded.MachineID != "json-test" {
 		t.Errorf("MachineID: %s", decoded.MachineID)
 	}
-	if decoded.SteamAPIKey != "secret-key-123" {
-		t.Errorf("SteamAPIKey not preserved")
-	}
 	if len(decoded.Sources) != 2 {
 		t.Errorf("Sources count: %d", len(decoded.Sources))
 	}
+	if decoded.Sources[0].Settings["apiKey"] != "secret-key-123" {
+		t.Errorf("Steam API key not preserved: %v", decoded.Sources[0].Settings)
+	}
 	if decoded.Sources[1].Enabled {
 		t.Error("VNDB should be disabled")
+	}
+}
+
+func TestSourceSettings(t *testing.T) {
+	cfg := Default()
+	cfg.Sources[0].Settings = map[string]string{"apiKey": "my-key"}
+	cfg.Sources[3].Settings = map[string]string{"clientId": "cid", "clientSecret": "csec"}
+
+	data, _ := json.Marshal(cfg)
+	var decoded Config
+	json.Unmarshal(data, &decoded)
+
+	if v := decoded.SourceSettings("steam")["apiKey"]; v != "my-key" {
+		t.Errorf("steam apiKey: %s", v)
+	}
+	if v := decoded.SourceSettings("igdb")["clientId"]; v != "cid" {
+		t.Errorf("igdb clientId: %s", v)
+	}
+	if decoded.SourceSettings("vndb") != nil {
+		t.Error("vndb should have nil settings")
 	}
 }
 

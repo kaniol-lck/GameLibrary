@@ -67,8 +67,15 @@ func (a *App) startup(ctx context.Context) {
 	a.scanner = scanner.New(a.exeDir, a.config)
 
 	a.pipeline = scraper.NewPipeline(a.config)
-	a.pipeline.Register(scraper.NewSteamScraper())
-	a.pipeline.Register(scraper.NewVNDBScraper())
+
+	steamScraper := scraper.NewSteamScraper()
+	steamScraper.Configure(a.config.Language, a.config.SourceSettings("steam"))
+	a.pipeline.Register(steamScraper)
+
+	vndbScraper := scraper.NewVNDBScraper()
+	vndbScraper.Configure(a.config.Language, a.config.SourceSettings("vndb"))
+	a.pipeline.Register(vndbScraper)
+
 	a.pipeline.Register(scraper.NewDLsiteScraper())
 
 	a.refreshGameCache()

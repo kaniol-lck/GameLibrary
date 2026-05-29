@@ -11,16 +11,30 @@ import (
 )
 
 type SteamScraper struct {
-	client *http.Client
+	client   *http.Client
+	language string
+	apiKey   string
 }
 
 func NewSteamScraper() *SteamScraper {
 	return &SteamScraper{
-		client: &http.Client{Timeout: 15 * time.Second},
+		client:   &http.Client{Timeout: 15 * time.Second},
+		language: "en-US",
 	}
 }
 
 func (s *SteamScraper) Key() string { return "steam" }
+
+func (s *SteamScraper) Configure(lang string, settings map[string]string) {
+	if lang != "" {
+		s.language = lang
+	}
+	if settings != nil {
+		if key, ok := settings["apiKey"]; ok {
+			s.apiKey = key
+		}
+	}
+}
 
 func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
 	if appID != "" {
@@ -30,7 +44,11 @@ func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
 }
 
 func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
-	apiURL := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%s", appID)
+	langParam := ""
+	if s.language != "en-US" {
+		langParam = "&l=" + languageCode(s.language)
+	}
+	apiURL := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%s%s", appID, langParam)
 
 	resp, err := s.client.Get(apiURL)
 	if err != nil {
@@ -41,8 +59,8 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 
 	var raw map[string]struct {
-		Success bool              `json:"success"`
-		Data    json.RawMessage   `json:"data"`
+		Success bool            `json:"success"`
+		Data    json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, err
@@ -107,7 +125,7 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 
 func (s *SteamScraper) searchByName(dirName string) (*Result, error) {
 	query := url.QueryEscape(dirName)
-	apiURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&l=en", query)
+	apiURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&l=%s", query, languageCode(s.language))
 
 	resp, err := s.client.Get(apiURL)
 	if err != nil {
@@ -134,6 +152,17 @@ func (s *SteamScraper) searchByName(dirName string) (*Result, error) {
 
 	bestID := fmt.Sprintf("%d", searchResult.Items[0].ID)
 	return s.searchByAppID(bestID)
+}
+
+func languageCode(lang string) string {
+	switch lang {
+	case "zh-CN":
+		return "schinese"
+	case "ja-JP":
+		return "japanese"
+	default:
+		return "english"
+	}
 }
 
 func stripHTML(s string) string {

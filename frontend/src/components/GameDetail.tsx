@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ScrapeGame } from '../../wailsjs/go/main/App';
+import { ScrapeGame, GetGameCover } from '../../wailsjs/go/main/App';
 
 interface GameDetailProps {
   game: game.GameInfo;
@@ -18,8 +18,14 @@ function formatPlaytime(seconds: number): string {
 
 export default function GameDetail({ game: initialGame, onClose, onUpdated }: GameDetailProps) {
   const [g, setG] = useState<game.GameInfo>(initialGame);
+  const [coverData, setCoverData] = useState('');
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState('');
+
+  useEffect(() => {
+    if (!g.metadata?.coverUrl) return;
+    GetGameCover(g.id).then(setCoverData).catch(() => {});
+  }, [g.id, g.metadata?.coverUrl]);
 
   const handleScrape = async () => {
     setScraping(true);
@@ -39,7 +45,6 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
     }
   };
 
-  const coverPath = g.metadata?.coverUrl || '';
   const meta = g.metadata;
 
   return (
@@ -48,8 +53,8 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
         <button className="detail-close" onClick={onClose}>&times;</button>
 
         <div className="detail-cover">
-          {coverPath ? (
-            <img src={coverPath} alt={g.title} />
+          {coverData ? (
+            <img src={coverData} alt={g.title} />
           ) : (
             <div className="game-card-cover-placeholder">
               <span>{g.title.charAt(0).toUpperCase()}</span>
@@ -59,9 +64,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
 
         <div className="detail-body">
           <h2 className="detail-title">{g.title}</h2>
-          {g.titleNative && (
-            <p className="detail-title-native">{g.titleNative}</p>
-          )}
+          {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
 
           <div className="detail-meta-row">
             <span className="detail-badge">{g.platform}</span>
@@ -73,26 +76,17 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
               {(meta.developer || meta.publisher) && (
                 <div className="detail-section">
                   {meta.developer && (
-                    <div className="detail-field">
-                      <label>Developer</label>
-                      <span>{meta.developer}</span>
-                    </div>
+                    <div className="detail-field"><label>Developer</label><span>{meta.developer}</span></div>
                   )}
                   {meta.publisher && (
-                    <div className="detail-field">
-                      <label>Publisher</label>
-                      <span>{meta.publisher}</span>
-                    </div>
+                    <div className="detail-field"><label>Publisher</label><span>{meta.publisher}</span></div>
                   )}
                 </div>
               )}
 
               {meta.releaseDate && (
                 <div className="detail-section">
-                  <div className="detail-field">
-                    <label>Release Date</label>
-                    <span>{meta.releaseDate}</span>
-                  </div>
+                  <div className="detail-field"><label>Release Date</label><span>{meta.releaseDate}</span></div>
                 </div>
               )}
 
@@ -142,11 +136,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
           </div>
 
           <div className="detail-actions">
-            <button
-              className="btn btn-primary"
-              onClick={handleScrape}
-              disabled={scraping}
-            >
+            <button className="btn btn-primary" onClick={handleScrape} disabled={scraping}>
               {scraping ? 'Scraping...' : 'Scrape Metadata'}
             </button>
           </div>

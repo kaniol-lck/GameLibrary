@@ -7,26 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
-func DownloadCover(thumbDir, gameID, coverURL string) (string, error) {
+func DownloadCover(gameDir, coverURL string) error {
 	if coverURL == "" {
-		return "", fmt.Errorf("no cover URL")
+		return fmt.Errorf("no cover URL")
 	}
 
 	resp, err := http.Get(coverURL)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("cover download: HTTP %d", resp.StatusCode)
-	}
-
-	if err := os.MkdirAll(thumbDir, 0755); err != nil {
-		return "", err
+		return fmt.Errorf("cover download: HTTP %d", resp.StatusCode)
 	}
 
 	ext := ".jpg"
@@ -35,26 +30,32 @@ func DownloadCover(thumbDir, gameID, coverURL string) (string, error) {
 		ext = ".png"
 	}
 
-	filename := fmt.Sprintf("%s_%d%s", gameID, time.Now().Unix(), ext)
-	filePath := filepath.Join(thumbDir, filename)
+	filePath := filepath.Join(gameDir, "cover"+ext)
 
 	out, err := os.Create(filePath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		os.Remove(filePath)
-		return "", err
+		return err
 	}
 
-	return ToFileURL(filePath), nil
+	m := "cover" + ext
+	_ = m
+
+	return nil
 }
 
-func ToFileURL(absPath string) string {
-	p := filepath.ToSlash(absPath)
-	p = strings.TrimPrefix(p, "/")
-	return "file:///" + p
+func CoverPath(gameDir string) string {
+	for _, ext := range []string{".jpg", ".png"} {
+		p := filepath.Join(gameDir, "cover"+ext)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }

@@ -86,6 +86,11 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 		tags[i] = g.Description
 	}
 
+	coverURL := fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%s/library_600x900_2x.jpg", appID)
+	if appData.HeaderImage != "" {
+		_ = appData.HeaderImage
+	}
+
 	return &Result{
 		Title:       appData.Name,
 		Description: desc,
@@ -93,7 +98,7 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 		Publisher:   firstOrEmpty(appData.Publishers),
 		ReleaseDate: appData.ReleaseDate.Date,
 		Tags:        tags,
-		CoverURL:    appData.HeaderImage,
+		CoverURL:    coverURL,
 		Links: map[string]string{
 			"steam":      fmt.Sprintf("https://store.steampowered.com/app/%s/", appID),
 			"platformId": appID,

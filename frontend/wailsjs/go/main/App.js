@@ -14,6 +14,10 @@ export function GetGame(arg1) {
   return window['go']['main']['App']['GetGame'](arg1);
 }
 
+export function GetGameCover(arg1) {
+  return window['go']['main']['App']['GetGameCover'](arg1);
+}
+
 export function GetGameList() {
   return window['go']['main']['App']['GetGameList']();
 }

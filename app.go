@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -228,6 +230,31 @@ func (a *App) UpdateGameInfo(info *game.GameInfo) error {
 	return nil
 }
 
+func (a *App) GetGameCover(id string) string {
+	info, ok := a.games[id]
+	if !ok {
+		return ""
+	}
+
+	path := scraper.CoverPath(info.GameDir)
+	if path == "" {
+		return ""
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	ext := filepath.Ext(path)
+	mime := "image/jpeg"
+	if ext == ".png" {
+		mime = "image/png"
+	}
+
+	return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+}
+
 func (a *App) ScrapeGame(id string) *ScrapeReport {
 	info, ok := a.games[id]
 	if !ok {
@@ -244,9 +271,8 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 
 	scraper.ApplyResult(info, result, source)
 
-	thumbDir := filepath.Join(a.exeDir, ".gamemanager", "thumbnails")
-	if localPath, err := scraper.DownloadCover(thumbDir, info.ID, result.CoverURL); err == nil {
-		info.Metadata.CoverURL = localPath
+	if err := scraper.DownloadCover(info.GameDir, result.CoverURL); err == nil {
+		info.Metadata.CoverURL = "cover"
 	}
 
 	if err := info.Save(); err != nil {

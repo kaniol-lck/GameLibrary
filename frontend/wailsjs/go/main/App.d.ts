@@ -11,6 +11,8 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetGame(arg1:string):Promise<game.GameInfo>;
 
+export function GetGameCover(arg1:string):Promise<string>;
+
 export function GetGameList():Promise<Array<game.GameInfo>>;
 
 export function GetMachineName():Promise<string>;

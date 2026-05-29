@@ -20,13 +20,14 @@ type SavePath struct {
 }
 
 type Metadata struct {
-	CoverURL    string            `json:"coverUrl,omitempty"`
-	ReleaseDate string            `json:"releaseDate,omitempty"`
-	Developer   string            `json:"developer,omitempty"`
-	Publisher   string            `json:"publisher,omitempty"`
-	Tags        []string          `json:"tags,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Links       map[string]string `json:"links,omitempty"`
+	CoverURL        string            `json:"coverUrl,omitempty"`
+	CoverLandscape  string            `json:"coverLandscape,omitempty"`
+	ReleaseDate     string            `json:"releaseDate,omitempty"`
+	Developer       string            `json:"developer,omitempty"`
+	Publisher       string            `json:"publisher,omitempty"`
+	Tags            []string          `json:"tags,omitempty"`
+	Description     string            `json:"description,omitempty"`
+	Links           map[string]string `json:"links,omitempty"`
 }
 
 type GameInfo struct {

@@ -73,12 +73,13 @@ func ApplyResult(info *game.GameInfo, result *Result, sourceKey string) {
 		}
 	}
 	info.Metadata = &game.Metadata{
-		CoverURL:    "cover",
-		ReleaseDate: result.ReleaseDate,
-		Developer:   result.Developer,
-		Publisher:   result.Publisher,
-		Tags:        result.Tags,
-		Description: result.Description,
-		Links:       result.Links,
+		CoverURL:       "cover",
+		CoverLandscape: "cover_landscape",
+		ReleaseDate:    result.ReleaseDate,
+		Developer:      result.Developer,
+		Publisher:      result.Publisher,
+		Tags:           result.Tags,
+		Description:    result.Description,
+		Links:          result.Links,
 	}
 }

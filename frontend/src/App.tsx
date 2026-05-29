@@ -13,6 +13,7 @@ function isIncomplete(g: game.GameInfo): boolean {
   if (!g.metadata) return true;
   const m = g.metadata;
   if (!m.coverUrl) return true;
+  if (!m.coverLandscape) return true;
   if (!m.developer && !m.publisher) return true;
   if (!m.description || m.description.length < 10) return true;
   if (!m.releaseDate) return true;

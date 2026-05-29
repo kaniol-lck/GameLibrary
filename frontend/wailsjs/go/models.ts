@@ -79,6 +79,7 @@ export namespace game {
 	}
 	export class Metadata {
 	    coverUrl?: string;
+	    coverLandscape?: string;
 	    releaseDate?: string;
 	    developer?: string;
 	    publisher?: string;
@@ -93,6 +94,7 @@ export namespace game {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.coverUrl = source["coverUrl"];
+	        this.coverLandscape = source["coverLandscape"];
 	        this.releaseDate = source["releaseDate"];
 	        this.developer = source["developer"];
 	        this.publisher = source["publisher"];

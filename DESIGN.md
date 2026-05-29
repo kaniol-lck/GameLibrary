@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.2.0-alpha** | Last updated: 2026-05-29
+> AI-assisted project. Current version: **0.2.1-alpha** | Last updated: 2026-05-29
 
 ## 版本路线图
 
@@ -8,7 +8,8 @@
 |------|------|---------|------|
 | 0.1.0-alpha | Phase 1 — 骨架 | 项目搭建、扫描器、基础 UI | ✅ |
 | 0.2.0-alpha | Phase 2 — 刮削 | 多源元数据刮削、详情页、双封面 | ✅ |
-| 0.3.0-alpha | Phase 3 — 启动 | 游戏启动、锁机制、运行状态 | 📋 |
+| 0.2.1-alpha | Phase 2 — 增强 | 强制重刮、游戏启动、多平台 CI | ✅ |
+| 0.3.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
 | 0.9.0-beta  | 测试完善 | 全功能测试、Bug 修复、文档 | 📋 |

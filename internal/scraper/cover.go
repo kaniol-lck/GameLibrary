@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func DownloadCover(thumbDir, gameID, coverURL string) (string, error) {
 
 	ext := ".jpg"
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "image/png" {
+	if strings.Contains(contentType, "png") {
 		ext = ".png"
 	}
 
@@ -49,5 +50,11 @@ func DownloadCover(thumbDir, gameID, coverURL string) (string, error) {
 		return "", err
 	}
 
-	return filePath, nil
+	return ToFileURL(filePath), nil
+}
+
+func ToFileURL(absPath string) string {
+	p := filepath.ToSlash(absPath)
+	p = strings.TrimPrefix(p, "/")
+	return "file:///" + p
 }

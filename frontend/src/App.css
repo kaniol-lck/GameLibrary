@@ -902,10 +902,12 @@
 .detail-cover {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  max-height: 360px;
+  aspect-ratio: 3/4;
   background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
   flex-shrink: 0;
+  margin: 0 auto;
 }
 
 .detail-cover img {

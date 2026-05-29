@@ -139,6 +139,25 @@ func TestStripHTML(t *testing.T) {
 	}
 }
 
+func TestToFileURL(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`C:\Users\admin\Projects\GameLibrary\.gamemanager\thumbnails\steam_123.jpg`,
+			"file:///C:/Users/admin/Projects/GameLibrary/.gamemanager/thumbnails/steam_123.jpg"},
+		{`/home/user/data/thumb.jpg`,
+			"file:///home/user/data/thumb.jpg"},
+	}
+
+	for _, tc := range tests {
+		result := ToFileURL(tc.input)
+		if result != tc.expected {
+			t.Errorf("ToFileURL(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
 func TestRJPattern(t *testing.T) {
 	tests := []struct {
 		input    string

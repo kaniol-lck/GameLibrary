@@ -49,7 +49,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
 
         <div className="detail-cover">
           {coverPath ? (
-            <img src={`file://${coverPath}`} alt={g.title} />
+            <img src={coverPath} alt={g.title} />
           ) : (
             <div className="game-card-cover-placeholder">
               <span>{g.title.charAt(0).toUpperCase()}</span>

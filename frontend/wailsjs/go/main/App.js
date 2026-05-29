@@ -34,6 +34,14 @@ export function ScanGames() {
   return window['go']['main']['App']['ScanGames']();
 }
 
+export function ScrapeAllGames() {
+  return window['go']['main']['App']['ScrapeAllGames']();
+}
+
+export function ScrapeGame(arg1) {
+  return window['go']['main']['App']['ScrapeGame'](arg1);
+}
+
 export function UpdateGameInfo(arg1) {
   return window['go']['main']['App']['UpdateGameInfo'](arg1);
 }

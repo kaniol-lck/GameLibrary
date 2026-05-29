@@ -257,6 +257,133 @@ App
 
 ---
 
+## 4. 元数据刮削系统 (Phase 2)
+
+### 4.1 架构
+
+```
+app.go: ScrapeGame / ScrapeAllGames
+  │
+  ▼
+scraper.Pipeline (按 metadataSources 优先级依次调用)
+  │
+  ├── SteamScraper
+  │     ├── 有 steam_appid → appdetails API  (精确查询)
+  │     └── 无 steam_appid → storesearch API (名称搜索)
+  │
+  ├── VNDBScraper
+  │     └── POST api.vndb.org/kana/vn  (名称搜索)
+  │
+  ├── DLsiteScraper
+  │     ├── 目录名含 RJ\d{6,8} → 精确爬取作品页
+  │     └── 无 RJ 号 → 跳过
+  │
+  └── IGDBScraper (暂缓，需 OAuth)
+        └── Twitch IGDB API v4
+```
+
+### 4.2 Scraper 接口
+
+```go
+type ScrapeResult struct {
+    Title       string
+    TitleNative string
+    Description string
+    Developer   string
+    Publisher   string
+    ReleaseDate string
+    Tags        []string
+    CoverURL    string
+    Links       map[string]string
+}
+
+type Scraper interface {
+    Key() string
+    Search(gameDir string, appID string) (*ScrapeResult, error)
+}
+```
+
+### 4.3 流水线逻辑
+
+```
+Pipeline.Scrape(gameInfo):
+  for src in config.Sources (按列表顺序 = 优先级):
+    if !src.Enabled → 跳过
+    scraper := registry[src.Key]
+    result, err := scraper.Search(gameDir, gameInfo.PlatformID)
+    if err != nil || result == nil → 继续下一个源
+    return result, src.Key  ← 第一个匹配即返回
+  return nil  ← 所有源均无结果
+```
+
+### 4.4 各源特点
+
+| 源 | 识别方式 | 需要 Key | 封面来源 |
+|----|---------|---------|---------|
+| Steam | steam_appid / 名称搜索 | 否 | Steam CDN / SteamGridDB |
+| VNDB | 名称搜索 | 否 | VNDB 图片 |
+| DLsite | RJ 号精确匹配 | 否 | DLsite 图片 |
+| IGDB | 名称搜索 | 是 (需注册) | IGDB 图片 |
+
+### 4.5 封面下载
+
+独立于刮削器的封面获取流程：
+
+```
+获取封面:
+  1. 刮削器返回 CoverURL
+  2. 下载到 .gamemanager/thumbnails/{gameId}.jpg
+  3. 写入 GameInfo.Metadata.CoverURL = 本地相对路径
+  4. 前端加载本地文件，无需网络请求
+```
+
+### 4.6 包结构
+
+```
+internal/scraper/
+├── scraper.go      # Scraper 接口 + Pipeline + Registry
+├── steam.go        # Steam 刮削器
+├── vndb.go         # VNDB 刮削器
+├── dlsite.go       # DLsite 刮削器
+├── cover.go        # 封面下载工具
+└── scraper_test.go
+```
+
+### 4.7 前端交互
+
+```
+游戏库封面墙
+  ├── 点击卡片 → 右侧滑出详情面板
+  │     ├── 封面大图
+  │     ├── 标题 / 原名
+  │     ├── 平台标签
+  │     ├── 开发商 / 发行商
+  │     ├── 描述
+  │     ├── 标签列表
+  │     ├── 可执行文件列表
+  │     └── [Scrape Metadata] 按钮
+  ├── 顶栏 [Scrape All] 批量刮削按钮
+  └── 刮削进度指示器
+```
+
+### 4.8 详情面板数据流
+
+```
+用户点击游戏卡片
+  → App.tsx: setSelectedGame(game)
+  → 右侧面板打开
+  → 显示 .gameinfo.json 中已有 metadata
+  → 用户点击 [Scrape Metadata]
+    → App.ScrapeGame(game.id)
+      → Pipeline.Scrape(gameInfo)
+        → 依次尝试各源
+      → gameInfo.Metadata = result → gameInfo.Save()
+      → 下载封面到本地
+    ← React 刷新面板
+```
+
+---
+
 ## 5. 设计决策记录
 
 ### 5.1 为什么选择便携架构而非 Server+Agent？
@@ -303,15 +430,18 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 - [x] 17 个单元测试全部通过
 - [x] Git 版本控制 + GitHub 推送
 
-### Phase 2 — 刮削 (规划中)
+### Phase 2 — 刮削 🚧 (进行中)
 
-- [ ] Steam API 集成 (store.steampowered.com/api)
-- [ ] SteamGridDB 封面下载
-- [ ] VNDB API 集成
-- [ ] DLsite 爬虫 (RJ 号识别)
-- [ ] IGDB API 集成
-- [ ] 刮削流水线：按 metadataSources 优先级依次查询
-- [ ] 游戏详情页
+- [x] Steam API 集成 (store.steampowered.com/api)
+- [x] VNDB API 集成
+- [x] DLsite 爬虫 (RJ 号识别)
+- [x] 刮削流水线：Pipeline 按 metadataSources 优先级依次查询
+- [x] 封面下载到本地 .gamemanager/thumbnails/
+- [x] 游戏详情页（右侧滑出面板）
+- [x] 刮削器单元测试
+- [ ] 批量刮削进度指示 (UI 增强)
+- [ ] SteamGridDB 封面作为备选源
+- [ ] IGDB 集成 (需 OAuth)
 
 ### Phase 3 — 启动与锁 (规划中)
 

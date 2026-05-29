@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
-import { GetGameList, ScanGames, GetAppInfo } from '../wailsjs/go/main/App';
+import { GetGameList, ScanGames, ScrapeAllGames, GetAppInfo } from '../wailsjs/go/main/App';
 import { game, scanner } from '../wailsjs/go/models';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
+import GameDetail from './components/GameDetail';
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedNav, setSelectedNav] = useState('all');
   const [games, setGames] = useState<game.GameInfo[]>([]);
+  const [selectedGame, setSelectedGame] = useState<game.GameInfo | null>(null);
   const [appInfo, setAppInfo] = useState<Record<string, string> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<scanner.ScanResult[] | null>(null);
+  const [isScraping, setIsScraping] = useState(false);
   const [error, setError] = useState('');
 
   const loadGames = useCallback(async () => {
@@ -49,8 +52,29 @@ function App() {
     }
   };
 
-  const handleGameClick = (game: game.GameInfo) => {
-    console.log('Selected game:', game.title);
+  const handleScrapeAll = async () => {
+    setIsScraping(true);
+    setError('');
+    try {
+      await ScrapeAllGames();
+      await loadGames();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  const handleGameClick = (g: game.GameInfo) => {
+    setSelectedGame(g);
+  };
+
+  const handleDetailClose = () => {
+    setSelectedGame(null);
+  };
+
+  const handleDetailUpdated = () => {
+    loadGames();
   };
 
   const filteredGames = (() => {
@@ -75,7 +99,7 @@ function App() {
         onToggle={() => setCollapsed(!collapsed)}
         games={games}
         selectedNav={selectedNav}
-        onSelectNav={setSelectedNav}
+        onSelectNav={(key) => { setSelectedNav(key); setSelectedGame(null); }}
         machineName={appInfo?.['machineName'] ?? ''}
       />
 
@@ -87,6 +111,15 @@ function App() {
             </span>
           </div>
           <div className="top-bar-right">
+            {games.length > 0 && (
+              <button
+                className="btn btn-secondary"
+                onClick={handleScrapeAll}
+                disabled={isScraping}
+              >
+                {isScraping ? 'Scraping...' : 'Scrape All'}
+              </button>
+            )}
             <button
               className="btn btn-primary"
               onClick={handleScan}
@@ -145,8 +178,8 @@ function App() {
                     <p>Click "Scan Games" to search for games in your configured directories.</p>
                   </div>
                 )}
-                {filteredGames.map((game) => (
-                  <GameCard key={game.id} game={game} onClick={handleGameClick} />
+                {filteredGames.map((g) => (
+                  <GameCard key={g.id} game={g} onClick={handleGameClick} />
                 ))}
               </div>
             </>
@@ -158,6 +191,14 @@ function App() {
           <span>{games.length} games</span>
         </footer>
       </div>
+
+      {selectedGame && (
+        <GameDetail
+          game={selectedGame}
+          onClose={handleDetailClose}
+          onUpdated={handleDetailUpdated}
+        />
+      )}
     </div>
   );
 }

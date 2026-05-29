@@ -11,6 +11,7 @@ import (
 	"GameLibrary/internal/config"
 	"GameLibrary/internal/game"
 	"GameLibrary/internal/scanner"
+	"GameLibrary/internal/scraper"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -22,13 +23,21 @@ type Executable = game.Executable
 type SavePath = game.SavePath
 type Metadata = game.Metadata
 
+type ScrapeReport struct {
+	GameID    string `json:"gameId"`
+	Title     string `json:"title"`
+	Source    string `json:"source"`
+	Error     string `json:"error,omitempty"`
+}
+
 type App struct {
-	ctx     context.Context
-	exeDir  string
-	host    string
-	config  *config.Config
-	scanner *scanner.Scanner
-	games   map[string]*game.GameInfo
+	ctx      context.Context
+	exeDir   string
+	host     string
+	config   *config.Config
+	scanner  *scanner.Scanner
+	pipeline *scraper.Pipeline
+	games    map[string]*game.GameInfo
 }
 
 func NewApp() *App {
@@ -54,6 +63,11 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.config = cfg
 	a.scanner = scanner.New(a.exeDir, a.config)
+
+	a.pipeline = scraper.NewPipeline(a.config)
+	a.pipeline.Register(scraper.NewSteamScraper())
+	a.pipeline.Register(scraper.NewVNDBScraper())
+	a.pipeline.Register(scraper.NewDLsiteScraper())
 
 	a.refreshGameCache()
 }
@@ -212,6 +226,43 @@ func (a *App) UpdateGameInfo(info *game.GameInfo) error {
 
 	a.games[info.ID] = existing
 	return nil
+}
+
+func (a *App) ScrapeGame(id string) *ScrapeReport {
+	info, ok := a.games[id]
+	if !ok {
+		return &ScrapeReport{GameID: id, Error: "game not found"}
+	}
+
+	result, source, err := a.pipeline.Scrape(info.GameDir, info)
+	if err != nil {
+		return &ScrapeReport{GameID: id, Title: info.Title, Error: err.Error()}
+	}
+	if result == nil {
+		return &ScrapeReport{GameID: id, Title: info.Title, Source: "none", Error: "no source matched"}
+	}
+
+	scraper.ApplyResult(info, result, source)
+
+	thumbDir := filepath.Join(a.exeDir, ".gamemanager", "thumbnails")
+	if localPath, err := scraper.DownloadCover(thumbDir, info.ID, result.CoverURL); err == nil {
+		info.Metadata.CoverURL = localPath
+	}
+
+	if err := info.Save(); err != nil {
+		return &ScrapeReport{GameID: id, Title: info.Title, Source: source, Error: "save failed: " + err.Error()}
+	}
+
+	return &ScrapeReport{GameID: id, Title: info.Title, Source: source}
+}
+
+func (a *App) ScrapeAllGames() []ScrapeReport {
+	var reports []ScrapeReport
+	for _, info := range a.games {
+		report := a.ScrapeGame(info.ID)
+		reports = append(reports, *report)
+	}
+	return reports
 }
 
 func (a *App) GetAppInfo() map[string]string {

@@ -173,6 +173,29 @@ export namespace game {
 
 }
 
+export namespace main {
+	
+	export class ScrapeReport {
+	    gameId: string;
+	    title: string;
+	    source: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScrapeReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.gameId = source["gameId"];
+	        this.title = source["title"];
+	        this.source = source["source"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace scanner {
 	
 	export class ScanResult {

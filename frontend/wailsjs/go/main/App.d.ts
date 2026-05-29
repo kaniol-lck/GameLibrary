@@ -3,6 +3,7 @@
 import {config} from '../models';
 import {game} from '../models';
 import {scanner} from '../models';
+import {main} from '../models';
 
 export function GetAppInfo():Promise<Record<string, string>>;
 
@@ -19,5 +20,9 @@ export function PickGameDirectory():Promise<string>;
 export function SaveConfig(arg1:config.Config):Promise<void>;
 
 export function ScanGames():Promise<Array<scanner.ScanResult>>;
+
+export function ScrapeAllGames():Promise<Array<main.ScrapeReport>>;
+
+export function ScrapeGame(arg1:string):Promise<main.ScrapeReport>;
 
 export function UpdateGameInfo(arg1:game.GameInfo):Promise<void>;

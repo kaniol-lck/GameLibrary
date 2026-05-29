@@ -136,15 +136,17 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
           </div>
 
           <div className="detail-actions">
-            <button className="btn" onClick={async () => {
-              try {
-                await LaunchGame(g.id);
-              } catch (err) { setScrapeMsg(String(err)); }
+            <button className="btn btn-launch" onClick={async () => {
+              try { await LaunchGame(g.id); }
+              catch (err) { setScrapeMsg(String(err)); }
             }}>
               &#9654; Launch Game
             </button>
             <button className="btn btn-secondary" onClick={handleScrape} disabled={scraping}>
               {scraping ? 'Scraping...' : 'Scrape Metadata'}
+            </button>
+            <button className="btn btn-ghost-sm" onClick={handleScrape} disabled={scraping} title="Force re-scrape">
+              Re-scrape
             </button>
           </div>
 

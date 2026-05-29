@@ -1138,13 +1138,13 @@
   gap: 8px;
 }
 
-.detail-actions .btn {
+.detail-actions .btn-launch {
   background: #22c55e;
   color: #000;
   font-weight: 600;
 }
 
-.detail-actions .btn:hover {
+.detail-actions .btn-launch:hover {
   background: #16a34a;
 }
 
@@ -1157,6 +1157,27 @@
 .detail-actions .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
+}
+
+.btn-ghost-sm {
+  background: rgba(255, 255, 255, 0.04);
+  color: #888;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-ghost-sm:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+}
+
+.btn-ghost-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .scrape-result {

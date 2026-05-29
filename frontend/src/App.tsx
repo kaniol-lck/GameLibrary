@@ -68,15 +68,7 @@ function App() {
     }
   };
 
-  const handleScrapeAll = async () => {
-    setError('');
-
-    const targets = games.filter(isIncomplete);
-    if (targets.length === 0) {
-      setError('All games have complete metadata.');
-      return;
-    }
-
+  const runScrapeBatch = async (targets: game.GameInfo[]) => {
     setScrapeDone(0);
     setScrapeTotal(targets.length);
 
@@ -93,16 +85,9 @@ function App() {
       while (idx < targets.length) {
         const i = idx++;
         const g = targets[i];
-
         active.add(g.id);
         report();
-
-        try {
-          await ScrapeGame(g.id);
-        } catch {
-          /* continue */
-        }
-
+        try { await ScrapeGame(g.id); } catch { /* continue */ }
         active.delete(g.id);
         done++;
         report();
@@ -119,6 +104,22 @@ function App() {
     setScrapingIds(new Set());
     setScrapeDone(0);
     setScrapeTotal(0);
+  };
+
+  const handleScrapeAll = async () => {
+    setError('');
+    const targets = games.filter(isIncomplete);
+    if (targets.length === 0) {
+      setError('All games have complete metadata. Use Force Scrape All to re-scrape.');
+      return;
+    }
+    await runScrapeBatch(targets);
+  };
+
+  const handleForceScrapeAll = async () => {
+    setError('');
+    if (games.length === 0) return;
+    await runScrapeBatch([...games]);
   };
 
   const handleGameClick = (g: game.GameInfo) => {
@@ -175,19 +176,16 @@ function App() {
           </div>
           <div className="top-bar-right">
             {games.length > 0 && (
-              <button
-                className="btn btn-secondary"
-                onClick={handleScrapeAll}
-                disabled={isScraping}
-              >
-                {isScraping ? `Scraping... ${scrapeDone}/${scrapeTotal}` : 'Scrape All'}
-              </button>
+              <>
+                <button className="btn btn-secondary" onClick={handleScrapeAll} disabled={isScraping}>
+                  {isScraping ? `Scraping... ${scrapeDone}/${scrapeTotal}` : 'Scrape All'}
+                </button>
+                <button className="btn btn-ghost-sm" onClick={handleForceScrapeAll} disabled={isScraping} title="Force re-scrape all games">
+                  Force
+                </button>
+              </>
             )}
-            <button
-              className="btn btn-primary"
-              onClick={handleScan}
-              disabled={isScanning}
-            >
+            <button className="btn btn-primary" onClick={handleScan} disabled={isScanning}>
               {isScanning ? 'Scanning...' : 'Scan Games'}
             </button>
           </div>
@@ -210,12 +208,8 @@ function App() {
           <div className="scan-summary">
             <span className="scan-stat scan-new">+{newGames} new</span>
             <span className="scan-stat scan-existing">{existingGames} existing</span>
-            {errorGames > 0 && (
-              <span className="scan-stat scan-error">{errorGames} errors</span>
-            )}
-            <button className="scan-dismiss" onClick={() => setScanResults(null)}>
-              Dismiss
-            </button>
+            {errorGames > 0 && <span className="scan-stat scan-error">{errorGames} errors</span>}
+            <button className="scan-dismiss" onClick={() => setScanResults(null)}>Dismiss</button>
           </div>
         )}
 

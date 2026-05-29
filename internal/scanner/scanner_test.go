@@ -22,7 +22,6 @@ func testdataDir(t *testing.T) string {
 func testConfig() *config.Config {
 	return &config.Config{
 		MachineID:       "test-machine",
-		MachineName:     "Test",
 		GameDirectories: []string{".\\testdata"},
 		MaxScanDepth:    4,
 		Language:        "zh-CN",

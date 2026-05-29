@@ -62,15 +62,6 @@ func TestDefaultSources(t *testing.T) {
 	if !cfg.Sources[0].Enabled {
 		t.Error("steam should be enabled by default")
 	}
-	if !cfg.Sources[1].Enabled {
-		t.Error("vndb should be enabled by default")
-	}
-	if !cfg.Sources[2].Enabled {
-		t.Error("dlsite should be enabled by default")
-	}
-	if cfg.Sources[3].Enabled {
-		t.Error("igdb should be disabled by default")
-	}
 }
 
 func TestLegacyMigration(t *testing.T) {

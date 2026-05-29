@@ -11,6 +11,8 @@ import (
 	"GameLibrary/internal/config"
 	"GameLibrary/internal/game"
 	"GameLibrary/internal/scanner"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Config = config.Config
@@ -23,6 +25,7 @@ type Metadata = game.Metadata
 type App struct {
 	ctx     context.Context
 	exeDir  string
+	host    string
 	config  *config.Config
 	scanner *scanner.Scanner
 	games   map[string]*game.GameInfo
@@ -42,6 +45,8 @@ func (a *App) startup(ctx context.Context) {
 		exePath, _ = os.Getwd()
 	}
 	a.exeDir = filepath.Dir(exePath)
+
+	a.host, _ = os.Hostname()
 
 	cfg, err := config.Load(a.exeDir)
 	if err != nil {
@@ -104,6 +109,28 @@ func isGameDir(entries []os.DirEntry) bool {
 		}
 	}
 	return false
+}
+
+func (a *App) PickGameDirectory() (string, error) {
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Game Directory",
+	})
+	if err != nil {
+		return "", err
+	}
+	if dir == "" {
+		return "", nil
+	}
+
+	relPath, err := filepath.Rel(a.exeDir, dir)
+	if err != nil {
+		return dir, nil
+	}
+	return ".\\" + relPath, nil
+}
+
+func (a *App) GetMachineName() string {
+	return a.host
 }
 
 func (a *App) GetConfig() *config.Config {
@@ -191,7 +218,7 @@ func (a *App) GetAppInfo() map[string]string {
 	return map[string]string{
 		"exeDir":      a.exeDir,
 		"machineId":   a.config.MachineID,
-		"machineName": a.config.MachineName,
+		"machineName": a.host,
 		"version":     "0.1.0",
 		"buildTime":   time.Now().Format(time.RFC3339),
 	}

@@ -718,10 +718,7 @@
 .dir-add {
   display: flex;
   gap: 8px;
-}
-
-.dir-add input {
-  flex: 1;
+  margin-top: 4px;
 }
 
 .btn-icon-sm {
@@ -849,4 +846,30 @@
 
 .toggle-on .toggle-knob {
   transform: translateX(16px);
+}
+
+/* ===== About / System Info ===== */
+.about-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.about-label {
+  font-size: 13px;
+  color: #888;
+}
+
+.about-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+  font-family: "Consolas", "Monaco", monospace;
 }

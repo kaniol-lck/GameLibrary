@@ -12,6 +12,10 @@ export function GetGame(arg1:string):Promise<game.GameInfo>;
 
 export function GetGameList():Promise<Array<game.GameInfo>>;
 
+export function GetMachineName():Promise<string>;
+
+export function PickGameDirectory():Promise<string>;
+
 export function SaveConfig(arg1:config.Config):Promise<void>;
 
 export function ScanGames():Promise<Array<scanner.ScanResult>>;

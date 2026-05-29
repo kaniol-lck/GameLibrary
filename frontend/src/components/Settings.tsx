@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GetConfig, SaveConfig } from '../../wailsjs/go/main/App';
+import { GetConfig, SaveConfig, PickGameDirectory, GetMachineName } from '../../wailsjs/go/main/App';
 import { config } from '../../wailsjs/go/models';
 
 interface SourceMeta {
@@ -15,15 +15,16 @@ const SOURCE_META: Record<string, SourceMeta> = {
 
 export default function Settings() {
   const [cfg, setCfg] = useState<config.Config | null>(null);
+  const [host, setHost] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-  const [newDir, setNewDir] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const c = await GetConfig();
+        const [c, h] = await Promise.all([GetConfig(), GetMachineName()]);
         setCfg(c);
+        setHost(h);
       } catch (err) {
         setError(String(err));
       }
@@ -48,10 +49,14 @@ export default function Settings() {
     setCfg(config.Config.createFrom({ ...cfg, ...patch }));
   };
 
-  const addGameDir = () => {
-    if (!cfg || !newDir.trim()) return;
-    updateCfg({ gameDirectories: [...cfg.gameDirectories, newDir.trim()] });
-    setNewDir('');
+  const browseDirectory = async () => {
+    try {
+      const path = await PickGameDirectory();
+      if (!path) return;
+      updateCfg({ gameDirectories: [...(cfg?.gameDirectories || []), path] });
+    } catch (err) {
+      setError(String(err));
+    }
   };
 
   const removeGameDir = (index: number) => {
@@ -76,10 +81,6 @@ export default function Settings() {
     if (target < 0 || target >= sources.length) return;
     [sources[index], sources[target]] = [sources[target], sources[index]];
     updateCfg({ metadataSources: sources });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') addGameDir();
   };
 
   if (!cfg) {
@@ -114,31 +115,12 @@ export default function Settings() {
         <div className="settings-grid">
           <section className="settings-card">
             <div className="settings-card-header">
-              <span className="settings-card-icon">&#9881;</span>
-              <div>
-                <h3>Machine</h3>
-                <p className="form-hint">Identify this client for playtime tracking and locks.</p>
-              </div>
-            </div>
-            <div className="settings-card-body">
-              <div className="form-group">
-                <label>Machine Name</label>
-                <input
-                  type="text"
-                  value={cfg.machineName}
-                  onChange={(e) => updateCfg({ machineName: e.target.value })}
-                  placeholder="Living Room PC"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="settings-card">
-            <div className="settings-card-header">
               <span className="settings-card-icon">&#128451;</span>
               <div>
                 <h3>Game Directories</h3>
-                <p className="form-hint">Paths relative to the manager executable.</p>
+                <p className="form-hint">
+                  Paths relative to the manager. Use Browse to pick from this machine's file system.
+                </p>
               </div>
             </div>
             <div className="settings-card-body">
@@ -160,15 +142,8 @@ export default function Settings() {
                 ))}
               </div>
               <div className="dir-add">
-                <input
-                  type="text"
-                  value={newDir}
-                  onChange={(e) => setNewDir(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder=".\\Games"
-                />
-                <button className="btn btn-secondary" onClick={addGameDir}>
-                  Add
+                <button className="btn btn-secondary" onClick={browseDirectory}>
+                  Browse...
                 </button>
               </div>
             </div>
@@ -280,6 +255,26 @@ export default function Settings() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <span className="settings-card-icon">&#128187;</span>
+              <div>
+                <h3>About</h3>
+                <p className="form-hint">
+                  Machine name is auto-detected from your system hostname.
+                </p>
+              </div>
+            </div>
+            <div className="settings-card-body">
+              <div className="about-info">
+                <div className="about-row">
+                  <span className="about-label">Machine Name</span>
+                  <span className="about-value">{host}</span>
+                </div>
               </div>
             </div>
           </section>

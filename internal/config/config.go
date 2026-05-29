@@ -14,7 +14,6 @@ type MetadataSource struct {
 
 type Config struct {
 	MachineID       string           `json:"machineId"`
-	MachineName     string           `json:"machineName"`
 	GameDirectories []string         `json:"gameDirectories"`
 	MaxScanDepth    int              `json:"maxScanDepth"`
 	Language        string           `json:"language"`
@@ -24,7 +23,6 @@ type Config struct {
 
 func Default() *Config {
 	return &Config{
-		MachineName:     "Default",
 		GameDirectories: []string{".\\Games"},
 		MaxScanDepth:    3,
 		Language:        "zh-CN",

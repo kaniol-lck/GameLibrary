@@ -18,7 +18,6 @@ export namespace config {
 	}
 	export class Config {
 	    machineId: string;
-	    machineName: string;
 	    gameDirectories: string[];
 	    maxScanDepth: number;
 	    language: string;
@@ -32,7 +31,6 @@ export namespace config {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.machineId = source["machineId"];
-	        this.machineName = source["machineName"];
 	        this.gameDirectories = source["gameDirectories"];
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];

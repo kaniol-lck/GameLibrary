@@ -18,6 +18,14 @@ export function GetGameList() {
   return window['go']['main']['App']['GetGameList']();
 }
 
+export function GetMachineName() {
+  return window['go']['main']['App']['GetMachineName']();
+}
+
+export function PickGameDirectory() {
+  return window['go']['main']['App']['PickGameDirectory']();
+}
+
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
 }

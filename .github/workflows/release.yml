@@ -62,7 +62,11 @@ jobs:
       - name: Prepare assets
         shell: bash
         run: |
-          BIN="build/bin/GameLibrary${{ matrix.ext }}"
+          if [ "${{ matrix.goos }}" = "darwin" ]; then
+            BIN="build/bin/GameLibrary.app/Contents/MacOS/GameLibrary"
+          else
+            BIN="build/bin/GameLibrary${{ matrix.ext }}"
+          fi
           ASSET="GameLibrary-${{ matrix.goos }}-amd64${{ matrix.ext }}"
           cp "$BIN" "$ASSET"
           if command -v sha256sum &> /dev/null; then

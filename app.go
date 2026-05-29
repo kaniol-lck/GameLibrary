@@ -309,7 +309,7 @@ func (a *App) GetAppInfo() map[string]string {
 		"exeDir":      a.exeDir,
 		"machineId":   a.config.MachineID,
 		"machineName": a.host,
-		"version":     "0.1.0",
+		"version":     "0.2.0-alpha",
 		"buildTime":   time.Now().Format(time.RFC3339),
 	}
 }

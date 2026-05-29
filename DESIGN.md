@@ -1,6 +1,20 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Last updated: 2026-05-29
+> AI-assisted project. Current version: **0.2.0-alpha** | Last updated: 2026-05-29
+
+## 版本路线图
+
+| 版本 | 阶段 | 核心功能 | 状态 |
+|------|------|---------|------|
+| 0.1.0-alpha | Phase 1 — 骨架 | 项目搭建、扫描器、基础 UI | ✅ |
+| 0.2.0-alpha | Phase 2 — 刮削 | 多源元数据刮削、详情页、双封面 | ✅ |
+| 0.3.0-alpha | Phase 3 — 启动 | 游戏启动、锁机制、运行状态 | 📋 |
+| 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
+| 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
+| 0.9.0-beta  | 测试完善 | 全功能测试、Bug 修复、文档 | 📋 |
+| 1.0.0       | 正式发布 | 稳定版 | 📋 |
+
+---
 
 ## 1. 项目概述
 
@@ -430,18 +444,19 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 - [x] 17 个单元测试全部通过
 - [x] Git 版本控制 + GitHub 推送
 
-### Phase 2 — 刮削 🚧 (进行中)
+### Phase 2 — 刮削 ✅ (已完成) — `0.2.0-alpha`
 
-- [x] Steam API 集成 (store.steampowered.com/api)
+- [x] Steam API 集成 (appdetails + storesearch)
 - [x] VNDB API 集成
 - [x] DLsite 爬虫 (RJ 号识别)
 - [x] 刮削流水线：Pipeline 按 metadataSources 优先级依次查询
-- [x] 封面下载到本地 .gamemanager/thumbnails/
+- [x] 封面下载到游戏目录 (竖版 cover + 横版 cover_landscape)
 - [x] 游戏详情页（右侧滑出面板）
 - [x] 刮削器单元测试
-- [ ] 批量刮削进度指示 (UI 增强)
-- [ ] SteamGridDB 封面作为备选源
-- [ ] IGDB 集成 (需 OAuth)
+- [x] 批量刮削进度条 + 并行限制 (3 并发)
+- [x] 不完整数据检测 (缺封面/描述/日期自动补刮)
+- [x] 语言感知刮削 (Steam/VNDB 按 zh-CN 返回本地化结果)
+- [x] 数据源专属设置 (展开式配置面板，API Key 等)
 
 ### Phase 3 — 启动与锁 (规划中)
 

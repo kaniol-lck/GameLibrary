@@ -3,8 +3,12 @@ import './App.css';
 import { GetGameList, ScanGames, GetAppInfo } from '../wailsjs/go/main/App';
 import { main } from '../wailsjs/go/models';
 import GameCard from './components/GameCard';
+import Settings from './components/Settings';
+
+type Page = 'library' | 'settings';
 
 function App() {
+  const [page, setPage] = useState<Page>('library');
   const [games, setGames] = useState<main.GameInfo[]>([]);
   const [appInfo, setAppInfo] = useState<Record<string, string> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -53,6 +57,10 @@ function App() {
   const existingGames = scanResults?.filter((r) => !r.isNew && !r.error).length ?? 0;
   const errorGames = scanResults?.filter((r) => r.error).length ?? 0;
 
+  if (page === 'settings') {
+    return <Settings onBack={() => setPage('library')} />;
+  }
+
   return (
     <div id="App">
       <header className="app-header">
@@ -69,6 +77,13 @@ function App() {
             disabled={isScanning}
           >
             {isScanning ? 'Scanning...' : 'Scan Games'}
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setPage('settings')}
+            title="Settings"
+          >
+            &#9881;
           </button>
         </div>
       </header>

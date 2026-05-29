@@ -1134,6 +1134,29 @@
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 8px;
+}
+
+.detail-actions .btn {
+  background: #22c55e;
+  color: #000;
+  font-weight: 600;
+}
+
+.detail-actions .btn:hover {
+  background: #16a34a;
+}
+
+.detail-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+  font-weight: 500;
+}
+
+.detail-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 .scrape-result {

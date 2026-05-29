@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ScrapeGame, GetGameCoverLandscape } from '../../wailsjs/go/main/App';
+import { ScrapeGame, LaunchGame, GetGameCoverLandscape } from '../../wailsjs/go/main/App';
 
 interface GameDetailProps {
   game: game.GameInfo;
@@ -136,7 +136,14 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
           </div>
 
           <div className="detail-actions">
-            <button className="btn btn-primary" onClick={handleScrape} disabled={scraping}>
+            <button className="btn" onClick={async () => {
+              try {
+                await LaunchGame(g.id);
+              } catch (err) { setScrapeMsg(String(err)); }
+            }}>
+              &#9654; Launch Game
+            </button>
+            <button className="btn btn-secondary" onClick={handleScrape} disabled={scraping}>
               {scraping ? 'Scraping...' : 'Scrape Metadata'}
             </button>
           </div>

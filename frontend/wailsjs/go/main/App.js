@@ -30,6 +30,10 @@ export function GetMachineName() {
   return window['go']['main']['App']['GetMachineName']();
 }
 
+export function LaunchGame(arg1) {
+  return window['go']['main']['App']['LaunchGame'](arg1);
+}
+
 export function PickGameDirectory() {
   return window['go']['main']['App']['PickGameDirectory']();
 }

@@ -19,6 +19,8 @@ export function GetGameList():Promise<Array<game.GameInfo>>;
 
 export function GetMachineName():Promise<string>;
 
+export function LaunchGame(arg1:string):Promise<void>;
+
 export function PickGameDirectory():Promise<string>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;

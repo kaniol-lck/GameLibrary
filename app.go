@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -304,6 +305,50 @@ func (a *App) ScrapeAllGames() []ScrapeReport {
 		reports = append(reports, *report)
 	}
 	return reports
+}
+
+func (a *App) LaunchGame(id string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+
+	primary := findPrimaryExec(info.Executables)
+	if primary == nil {
+		return fmt.Errorf("no executable found for %s", info.Title)
+	}
+
+	exePath := filepath.Join(info.GameDir, primary.Path)
+	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		return fmt.Errorf("executable not found: %s", exePath)
+	}
+
+	cmd := exec.Command(exePath)
+	cmd.Dir = info.GameDir
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to launch: %w", err)
+	}
+
+	go func() {
+		cmd.Wait()
+	}()
+
+	info.LastPlayedAt = time.Now().UTC().Format(time.RFC3339)
+	info.Save()
+
+	return nil
+}
+
+func findPrimaryExec(executables []game.Executable) *game.Executable {
+	for i := range executables {
+		if executables[i].Primary {
+			return &executables[i]
+		}
+	}
+	if len(executables) > 0 {
+		return &executables[0]
+	}
+	return nil
 }
 
 func (a *App) GetAppInfo() map[string]string {

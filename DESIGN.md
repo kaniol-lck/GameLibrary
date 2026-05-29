@@ -1,0 +1,354 @@
+# GameLibrary — 设计文档
+
+> AI-assisted project. Last updated: 2026-05-29
+
+## 1. 项目概述
+
+GameLibrary 是一个跨机器、便携式的游戏库管理器。管理程序与游戏文件一同存放在 NAS 网络挂载路径中，所有客户端共享同一份程序与配置，通过相对路径寻址实现零配置跨机迁移。
+
+### 核心理念
+
+- **便携优先** — 单 exe 放入 NAS 根目录即可运行，无需服务端部署
+- **文件即数据** — 元数据存为 JSON 文件，免数据库，拷贝即迁移
+- **NAS 即云端** — 游戏文件、存档、元数据统一存放于 NAS，多端共享
+
+---
+
+## 2. 架构设计
+
+### 2.1 整体架构
+
+```
+┌──────────────────────────────────────────────────────┐
+│  NAS                                                  │
+│  GameLibrary\                                         │
+│  ├── GameManager.exe        ← 单文件管理程序 (Wails)   │
+│  ├── config.json            ← 全局配置 (多端共享)      │
+│  ├── .gamemanager\          ← 系统数据 (规划中)        │
+│  └── Games\                 ← 游戏库                   │
+│      ├── GameA\                                       │
+│      │   ├── .gameinfo.json ← 元数据                   │
+│      │   └── game.exe                                 │
+│      └── GameB\                                       │
+│          └── .gameinfo.json                           │
+└──────────────────────────────────────────────────────┘
+         │                        │
+    ┌────┴────┐              ┌────┴────┐
+    │ 客户端 A │              │ 客户端 B │
+    │ Z:\ → NAS│              │ Y:\ → NAS│
+    │          │              │          │
+    │ 机器名   │              │ 机器名   │
+    │ 从系统   │              │ 从系统   │
+    │ 自动获取 │              │ 自动获取 │
+    └─────────┘              └─────────┘
+```
+
+### 2.2 技术栈
+
+| 层 | 技术 | 说明 |
+|----|------|------|
+| 运行时 | Wails v2 | Go + WebView2，编译为单 exe |
+| 后端 | Go 1.23+ | 文件扫描、进程管理、API 服务 |
+| 前端 | React 18 + TypeScript + Vite | SPA 嵌入 WebView2 |
+| 样式 | Pure CSS (dark theme) | 无第三方 UI 库 |
+| 数据 | JSON 文件 | 免数据库，Git 友好 |
+| IPC | Wails Bindings | Go ↔ JS 自动生成类型安全的绑定 |
+
+### 2.3 目录结构
+
+```
+GameLibrary/
+├── main.go                     # Wails 入口 (package main)
+├── app.go                      # App 主体 + 类型别名
+├── internal/                   # 内部包 (不可外部导入)
+│   ├── config/
+│   │   ├── config.go           # 配置模型 + 读写 + 旧版迁移
+│   │   └── config_test.go
+│   ├── game/
+│   │   ├── gameinfo.go         # 游戏元数据模型 + JSON 持久化
+│   │   └── gameinfo_test.go
+│   └── scanner/
+│       ├── scanner.go          # 目录递归扫描 + exe 识别
+│       └── scanner_test.go
+├── frontend/                   # React SPA
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── wailsjs/                # Wails 自动生成的 TS 绑定 (提交)
+│   │   ├── go/main/App.d.ts    # Go 方法声明
+│   │   ├── go/main/App.js      # Go 方法调用
+│   │   ├── go/models.ts        # Go 结构体的 TS 类
+│   │   └── runtime/            # Wails 运行时
+│   └── src/
+│       ├── App.tsx             # 主布局 (侧边栏 + 内容区)
+│       ├── App.css             # 全局样式
+│       ├── main.tsx            # ReactDOM 入口
+│       └── components/
+│           ├── Sidebar.tsx      # 可折叠侧边栏导航
+│           ├── GameCard.tsx     # 游戏封面卡片
+│           └── Settings.tsx     # 设置页面
+├── testdata/                   # 测试用模拟游戏目录
+│   ├── simple_steam_game/
+│   ├── deep_exe_game/
+│   ├── multi_exe_game/
+│   ├── local_game/
+│   ├── visual_novel/
+│   ├── collection/
+│   ├── already_scanned/
+│   └── not_a_game/
+├── DESIGN.md                   # 本文件
+├── README.md                   # 用户文档
+├── wails.json                  # Wails 项目配置
+├── go.mod / go.sum
+└── .gitignore
+```
+
+### 2.4 数据流
+
+```
+用户点击 Scan Games
+  → App.ScanGames() [Go]
+    → scanner.ScanAll()
+      → 遍历 config.GameDirectories
+        → scanDir() 递归扫描
+          → 发现 .exe → identifyGame()
+            → 读 steam_appid.txt (向上3层)
+            → 创建 GameInfo → 写入 .gameinfo.json
+    → refreshGameCache()
+      → 遍历目录加载所有 .gameinfo.json
+  ← 返回 ScanResult[]
+    → React setGames() → 渲染 GameCard 网格
+
+用户修改设置
+  → Settings 组件编辑 config
+  → SaveConfig(cfg) [Go]
+    → config.Save(exeDir) → 写 config.json
+```
+
+### 2.5 Wails IPC 绑定机制
+
+```
+Go (package main + internal/*)
+  │
+  │  Wails 编译时分析 App struct 的导出方法
+  │  自动生成 TypeScript 绑定文件
+  ▼
+frontend/wailsjs/go/main/App.js   ← JS 代理函数
+frontend/wailsjs/go/main/App.d.ts ← TS 类型声明
+frontend/wailsjs/go/models.ts     ← Go struct → TS class
+
+前端调用:
+  import { GetGameList } from '../wailsjs/go/main/App'
+  const games = await GetGameList()  // 类型: game.GameInfo[]
+```
+
+`app.go` 中使用类型别名保持 Wails 生成的命名空间一致：
+```go
+type Config = config.Config          // 实际在 internal/config/
+type GameInfo = game.GameInfo        // 实际在 internal/game/
+type ScanResult = scanner.ScanResult // 实际在 internal/scanner/
+```
+
+---
+
+## 3. 核心模块
+
+### 3.1 Config (`internal/config/`)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `machineId` | string | 自动生成，当前未使用（规划中用于锁文件） |
+| `gameDirectories` | []string | 相对路径的游戏目录列表 |
+| `maxScanDepth` | int | 扫描深度 (1-10) |
+| `language` | string | 刮削语言偏好 (zh-CN/en-US/ja-JP) |
+| `steamApiKey` | string | Steam API Key (规划中) |
+| `metadataSources` | []MetadataSource | 元数据源列表，顺序即优先级 |
+
+**MetadataSource:**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `key` | string | 标识 (steam/vndb/dlsite/igdb) |
+| `name` | string | 显示名称 |
+| `enabled` | bool | 是否启用 |
+
+**兼容性：** `Load()` 自动将旧版 `vndbEnabled`/`dlsiteEnabled` 字段迁移为 `metadataSources`。
+
+### 3.2 GameInfo (`internal/game/`)
+
+每个游戏目录下的 `.gameinfo.json` 文件，记录：
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 唯一标识 (steam_123456 或目录名) |
+| `title` | 游戏标题 (初始为目录名) |
+| `platform` | 来源平台 (steam/local/vndb/dlsite) |
+| `executables` | 可执行文件列表，含 Primary 标记 |
+| `savePaths` | 存档路径配置 (规划中) |
+| `metadata` | 刮削元数据 (封面/开发商/标签等) |
+| `totalPlaytime` | 累计游玩时长 (规划中，需多端聚合) |
+
+### 3.3 Scanner (`internal/scanner/`)
+
+递归扫描逻辑：
+
+```
+ScanAll()
+  for each gameDir in config.GameDirectories:
+    resolve relative path → scanDir(absDir, depth=0)
+
+scanDir(dir, depth):
+  if dir 包含 .exe → identifyGame(dir) → 生成 .gameinfo.json
+  if depth >= maxDepth → 停止
+  else → 递归进入子目录 (跳过 . 开头的隐藏目录)
+
+identifyGame(dir):
+  1. 检查 dir/.gameinfo.json → 已存在则返回 (IsNew=false)
+  2. 向上 3 层查找 steam_appid.txt → 解析 AppID
+  3. 列出 dir 中所有 .exe (过滤 unins*.exe)
+  4. pickPrimaryExec: game > launcher > start > main > app > 最短名
+  5. game.New() → game.Save() → 写入 .gameinfo.json
+```
+
+**游戏识别优先级：**
+1. `steam_appid.txt` 精确匹配 → Steam ID
+2. 未来：文件名哈希 / VNDB 搜索 / DLsite RJ 号匹配
+3. 兜底：目录名作为 ID，platform=local
+
+---
+
+## 4. 前端设计
+
+### 4.1 组件树
+
+```
+App
+├── Sidebar
+│   ├── Brand (logo + title + collapse button)
+│   ├── Nav Items
+│   │   ├── "All Games" (count badge)
+│   │   ├── Divider + "Categories"
+│   │   └── Dynamic categories from game.type / game.tags
+│   └── Bottom (machine name + Settings link, fixed)
+└── Main Area
+    ├── Top Bar (machine badge + Scan button)
+    ├── Alert / Scan Summary
+    └── Content
+        ├── Content Header (title + count)
+        ├── Game Grid (filtered by selected category)
+        │   └── GameCard × N
+        └── Settings (when selectedNav === 'settings')
+```
+
+### 4.2 页面
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 游戏库 | `selectedNav === 'all'` | 封面墙，按最近游玩/标题排序 |
+| 分类视图 | `selectedNav === 'type:xxx'` / `'tag:xxx'` | 按 type/tag 过滤 |
+| 设置 | `selectedNav === 'settings'` | 卡片式布局，6 个设置卡片 |
+
+### 4.3 设置页面卡片
+
+1. **Game Directories** — 列表增删 + Browse 按钮 (调系统文件夹选择器)
+2. **Scanning** — 深度滑块 (1-10)
+3. **Language** — 下拉选择
+4. **Metadata Sources** — 可排序列表，toggle 开关，▲▼ 排序
+5. **About** — 展示自动获取的机器名
+
+---
+
+## 5. 设计决策记录
+
+### 5.1 为什么选择便携架构而非 Server+Agent？
+
+| Server+Agent | Portable NAS |
+|--------------|-------------|
+| 需要部署服务端 | 单 exe 放入 NAS 即可 |
+| 需各端装 Agent | 各端直接运行同一 exe |
+| 数据库集中管理 | JSON 文件化，无依赖 |
+| 适合多用户 | 适合个人/家庭 |
+
+对于个人使用场景，便携架构在部署复杂度、数据可移植性、离线能力上均占优。
+
+### 5.2 为什么 MachineName 不存 config.json？
+
+`config.json` 存放于 NAS，所有客户端共享。如果存储 MachineName，最后保存的客户端会覆盖其他客户端的设置。改为 `os.Hostname()` 自动获取，每台机器独立识别。
+
+### 5.3 为什么使用 internal/ 而非 pkg/？
+
+`internal/` 是 Go 的约定，表示包仅限模块内部使用，外部项目无法导入。本项目不打算对外提供库接口，使用 `internal/` 更准确。
+
+### 5.4 为什么 Wails 绑定文件提交到 Git？
+
+`frontend/wailsjs/` 由 Wails 自动生成，提交后其他开发者无需安装 Wails CLI 即可构建前端。这是 Wails 官方推荐的做法。
+
+### 5.5 为什么游戏目录选择后转为相对路径？
+
+NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路径 (`.\Games`) 而非绝对路径 (`Z:\Games`) 确保跨机兼容。
+
+---
+
+## 6. 开发进度
+
+### Phase 1 — 骨架 ✅ (已完成)
+
+- [x] Wails v2 + React + TypeScript 项目初始化
+- [x] Config 配置模型、JSON 读写、旧版迁移
+- [x] GameInfo 元数据模型、JSON 持久化
+- [x] 游戏扫描器：递归遍历、exe 识别、steam_appid 解析
+- [x] React 前端：侧边栏布局、封面墙、空状态
+- [x] 设置页面：游戏目录管理、扫描深度、语言、元数据源
+- [x] 系统文件夹选择器 (Browse) + 相对路径转换
+- [x] 机器名从 os.Hostname() 自动获取
+- [x] 17 个单元测试全部通过
+- [x] Git 版本控制 + GitHub 推送
+
+### Phase 2 — 刮削 (规划中)
+
+- [ ] Steam API 集成 (store.steampowered.com/api)
+- [ ] SteamGridDB 封面下载
+- [ ] VNDB API 集成
+- [ ] DLsite 爬虫 (RJ 号识别)
+- [ ] IGDB API 集成
+- [ ] 刮削流水线：按 metadataSources 优先级依次查询
+- [ ] 游戏详情页
+
+### Phase 3 — 启动与锁 (规划中)
+
+- [ ] 进程启动 (os/exec)
+- [ ] 锁文件机制 (防多端同时启动)
+- [ ] 心跳检测与死锁清理
+- [ ] 启动按钮 + 运行状态 UI
+
+### Phase 4 — 时长统计 (规划中)
+
+- [ ] 进程存活监控
+- [ ] 会话文件记录
+- [ ] 多端时间聚合
+- [ ] 时长展示
+
+### Phase 5 — 云存档 (规划中)
+
+- [ ] 符号链接方案 (mklink /J)
+- [ ] 文件复制同步方案
+- [ ] PreSync / PostSync 流程
+- [ ] 存档路径配置 (手动 + PCGamingWiki)
+- [ ] 备份与版本管理
+
+---
+
+## 7. 构建与开发
+
+```bash
+# 环境要求: Go 1.23+, Node.js 18+
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+# 开发模式 (热重载)
+wails dev
+
+# 生产构建
+wails build
+
+# 运行测试
+go test ./...
+```

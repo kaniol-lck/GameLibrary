@@ -1,8 +1,8 @@
-import { main } from '../../wailsjs/go/models';
+import { game } from '../../wailsjs/go/models';
 
 interface GameCardProps {
-  game: main.GameInfo;
-  onClick?: (game: main.GameInfo) => void;
+  game: game.GameInfo;
+  onClick?: (game: game.GameInfo) => void;
 }
 
 function formatPlaytime(seconds: number): string {

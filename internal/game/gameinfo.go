@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"encoding/json"
@@ -44,16 +44,16 @@ type GameInfo struct {
 	TotalPlaytime int64  `json:"totalPlaytime"`
 	LastPlayedAt  string `json:"lastPlayedAt,omitempty"`
 
-	gameDir     string `json:"-"`
-	infoRelPath string `json:"-"`
+	GameDir     string `json:"-"`
+	InfoRelPath string `json:"-"`
 }
 
 func (g *GameInfo) InfoFilePath() string {
-	return filepath.Join(g.gameDir, g.infoRelPath)
+	return filepath.Join(g.GameDir, g.InfoRelPath)
 }
 
 func (g *GameInfo) CoverFilePath() string {
-	return filepath.Join(g.gameDir, "cover.jpg")
+	return filepath.Join(g.GameDir, "cover.jpg")
 }
 
 func (g *GameInfo) Save() error {
@@ -65,7 +65,7 @@ func (g *GameInfo) Save() error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func LoadGameInfo(gameDir string) (*GameInfo, error) {
+func LoadFromDir(gameDir string) (*GameInfo, error) {
 	path := filepath.Join(gameDir, ".gameinfo.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -76,12 +76,12 @@ func LoadGameInfo(gameDir string) (*GameInfo, error) {
 	if err := json.Unmarshal(data, &info); err != nil {
 		return nil, err
 	}
-	info.gameDir = gameDir
-	info.infoRelPath = ".gameinfo.json"
+	info.GameDir = gameDir
+	info.InfoRelPath = ".gameinfo.json"
 	return &info, nil
 }
 
-func newGameInfo(gameDir string, executables []Executable, steamAppID string) *GameInfo {
+func New(gameDir string, executables []Executable, steamAppID string) *GameInfo {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	id := filepath.Base(gameDir)
@@ -102,7 +102,7 @@ func newGameInfo(gameDir string, executables []Executable, steamAppID string) *G
 		Type:        "game",
 		Executables: executables,
 		ScannedAt:   now,
-		gameDir:     gameDir,
-		infoRelPath: ".gameinfo.json",
+		GameDir:     gameDir,
+		InfoRelPath: ".gameinfo.json",
 	}
 }

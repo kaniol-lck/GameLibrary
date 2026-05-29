@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { GetGameList, ScanGames, GetAppInfo } from '../wailsjs/go/main/App';
-import { main } from '../wailsjs/go/models';
+import { game, scanner } from '../wailsjs/go/models';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
@@ -9,10 +9,10 @@ import Sidebar from './components/Sidebar';
 function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedNav, setSelectedNav] = useState('all');
-  const [games, setGames] = useState<main.GameInfo[]>([]);
+  const [games, setGames] = useState<game.GameInfo[]>([]);
   const [appInfo, setAppInfo] = useState<Record<string, string> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResults, setScanResults] = useState<main.ScanResult[] | null>(null);
+  const [scanResults, setScanResults] = useState<scanner.ScanResult[] | null>(null);
   const [error, setError] = useState('');
 
   const loadGames = useCallback(async () => {
@@ -49,7 +49,7 @@ function App() {
     }
   };
 
-  const handleGameClick = (game: main.GameInfo) => {
+  const handleGameClick = (game: game.GameInfo) => {
     console.log('Selected game:', game.title);
   };
 

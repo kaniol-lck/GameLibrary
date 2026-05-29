@@ -1,4 +1,4 @@
-import { main } from '../../wailsjs/go/models';
+import { game } from '../../wailsjs/go/models';
 
 interface Category {
   key: string;
@@ -9,13 +9,13 @@ interface Category {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  games: main.GameInfo[];
+  games: game.GameInfo[];
   selectedNav: string;
   onSelectNav: (key: string) => void;
   machineName: string;
 }
 
-function deriveCategories(games: main.GameInfo[]): Category[] {
+function deriveCategories(games: game.GameInfo[]): Category[] {
   const map = new Map<string, number>();
 
   for (const g of games) {

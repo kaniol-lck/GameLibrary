@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ type Config struct {
 	DLsiteEnabled   bool     `json:"dlsiteEnabled"`
 }
 
-func DefaultConfig() *Config {
+func Default() *Config {
 	return &Config{
 		MachineName:     "Default",
 		GameDirectories: []string{".\\Games"},
@@ -28,12 +28,12 @@ func DefaultConfig() *Config {
 	}
 }
 
-func LoadConfig(exeDir string) (*Config, error) {
+func Load(exeDir string) (*Config, error) {
 	path := filepath.Join(exeDir, "config.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			cfg := DefaultConfig()
+			cfg := Default()
 			cfg.MachineID = generateMachineID()
 			if saveErr := cfg.Save(exeDir); saveErr != nil {
 				return cfg, nil

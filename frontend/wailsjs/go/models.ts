@@ -1,4 +1,4 @@
-export namespace main {
+export namespace config {
 	
 	export class Config {
 	    machineId: string;
@@ -26,6 +26,11 @@ export namespace main {
 	        this.dlsiteEnabled = source["dlsiteEnabled"];
 	    }
 	}
+
+}
+
+export namespace game {
+	
 	export class Executable {
 	    path: string;
 	    name: string;
@@ -135,10 +140,14 @@ export namespace main {
 		}
 	}
 	
+
+}
+
+export namespace scanner {
 	
 	export class ScanResult {
 	    gameDir: string;
-	    gameInfo?: GameInfo;
+	    gameInfo?: game.GameInfo;
 	    isNew: boolean;
 	    error?: string;
 	
@@ -149,7 +158,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.gameDir = source["gameDir"];
-	        this.gameInfo = this.convertValues(source["gameInfo"], GameInfo);
+	        this.gameInfo = this.convertValues(source["gameInfo"], game.GameInfo);
 	        this.isNew = source["isNew"];
 	        this.error = source["error"];
 	    }

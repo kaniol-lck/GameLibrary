@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { GetConfig, SaveConfig } from '../../wailsjs/go/main/App';
-import { main } from '../../wailsjs/go/models';
+import { config } from '../../wailsjs/go/models';
 
 export default function Settings() {
-  const [config, setConfig] = useState<main.Config | null>(null);
+  const [cfg, setCfg] = useState<config.Config | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [newDir, setNewDir] = useState('');
@@ -11,8 +11,8 @@ export default function Settings() {
   useEffect(() => {
     (async () => {
       try {
-        const cfg = await GetConfig();
-        setConfig(cfg);
+        const c = await GetConfig();
+        setCfg(c);
       } catch (err) {
         setError(String(err));
       }
@@ -20,11 +20,11 @@ export default function Settings() {
   }, []);
 
   const handleSave = async () => {
-    if (!config) return;
+    if (!cfg) return;
     setError('');
     setSaved(false);
     try {
-      await SaveConfig(config);
+      await SaveConfig(cfg);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -33,26 +33,26 @@ export default function Settings() {
   };
 
   const addGameDir = () => {
-    if (!config || !newDir.trim()) return;
-    setConfig({
-      ...config,
-      gameDirectories: [...config.gameDirectories, newDir.trim()],
+    if (!cfg || !newDir.trim()) return;
+    setCfg({
+      ...cfg,
+      gameDirectories: [...cfg.gameDirectories, newDir.trim()],
     });
     setNewDir('');
   };
 
   const removeGameDir = (index: number) => {
-    if (!config) return;
-    const dirs = [...config.gameDirectories];
+    if (!cfg) return;
+    const dirs = [...cfg.gameDirectories];
     dirs.splice(index, 1);
-    setConfig({ ...config, gameDirectories: dirs });
+    setCfg({ ...cfg, gameDirectories: dirs });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') addGameDir();
   };
 
-  if (!config) {
+  if (!cfg) {
     return (
       <div className="settings-loading">
         <p>Loading settings...</p>
@@ -87,9 +87,9 @@ export default function Settings() {
             <label>Machine Name</label>
             <input
               type="text"
-              value={config.machineName}
+              value={cfg.machineName}
               onChange={(e) =>
-                setConfig({ ...config, machineName: e.target.value })
+                setCfg({ ...cfg, machineName: e.target.value })
               }
               placeholder="Living Room PC"
             />
@@ -103,10 +103,10 @@ export default function Settings() {
           </p>
 
           <div className="game-dirs-list">
-            {config.gameDirectories.length === 0 && (
+            {cfg.gameDirectories.length === 0 && (
               <p className="empty-hint">No directories configured. Add one below.</p>
             )}
-            {config.gameDirectories.map((dir, i) => (
+            {cfg.gameDirectories.map((dir: string, i: number) => (
               <div key={i} className="game-dir-item">
                 <span className="game-dir-path">{dir}</span>
                 <button
@@ -143,12 +143,12 @@ export default function Settings() {
                 type="range"
                 min={1}
                 max={10}
-                value={config.maxScanDepth}
+                value={cfg.maxScanDepth}
                 onChange={(e) =>
-                  setConfig({ ...config, maxScanDepth: parseInt(e.target.value) })
+                  setCfg({ ...cfg, maxScanDepth: parseInt(e.target.value) })
                 }
               />
-              <span className="form-value">{config.maxScanDepth}</span>
+              <span className="form-value">{cfg.maxScanDepth}</span>
             </div>
             <p className="form-hint">
               How many subdirectory levels to search for games. (1 = only top-level,
@@ -161,9 +161,9 @@ export default function Settings() {
           <h3>Language</h3>
           <div className="form-group">
             <select
-              value={config.language}
+              value={cfg.language}
               onChange={(e) =>
-                setConfig({ ...config, language: e.target.value })
+                setCfg({ ...cfg, language: e.target.value })
               }
             >
               <option value="zh-CN">简体中文</option>
@@ -179,9 +179,9 @@ export default function Settings() {
             <label className="checkbox-label">
               <input
                 type="checkbox"
-                checked={config.vndbEnabled}
+                checked={cfg.vndbEnabled}
                 onChange={(e) =>
-                  setConfig({ ...config, vndbEnabled: e.target.checked })
+                  setCfg({ ...cfg, vndbEnabled: e.target.checked })
                 }
               />
               VNDB (Visual Novel Database)
@@ -191,9 +191,9 @@ export default function Settings() {
             <label className="checkbox-label">
               <input
                 type="checkbox"
-                checked={config.dlsiteEnabled}
+                checked={cfg.dlsiteEnabled}
                 onChange={(e) =>
-                  setConfig({ ...config, dlsiteEnabled: e.target.checked })
+                  setCfg({ ...cfg, dlsiteEnabled: e.target.checked })
                 }
               />
               DLsite

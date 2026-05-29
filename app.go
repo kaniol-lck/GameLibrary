@@ -7,19 +7,30 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"GameLibrary/internal/config"
+	"GameLibrary/internal/game"
+	"GameLibrary/internal/scanner"
 )
+
+type Config = config.Config
+type GameInfo = game.GameInfo
+type ScanResult = scanner.ScanResult
+type Executable = game.Executable
+type SavePath = game.SavePath
+type Metadata = game.Metadata
 
 type App struct {
 	ctx     context.Context
 	exeDir  string
-	config  *Config
-	scanner *Scanner
-	games   map[string]*GameInfo
+	config  *config.Config
+	scanner *scanner.Scanner
+	games   map[string]*game.GameInfo
 }
 
 func NewApp() *App {
 	return &App{
-		games: make(map[string]*GameInfo),
+		games: make(map[string]*game.GameInfo),
 	}
 }
 
@@ -32,18 +43,18 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.exeDir = filepath.Dir(exePath)
 
-	cfg, err := LoadConfig(a.exeDir)
+	cfg, err := config.Load(a.exeDir)
 	if err != nil {
-		cfg = DefaultConfig()
+		cfg = config.Default()
 	}
 	a.config = cfg
-	a.scanner = NewScanner(a.exeDir, a.config)
+	a.scanner = scanner.New(a.exeDir, a.config)
 
 	a.refreshGameCache()
 }
 
 func (a *App) refreshGameCache() {
-	a.games = make(map[string]*GameInfo)
+	a.games = make(map[string]*game.GameInfo)
 
 	for _, relDir := range a.config.GameDirectories {
 		absDir := filepath.Join(a.exeDir, relDir)
@@ -59,7 +70,7 @@ func (a *App) loadGamesFromDir(dir string, depth int) {
 	}
 
 	if isGameDir(entries) {
-		if info, err := LoadGameInfo(dir); err == nil {
+		if info, err := game.LoadFromDir(dir); err == nil {
 			a.games[info.ID] = info
 		}
 		return
@@ -95,19 +106,19 @@ func isGameDir(entries []os.DirEntry) bool {
 	return false
 }
 
-func (a *App) GetConfig() *Config {
+func (a *App) GetConfig() *config.Config {
 	return a.config
 }
 
-func (a *App) SaveConfig(cfg *Config) error {
+func (a *App) SaveConfig(cfg *config.Config) error {
 	a.config = cfg
 	return cfg.Save(a.exeDir)
 }
 
-func (a *App) ScanGames() []ScanResult {
+func (a *App) ScanGames() []scanner.ScanResult {
 	results, err := a.scanner.ScanAll()
 	if err != nil {
-		return []ScanResult{{
+		return []scanner.ScanResult{{
 			Error: "scan failed: " + err.Error(),
 		}}
 	}
@@ -121,8 +132,8 @@ func (a *App) ScanGames() []ScanResult {
 	return results
 }
 
-func (a *App) GetGameList() []*GameInfo {
-	list := make([]*GameInfo, 0, len(a.games))
+func (a *App) GetGameList() []*game.GameInfo {
+	list := make([]*game.GameInfo, 0, len(a.games))
 	for _, info := range a.games {
 		infoCopy := *info
 		list = append(list, &infoCopy)
@@ -144,7 +155,7 @@ func (a *App) GetGameList() []*GameInfo {
 	return list
 }
 
-func (a *App) GetGame(id string) *GameInfo {
+func (a *App) GetGame(id string) *game.GameInfo {
 	info, ok := a.games[id]
 	if !ok {
 		return nil
@@ -153,7 +164,7 @@ func (a *App) GetGame(id string) *GameInfo {
 	return &infoCopy
 }
 
-func (a *App) UpdateGameInfo(info *GameInfo) error {
+func (a *App) UpdateGameInfo(info *game.GameInfo) error {
 	existing, ok := a.games[info.ID]
 	if !ok {
 		existing = info

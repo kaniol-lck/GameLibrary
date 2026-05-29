@@ -1,27 +1,30 @@
-package main
+package scanner
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"GameLibrary/internal/config"
+	"GameLibrary/internal/game"
 )
 
 type ScanResult struct {
-	GameDir  string    `json:"gameDir"`
-	GameInfo *GameInfo `json:"gameInfo"`
-	IsNew    bool      `json:"isNew"`
-	Error    string    `json:"error,omitempty"`
+	GameDir  string         `json:"gameDir"`
+	GameInfo *game.GameInfo `json:"gameInfo"`
+	IsNew    bool           `json:"isNew"`
+	Error    string         `json:"error,omitempty"`
 }
 
 type Scanner struct {
 	exeDir string
-	config *Config
+	config *config.Config
 }
 
-func NewScanner(exeDir string, config *Config) *Scanner {
+func New(exeDir string, cfg *config.Config) *Scanner {
 	return &Scanner{
 		exeDir: exeDir,
-		config: config,
+		config: cfg,
 	}
 }
 
@@ -39,6 +42,10 @@ func (s *Scanner) ScanAll() ([]ScanResult, error) {
 		results = append(results, dirResults...)
 	}
 	return results, nil
+}
+
+func (s *Scanner) ScanDir(dir string) []ScanResult {
+	return s.scanDir(dir, 0)
 }
 
 func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
@@ -87,17 +94,17 @@ func (s *Scanner) isGameDirectory(entries []os.DirEntry) bool {
 }
 
 func (s *Scanner) identifyGame(gameDir string) ScanResult {
-	existing, err := LoadGameInfo(gameDir)
+	existing, err := game.LoadFromDir(gameDir)
 	if err == nil && existing != nil {
-		existing.gameDir = gameDir
-		existing.infoRelPath = ".gameinfo.json"
+		existing.GameDir = gameDir
+		existing.InfoRelPath = ".gameinfo.json"
 		return ScanResult{GameDir: gameDir, GameInfo: existing, IsNew: false}
 	}
 
 	entries, _ := os.ReadDir(gameDir)
 
 	steamAppID := s.readSteamAppID(gameDir)
-	executables := s.findExecutables(entries, gameDir)
+	executables := s.findExecutables(entries)
 
 	if len(executables) == 0 {
 		return ScanResult{
@@ -106,7 +113,7 @@ func (s *Scanner) identifyGame(gameDir string) ScanResult {
 		}
 	}
 
-	info := newGameInfo(gameDir, executables, steamAppID)
+	info := game.New(gameDir, executables, steamAppID)
 	isNew := true
 
 	if saveErr := info.Save(); saveErr != nil {
@@ -137,8 +144,8 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 	return ""
 }
 
-func (s *Scanner) findExecutables(entries []os.DirEntry, gameDir string) []Executable {
-	var executables []Executable
+func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {
+	var executables []game.Executable
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -146,7 +153,7 @@ func (s *Scanner) findExecutables(entries []os.DirEntry, gameDir string) []Execu
 		name := e.Name()
 		lower := strings.ToLower(name)
 		if strings.HasSuffix(lower, ".exe") && !strings.HasPrefix(lower, "unins") {
-			executables = append(executables, Executable{
+			executables = append(executables, game.Executable{
 				Path:    name,
 				Name:    strings.TrimSuffix(name, ".exe"),
 				Primary: false,
@@ -167,7 +174,7 @@ func (s *Scanner) findExecutables(entries []os.DirEntry, gameDir string) []Execu
 	return executables
 }
 
-func (s *Scanner) pickPrimaryExec(executables []Executable) Executable {
+func (s *Scanner) pickPrimaryExec(executables []game.Executable) game.Executable {
 	primaryKeywords := []string{"game", "launcher", "start", "main", "app"}
 
 	for _, kw := range primaryKeywords {

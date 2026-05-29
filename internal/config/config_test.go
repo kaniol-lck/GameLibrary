@@ -19,6 +19,7 @@ func TestSaveLoad(t *testing.T) {
 	cfg.MachineID = "test-123"
 	cfg.GameDirectories = []string{".\\Games", ".\\MoreGames"}
 	cfg.MaxScanDepth = 5
+	cfg.Sources[1].Enabled = false
 
 	err := cfg.Save(dir)
 	if err != nil {
@@ -42,14 +43,77 @@ func TestSaveLoad(t *testing.T) {
 	if loaded.MaxScanDepth != 5 {
 		t.Errorf("MaxScanDepth mismatch: %d", loaded.MaxScanDepth)
 	}
+	if len(loaded.Sources) != 4 {
+		t.Errorf("Sources count mismatch: %d", len(loaded.Sources))
+	}
+	if loaded.Sources[1].Enabled {
+		t.Error("VNDB should be disabled")
+	}
+}
+
+func TestDefaultSources(t *testing.T) {
+	cfg := Default()
+	if len(cfg.Sources) != 4 {
+		t.Fatalf("expected 4 sources, got %d", len(cfg.Sources))
+	}
+	if cfg.Sources[0].Key != "steam" {
+		t.Errorf("first source should be steam, got %s", cfg.Sources[0].Key)
+	}
+	if !cfg.Sources[0].Enabled {
+		t.Error("steam should be enabled by default")
+	}
+	if !cfg.Sources[1].Enabled {
+		t.Error("vndb should be enabled by default")
+	}
+	if !cfg.Sources[2].Enabled {
+		t.Error("dlsite should be enabled by default")
+	}
+	if cfg.Sources[3].Enabled {
+		t.Error("igdb should be disabled by default")
+	}
+}
+
+func TestLegacyMigration(t *testing.T) {
+	dir := t.TempDir()
+
+	legacy := map[string]interface{}{
+		"machineId":       "legacy-test",
+		"machineName":     "Legacy Machine",
+		"gameDirectories": []string{".\\OldGames"},
+		"maxScanDepth":    2,
+		"language":        "en-US",
+		"vndbEnabled":     true,
+		"dlsiteEnabled":   false,
+	}
+	data, _ := json.MarshalIndent(legacy, "", "  ")
+	os.WriteFile(filepath.Join(dir, "config.json"), data, 0644)
+
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load legacy config failed: %s", err)
+	}
+	if loaded.MachineID != "legacy-test" {
+		t.Errorf("MachineID: %s", loaded.MachineID)
+	}
+	if len(loaded.Sources) != 4 {
+		t.Errorf("expected 4 migrated sources, got %d", len(loaded.Sources))
+	}
+	if !loaded.Sources[1].Enabled {
+		t.Error("vndb should be enabled from legacy")
+	}
+	if loaded.Sources[2].Enabled {
+		t.Error("dlsite should be disabled from legacy")
+	}
 }
 
 func TestJSONRoundtrip(t *testing.T) {
 	cfg := Default()
 	cfg.MachineID = "json-test"
 	cfg.SteamAPIKey = "secret-key-123"
-	cfg.VNDBEnabled = true
-	cfg.DLsiteEnabled = false
+	cfg.Sources = []MetadataSource{
+		{Key: "steam", Name: "Steam", Enabled: true},
+		{Key: "vndb", Name: "VNDB", Enabled: false},
+	}
 
 	data, err := json.Marshal(cfg)
 	if err != nil {
@@ -68,11 +132,11 @@ func TestJSONRoundtrip(t *testing.T) {
 	if decoded.SteamAPIKey != "secret-key-123" {
 		t.Errorf("SteamAPIKey not preserved")
 	}
-	if !decoded.VNDBEnabled {
-		t.Error("VNDBEnabled should be true")
+	if len(decoded.Sources) != 2 {
+		t.Errorf("Sources count: %d", len(decoded.Sources))
 	}
-	if decoded.DLsiteEnabled {
-		t.Error("DLsiteEnabled should be false")
+	if decoded.Sources[1].Enabled {
+		t.Error("VNDB should be disabled")
 	}
 }
 
@@ -100,5 +164,22 @@ func TestAutoCreate(t *testing.T) {
 	}
 	if !fileExists(filepath.Join(dir, "config.json")) {
 		t.Error("config.json should be auto-created")
+	}
+}
+
+func TestSourceReorder(t *testing.T) {
+	cfg := Default()
+	cfg.Sources = []MetadataSource{
+		{Key: "steam", Name: "Steam", Enabled: true},
+		{Key: "dlsite", Name: "DLsite", Enabled: true},
+		{Key: "vndb", Name: "VNDB", Enabled: false},
+		{Key: "igdb", Name: "IGDB", Enabled: true},
+	}
+
+	if cfg.Sources[1].Key != "dlsite" {
+		t.Error("dlsite should be at index 1 after reorder")
+	}
+	if cfg.Sources[2].Key != "vndb" {
+		t.Error("vndb should be at index 2 after reorder")
 	}
 }

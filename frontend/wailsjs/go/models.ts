@@ -1,5 +1,21 @@
 export namespace config {
 	
+	export class MetadataSource {
+	    key: string;
+	    name: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MetadataSource(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.name = source["name"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class Config {
 	    machineId: string;
 	    machineName: string;
@@ -7,8 +23,7 @@ export namespace config {
 	    maxScanDepth: number;
 	    language: string;
 	    steamApiKey: string;
-	    vndbEnabled: boolean;
-	    dlsiteEnabled: boolean;
+	    metadataSources: MetadataSource[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -22,9 +37,26 @@ export namespace config {
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];
 	        this.steamApiKey = source["steamApiKey"];
-	        this.vndbEnabled = source["vndbEnabled"];
-	        this.dlsiteEnabled = source["dlsiteEnabled"];
+	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

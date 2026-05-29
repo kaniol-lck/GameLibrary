@@ -18,6 +18,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+var version = "0.2.0-alpha"
+
 type Config = config.Config
 type GameInfo = game.GameInfo
 type ScanResult = scanner.ScanResult
@@ -309,7 +311,7 @@ func (a *App) GetAppInfo() map[string]string {
 		"exeDir":      a.exeDir,
 		"machineId":   a.config.MachineID,
 		"machineName": a.host,
-		"version":     "0.2.0-alpha",
+		"version":     version,
 		"buildTime":   time.Now().Format(time.RFC3339),
 	}
 }

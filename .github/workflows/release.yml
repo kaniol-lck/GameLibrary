@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Set version from tag
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}' -replace '^v', ''
+          echo "VERSION=$tag" >> $env:GITHUB_ENV
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\go\bin;$env:Path"
+          wails build -ldflags="-X main.version=$env:VERSION" -clean -o GameLibrary.exe
+
+      - name: Generate checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path build\bin\GameLibrary.exe -Algorithm SHA256).Hash
+          "$hash  GameLibrary.exe" | Out-File -Encoding utf8 build\bin\checksum.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GameLibrary ${{ github.ref_name }}
+          body_path: .github/RELEASE_TEMPLATE.md
+          files: |
+            build/bin/GameLibrary.exe
+            build/bin/checksum.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 build/
 node_modules/
 frontend/dist/
-*.exe
+/*.exe
 config.json
 Games/

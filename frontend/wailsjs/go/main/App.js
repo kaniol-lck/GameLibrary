@@ -18,6 +18,10 @@ export function GetGameCover(arg1) {
   return window['go']['main']['App']['GetGameCover'](arg1);
 }
 
+export function GetGameCoverLandscape(arg1) {
+  return window['go']['main']['App']['GetGameCoverLandscape'](arg1);
+}
+
 export function GetGameList() {
   return window['go']['main']['App']['GetGameList']();
 }

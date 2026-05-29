@@ -110,13 +110,14 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 	}
 
 	result := &Result{
-		Title:       vn.Title,
-		TitleNative: vn.AltTitle,
-		Description: desc,
-		Developer:   devName,
-		ReleaseDate: releaseDate,
-		Tags:        tags,
-		CoverURL:    coverURL,
+		Title:             vn.Title,
+		TitleNative:       vn.AltTitle,
+		Description:       desc,
+		Developer:         devName,
+		ReleaseDate:       releaseDate,
+		Tags:              tags,
+		CoverURL:          coverURL,
+		CoverLandscapeURL: coverURL,
 		Links: map[string]string{
 			"vndb": fmt.Sprintf("https://vndb.org/v?q=%s", name),
 		},

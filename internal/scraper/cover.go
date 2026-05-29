@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func DownloadCover(gameDir, coverURL string) error {
+func DownloadCover(gameDir, coverURL, filename string) error {
 	if coverURL == "" {
 		return fmt.Errorf("no cover URL")
 	}
@@ -30,7 +30,7 @@ func DownloadCover(gameDir, coverURL string) error {
 		ext = ".png"
 	}
 
-	filePath := filepath.Join(gameDir, "cover"+ext)
+	filePath := filepath.Join(gameDir, filename+ext)
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -44,15 +44,22 @@ func DownloadCover(gameDir, coverURL string) error {
 		return err
 	}
 
-	m := "cover" + ext
-	_ = m
-
 	return nil
 }
 
 func CoverPath(gameDir string) string {
 	for _, ext := range []string{".jpg", ".png"} {
 		p := filepath.Join(gameDir, "cover"+ext)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func CoverLandscapePath(gameDir string) string {
+	for _, ext := range []string{".jpg", ".png"} {
+		p := filepath.Join(gameDir, "cover_landscape"+ext)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}

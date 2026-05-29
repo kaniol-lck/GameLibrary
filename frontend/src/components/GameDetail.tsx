@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ScrapeGame, GetGameCover } from '../../wailsjs/go/main/App';
+import { ScrapeGame, GetGameCoverLandscape } from '../../wailsjs/go/main/App';
 
 interface GameDetailProps {
   game: game.GameInfo;
@@ -24,7 +24,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
 
   useEffect(() => {
     if (!g.metadata?.coverUrl) return;
-    GetGameCover(g.id).then(setCoverData).catch(() => {});
+    GetGameCoverLandscape(g.id).then(setCoverData).catch(() => {});
   }, [g.id, g.metadata?.coverUrl]);
 
   const handleScrape = async () => {

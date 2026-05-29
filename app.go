@@ -230,29 +230,36 @@ func (a *App) UpdateGameInfo(info *game.GameInfo) error {
 	return nil
 }
 
-func (a *App) GetGameCover(id string) string {
-	info, ok := a.games[id]
-	if !ok {
-		return ""
-	}
-
-	path := scraper.CoverPath(info.GameDir)
+func readCoverAsDataURI(path string) string {
 	if path == "" {
 		return ""
 	}
-
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
-
 	ext := filepath.Ext(path)
 	mime := "image/jpeg"
 	if ext == ".png" {
 		mime = "image/png"
 	}
-
 	return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+}
+
+func (a *App) GetGameCover(id string) string {
+	info, ok := a.games[id]
+	if !ok {
+		return ""
+	}
+	return readCoverAsDataURI(scraper.CoverPath(info.GameDir))
+}
+
+func (a *App) GetGameCoverLandscape(id string) string {
+	info, ok := a.games[id]
+	if !ok {
+		return ""
+	}
+	return readCoverAsDataURI(scraper.CoverLandscapePath(info.GameDir))
 }
 
 func (a *App) ScrapeGame(id string) *ScrapeReport {
@@ -271,9 +278,8 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 
 	scraper.ApplyResult(info, result, source)
 
-	if err := scraper.DownloadCover(info.GameDir, result.CoverURL); err == nil {
-		info.Metadata.CoverURL = "cover"
-	}
+	scraper.DownloadCover(info.GameDir, result.CoverURL, "cover")
+	scraper.DownloadCover(info.GameDir, result.CoverLandscapeURL, "cover_landscape")
 
 	if err := info.Save(); err != nil {
 		return &ScrapeReport{GameID: id, Title: info.Title, Source: source, Error: "save failed: " + err.Error()}

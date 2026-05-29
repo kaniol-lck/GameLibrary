@@ -60,9 +60,10 @@ func (s *DLsiteScraper) searchByRJCode(rjCode string) (*Result, error) {
 	}
 
 	return &Result{
-		Title:       cleanText(title),
-		Description: cleanText(desc),
-		CoverURL:    coverURL,
+		Title:             cleanText(title),
+		Description:       cleanText(desc),
+		CoverURL:          coverURL,
+		CoverLandscapeURL: coverURL,
 		Links: map[string]string{
 			"dlsite":     pageURL,
 			"platformId": rjCode,

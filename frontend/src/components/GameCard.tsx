@@ -5,6 +5,7 @@ import { GetGameCover } from '../../wailsjs/go/main/App';
 interface GameCardProps {
   game: game.GameInfo;
   onClick?: (game: game.GameInfo) => void;
+  isScraping?: boolean;
 }
 
 function formatPlaytime(seconds: number): string {
@@ -25,13 +26,13 @@ function getPlatformBadge(platform: string): { label: string; color: string } {
   }
 }
 
-export default function GameCard({ game, onClick }: GameCardProps) {
+export default function GameCard({ game, onClick, isScraping }: GameCardProps) {
   const [coverData, setCoverData] = useState('');
 
   useEffect(() => {
     if (!game.metadata?.coverUrl) return;
     GetGameCover(game.id).then(setCoverData).catch(() => {});
-  }, [game.id, game.metadata?.coverUrl]);
+  }, [game.id, game.metadata?.coverUrl, isScraping]);
 
   const badge = getPlatformBadge(game.platform);
   const playtime = formatPlaytime(game.totalPlaytime);
@@ -55,6 +56,11 @@ export default function GameCard({ game, onClick }: GameCardProps) {
         <span className="game-card-platform" style={{ backgroundColor: badge.color }}>
           {badge.label}
         </span>
+        {isScraping && (
+          <span className="game-card-scraping" title="Scraping metadata...">
+            &#9881;
+          </span>
+        )}
       </div>
       <div className="game-card-body">
         <h3 className="game-card-title">{game.title}</h3>

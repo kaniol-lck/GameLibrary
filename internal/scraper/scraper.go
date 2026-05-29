@@ -6,15 +6,16 @@ import (
 )
 
 type Result struct {
-	Title       string            `json:"title"`
-	TitleNative string            `json:"titleNative"`
-	Description string            `json:"description"`
-	Developer   string            `json:"developer"`
-	Publisher   string            `json:"publisher"`
-	ReleaseDate string            `json:"releaseDate"`
-	Tags        []string          `json:"tags"`
-	CoverURL    string            `json:"coverUrl"`
-	Links       map[string]string `json:"links"`
+	Title             string            `json:"title"`
+	TitleNative       string            `json:"titleNative"`
+	Description       string            `json:"description"`
+	Developer         string            `json:"developer"`
+	Publisher         string            `json:"publisher"`
+	ReleaseDate       string            `json:"releaseDate"`
+	Tags              []string          `json:"tags"`
+	CoverURL          string            `json:"coverUrl"`
+	CoverLandscapeURL string            `json:"-"`
+	Links             map[string]string `json:"links"`
 }
 
 type Source interface {
@@ -72,7 +73,7 @@ func ApplyResult(info *game.GameInfo, result *Result, sourceKey string) {
 		}
 	}
 	info.Metadata = &game.Metadata{
-		CoverURL:    result.CoverURL,
+		CoverURL:    "cover",
 		ReleaseDate: result.ReleaseDate,
 		Developer:   result.Developer,
 		Publisher:   result.Publisher,

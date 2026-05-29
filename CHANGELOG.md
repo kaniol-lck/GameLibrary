@@ -2,58 +2,98 @@
 
 ## v0.2.1-alpha (2026-05-29)
 
-### Added / 新增
-- Force re-scrape button for single games and batch (`Force` / `Re-scrape`)
-- Multi-platform GitHub Actions release (Windows, Linux, macOS)
-- SHA256 checksum per release asset
-- Pre-release badge on GitHub Releases
-- Game launch button (`▶ Launch Game`) in detail panel
+### Added
 
-### Fixed / 修复
-- macOS binary path inside `.app` bundle for release assets
-- Ubuntu CI: pin to 22.04 for webkit2gtk-4.0 compatibility
+- 单游戏和批量强制重新刮削按钮（`Force` / `Re-scrape`）
+  *Force re-scrape buttons for single games and batch (`Force` / `Re-scrape`)*
+- 多平台 GitHub Actions 发布（Windows / Linux / macOS）
+  *Multi-platform GitHub Actions release (Windows, Linux, macOS)*
+- 每个发布资产附带 SHA256 校验文件
+  *SHA256 checksum file per release asset*
+- GitHub Release 标记为 pre-release
+  *Pre-release flag on GitHub Releases*
+- 详情面板新增启动游戏按钮（`▶ Launch Game`）
+  *Game launch button (`▶ Launch Game`) in detail panel*
+- 项目文档：README badges、CHANGELOG.md、DESIGN.md
+  *Project docs: README badges, CHANGELOG.md, DESIGN.md*
+
+### Fixed
+
+- macOS 发布产物路径修复（`.app` 包内二进制）
+  *macOS binary path inside `.app` bundle for release assets*
+- Ubuntu CI 固定为 22.04 以兼容 webkit2gtk-4.0
+  *Pin Ubuntu CI to 22.04 for webkit2gtk-4.0 compatibility*
 
 ---
 
 ## v0.2.0-alpha (2026-05-29)
 
-### Added / 新增
-- Metadata scraping system: Steam, VNDB, DLsite sources
-- Pipeline with priority ordering via `metadataSources` config
-- Dual cover download: portrait (`cover.jpg`) + landscape (`cover_landscape.jpg`)
-- Base64 cover delivery bypassing WebView2 `file://` restrictions
-- Game detail panel (right-side slide-in)
-- Scraping progress bar with parallel limit (3 concurrent)
-- Incomplete metadata detection for targeted re-scraping
-- Language-aware scraping (Steam `l=schinese`, VNDB `zh-Hans`)
-- Per-source settings with expandable inline panel (API keys, etc.)
-- GitHub Actions CI with auto-release on version tags
-- `CHANGELOG.md` (this file)
-- `DESIGN.md` architecture and roadmap document
+### Added
 
-### Changed / 变更
-- Settings page: card-based layout, toggle switches, reorderable sources
-- Config: `metadataSources` replaces `vndbEnabled`/`dlsiteEnabled`, legacy migration
-- Config: `machineName` removed, auto-detected from `os.Hostname()`
-- Game directories: native folder picker with relative path conversion
-- Collapsible sidebar layout with auto-derived categories
-- Go source modularized into `internal/` sub-packages
+- 元数据刮削系统：Steam、VNDB、DLsite 三个数据源
+  *Metadata scraping system: Steam, VNDB, DLsite sources*
+- 按 `metadataSources` 优先级排序的刮削流水线
+  *Scraping pipeline with priority ordering via config*
+- 双封面下载：竖版 `cover.jpg`（卡片）+ 横版 `cover_landscape.jpg`（详情）
+  *Dual cover download: portrait for cards + landscape for detail panel*
+- Base64 图片传输，绕过 WebView2 的 `file://` 限制
+  *Base64 cover delivery bypassing WebView2 file:// restrictions*
+- 右侧滑出的游戏详情面板
+  *Right-side slide-in game detail panel*
+- 并行刮削进度条（3 并发限制）
+  *Parallel scraping progress bar (3 concurrent limit)*
+- 不完整元数据检测，自动补刮缺失字段
+  *Incomplete metadata detection for targeted re-scraping*
+- 语言感知刮削（Steam `l=schinese`，VNDB `zh-Hans`）
+  *Language-aware scraping (Steam l=schinese, VNDB zh-Hans)*
+- 数据源专属设置面板（可展开，API Key 等）
+  *Per-source settings with expandable inline panel*
+- GitHub Actions CI，推送 tag 自动发布 Release
+  *GitHub Actions CI with auto-release on version tags*
 
-### Fixed / 修复
-- Cover images not displaying in WebView2 (base64 workaround)
-- Machine name conflicts across shared config
-- Steam portrait cover using `library_600x900_2x.jpg`
+### Changed
+
+- 设置页：卡片式布局、toggle 开关、可排序数据源列表
+  *Settings page: card-based layout, toggle switches, reorderable sources*
+- 配置模型：`metadataSources` 替代 `vndbEnabled` / `dlsiteEnabled`，旧配置自动迁移
+  *Config: metadataSources replaces vndbEnabled/dlsiteEnabled, legacy migration*
+- 机器名从 `config.json` 移除，改为 `os.Hostname()` 自动检测
+  *Machine name removed from shared config, auto-detected via os.Hostname()*
+- 游戏目录选择改用系统原生文件夹对话框，自动转换相对路径
+  *Game directories: native folder picker with relative path conversion*
+- 可折叠侧边栏布局，自动派生游戏分类
+  *Collapsible sidebar layout with auto-derived categories*
+- Go 源码模块化重组织为 `internal/` 子包
+  *Go source modularized into internal/ sub-packages*
+
+### Fixed
+
+- 封面图片在 WebView2 中无法显示（改用 base64 传输）
+  *Cover images not displaying in WebView2 (base64 workaround)*
+- 多客户端共享配置导致机器名互相覆盖
+  *Machine name conflicts across shared config*
+- Steam 封面使用竖版 `library_600x900_2x.jpg` 替代横版 header
+  *Steam portrait cover using library_600x900_2x.jpg*
 
 ---
 
 ## v0.1.0-alpha (2026-05-29)
 
-### Added / 新增
-- Wails v2 + React + TypeScript project scaffold
-- Config model with JSON persistence and legacy field migration
-- Game scanner: recursive directory walk, `.exe` detection, `steam_appid.txt` parsing
-- `.gameinfo.json` metadata file generation
-- React frontend: sidebar navigation, game card grid, dark theme
-- Settings page: machine config, game directories, scan depth
-- 17 unit tests for scanner, config, and gameinfo packages
-- Git version control with GitHub push
+### Added
+
+- Wails v2 + React + TypeScript 项目脚手架
+  *Wails v2 + React + TypeScript project scaffold*
+- 配置模型（JSON 持久化、旧字段迁移）
+  *Config model with JSON persistence and legacy migration*
+- 游戏扫描器：递归目录遍历、`.exe` 识别、`steam_appid.txt` 解析
+  *Game scanner: recursive walk, .exe detection, steam_appid.txt parsing*
+- `.gameinfo.json` 元数据文件生成
+  *Game info metadata file generation*
+- React 前端：侧边栏导航、游戏卡片网格、暗色主题
+  *React frontend: sidebar nav, game card grid, dark theme*
+- 设置页：机器配置、游戏目录管理、扫描深度
+  *Settings page: machine config, game directories, scan depth*
+- 17 个单元测试（扫描器、配置、游戏信息）
+  *17 unit tests for scanner, config, and gameinfo*
+- Git 版本控制与 GitHub 推送
+  *Git version control and GitHub push*

@@ -7,6 +7,19 @@ import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import GameDetail from './components/GameDetail';
 
+const SCRAPE_PARALLEL = 3;
+
+function isIncomplete(g: game.GameInfo): boolean {
+  if (!g.metadata) return true;
+  const m = g.metadata;
+  if (!m.coverUrl) return true;
+  if (!m.developer && !m.publisher) return true;
+  if (!m.description || m.description.length < 10) return true;
+  if (!m.releaseDate) return true;
+  if (!m.tags || m.tags.length === 0) return true;
+  return false;
+}
+
 function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedNav, setSelectedNav] = useState('all');
@@ -16,7 +29,8 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<scanner.ScanResult[] | null>(null);
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
-  const [scrapeProgress, setScrapeProgress] = useState('');
+  const [scrapeDone, setScrapeDone] = useState(0);
+  const [scrapeTotal, setScrapeTotal] = useState(0);
   const [error, setError] = useState('');
 
   const loadGames = useCallback(async () => {
@@ -55,31 +69,55 @@ function App() {
 
   const handleScrapeAll = async () => {
     setError('');
-    setScrapeProgress('');
-    const ids = new Set<string>();
 
-    const targets = games.filter((g) => !g.metadata?.coverUrl || !g.metadata?.developer);
+    const targets = games.filter(isIncomplete);
     if (targets.length === 0) {
-      setError('All games already have metadata.');
+      setError('All games have complete metadata.');
       return;
     }
 
-    for (let i = 0; i < targets.length; i++) {
-      const g = targets[i];
-      ids.add(g.id);
-      setScrapingIds(new Set(ids));
-      setScrapeProgress(`${i + 1} / ${targets.length}`);
+    setScrapeDone(0);
+    setScrapeTotal(targets.length);
 
-      try {
-        await ScrapeGame(g.id);
-      } catch {
-        /* continue */
+    let idx = 0;
+    let done = 0;
+    const active = new Set<string>();
+
+    const report = () => {
+      setScrapingIds(new Set(active));
+      setScrapeDone(done);
+    };
+
+    const worker = async () => {
+      while (idx < targets.length) {
+        const i = idx++;
+        const g = targets[i];
+
+        active.add(g.id);
+        report();
+
+        try {
+          await ScrapeGame(g.id);
+        } catch {
+          /* continue */
+        }
+
+        active.delete(g.id);
+        done++;
+        report();
       }
-    }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(SCRAPE_PARALLEL, targets.length) },
+      () => worker()
+    );
+    await Promise.all(workers);
 
     await loadGames();
     setScrapingIds(new Set());
-    setScrapeProgress('');
+    setScrapeDone(0);
+    setScrapeTotal(0);
   };
 
   const handleGameClick = (g: game.GameInfo) => {
@@ -109,6 +147,7 @@ function App() {
   const existingGames = scanResults?.filter((r) => !r.isNew && !r.error).length ?? 0;
   const errorGames = scanResults?.filter((r) => r.error).length ?? 0;
   const isScraping = scrapingIds.size > 0;
+  const pct = scrapeTotal > 0 ? Math.round((scrapeDone / scrapeTotal) * 100) : 0;
 
   return (
     <div id="App">
@@ -127,8 +166,10 @@ function App() {
             <span className="app-machine">
               {appInfo?.['machineName'] ?? ''}
             </span>
-            {scrapeProgress && (
-              <span className="scrape-progress">{scrapeProgress}</span>
+            {isScraping && (
+              <span className="scrape-progress-text">
+                {scrapeDone} / {scrapeTotal}
+              </span>
             )}
           </div>
           <div className="top-bar-right">
@@ -138,7 +179,7 @@ function App() {
                 onClick={handleScrapeAll}
                 disabled={isScraping}
               >
-                {isScraping ? `Scraping... ${scrapeProgress}` : 'Scrape All'}
+                {isScraping ? `Scraping... ${scrapeDone}/${scrapeTotal}` : 'Scrape All'}
               </button>
             )}
             <button
@@ -150,6 +191,12 @@ function App() {
             </button>
           </div>
         </header>
+
+        {isScraping && (
+          <div className="progress-bar-wrapper">
+            <div className="progress-bar" style={{ width: `${pct}%` }} />
+          </div>
+        )}
 
         {error && (
           <div className="alert alert-error">

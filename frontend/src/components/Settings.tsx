@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react';
 import { GetConfig, SaveConfig } from '../../wailsjs/go/main/App';
 import { main } from '../../wailsjs/go/models';
 
-interface SettingsProps {
-  onBack: () => void;
-}
-
-export default function Settings({ onBack }: SettingsProps) {
+export default function Settings() {
   const [config, setConfig] = useState<main.Config | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +50,6 @@ export default function Settings({ onBack }: SettingsProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') addGameDir();
-    if (e.key === 'Escape') onBack();
   };
 
   if (!config) {
@@ -66,16 +61,13 @@ export default function Settings({ onBack }: SettingsProps) {
   }
 
   return (
-    <div className="settings-page">
-      <header className="settings-header">
-        <button className="btn btn-ghost" onClick={onBack}>
-          &larr; Back
-        </button>
+    <div className="settings-panel">
+      <div className="settings-panel-header">
         <h2>Settings</h2>
         <button className="btn btn-primary" onClick={handleSave}>
           Save
         </button>
-      </header>
+      </div>
 
       {error && (
         <div className="alert alert-error">

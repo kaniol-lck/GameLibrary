@@ -4,11 +4,11 @@ import { GetGameList, ScanGames, GetAppInfo } from '../wailsjs/go/main/App';
 import { main } from '../wailsjs/go/models';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
-
-type Page = 'library' | 'settings';
+import Sidebar from './components/Sidebar';
 
 function App() {
-  const [page, setPage] = useState<Page>('library');
+  const [collapsed, setCollapsed] = useState(false);
+  const [selectedNav, setSelectedNav] = useState('all');
   const [games, setGames] = useState<main.GameInfo[]>([]);
   const [appInfo, setAppInfo] = useState<Record<string, string> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -53,81 +53,111 @@ function App() {
     console.log('Selected game:', game.title);
   };
 
+  const filteredGames = (() => {
+    if (selectedNav === 'all') return games;
+    if (selectedNav.startsWith('type:')) {
+      return games.filter((g) => g.type === selectedNav.slice(5));
+    }
+    if (selectedNav.startsWith('tag:')) {
+      return games.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
+    }
+    return games;
+  })();
+
   const newGames = scanResults?.filter((r) => r.isNew).length ?? 0;
   const existingGames = scanResults?.filter((r) => !r.isNew && !r.error).length ?? 0;
   const errorGames = scanResults?.filter((r) => r.error).length ?? 0;
 
-  if (page === 'settings') {
-    return <Settings onBack={() => setPage('library')} />;
-  }
-
   return (
     <div id="App">
-      <header className="app-header">
-        <div className="header-left">
-          <h1 className="app-title">GameLibrary</h1>
-          {appInfo && (
-            <span className="app-machine">[{appInfo['machineName']}]</span>
-          )}
-        </div>
-        <div className="header-right">
-          <button
-            className="btn btn-primary"
-            onClick={handleScan}
-            disabled={isScanning}
-          >
-            {isScanning ? 'Scanning...' : 'Scan Games'}
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={() => setPage('settings')}
-            title="Settings"
-          >
-            &#9881;
-          </button>
-        </div>
-      </header>
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        games={games}
+        selectedNav={selectedNav}
+        onSelectNav={setSelectedNav}
+        machineName={appInfo?.['machineName'] ?? ''}
+      />
 
-      {error && (
-        <div className="alert alert-error">
-          {error}
-          <button onClick={() => setError('')} className="alert-close">&times;</button>
-        </div>
-      )}
+      <div className="main-area">
+        <header className="top-bar">
+          <div className="top-bar-left">
+            <span className="app-machine">
+              {appInfo?.['machineName'] ?? ''}
+            </span>
+          </div>
+          <div className="top-bar-right">
+            <button
+              className="btn btn-primary"
+              onClick={handleScan}
+              disabled={isScanning}
+            >
+              {isScanning ? 'Scanning...' : 'Scan Games'}
+            </button>
+          </div>
+        </header>
 
-      {scanResults && (
-        <div className="scan-summary">
-          <span className="scan-stat scan-new">+{newGames} new</span>
-          <span className="scan-stat scan-existing">{existingGames} existing</span>
-          {errorGames > 0 && (
-            <span className="scan-stat scan-error">{errorGames} errors</span>
-          )}
-          <button
-            className="scan-dismiss"
-            onClick={() => setScanResults(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <main className="game-grid">
-        {games.length === 0 && !isScanning && (
-          <div className="empty-state">
-            <div className="empty-icon">&#127918;</div>
-            <h2>No games found</h2>
-            <p>Click "Scan Games" to search for games in your configured directories.</p>
+        {error && (
+          <div className="alert alert-error">
+            {error}
+            <button onClick={() => setError('')} className="alert-close">&times;</button>
           </div>
         )}
-        {games.map((game) => (
-          <GameCard key={game.id} game={game} onClick={handleGameClick} />
-        ))}
-      </main>
 
-      <footer className="app-footer">
-        <span>GameLibrary v{appInfo?.['version'] ?? '0.1.0'}</span>
-        <span>{games.length} games</span>
-      </footer>
+        {scanResults && (
+          <div className="scan-summary">
+            <span className="scan-stat scan-new">+{newGames} new</span>
+            <span className="scan-stat scan-existing">{existingGames} existing</span>
+            {errorGames > 0 && (
+              <span className="scan-stat scan-error">{errorGames} errors</span>
+            )}
+            <button
+              className="scan-dismiss"
+              onClick={() => setScanResults(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        <main className="main-content">
+          {selectedNav === 'settings' ? (
+            <Settings />
+          ) : (
+            <>
+              <div className="content-header">
+                <h2 className="content-title">
+                  {selectedNav === 'all'
+                    ? 'All Games'
+                    : selectedNav.startsWith('tag:')
+                      ? selectedNav.slice(4)
+                      : selectedNav.slice(5)}
+                </h2>
+                <span className="content-count">
+                  {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="game-grid">
+                {filteredGames.length === 0 && !isScanning && (
+                  <div className="empty-state">
+                    <div className="empty-icon">&#127918;</div>
+                    <h2>No games found</h2>
+                    <p>Click "Scan Games" to search for games in your configured directories.</p>
+                  </div>
+                )}
+                {filteredGames.map((game) => (
+                  <GameCard key={game.id} game={game} onClick={handleGameClick} />
+                ))}
+              </div>
+            </>
+          )}
+        </main>
+
+        <footer className="app-footer">
+          <span>GameLibrary v{appInfo?.['version'] ?? '0.1.0'}</span>
+          <span>{games.length} games</span>
+        </footer>
+      </div>
     </div>
   );
 }

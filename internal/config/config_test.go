@@ -177,6 +177,54 @@ func TestAutoCreate(t *testing.T) {
 	}
 }
 
+func TestMigrationAddsMissingSources(t *testing.T) {
+	dir := t.TempDir()
+
+	oldCfg := map[string]interface{}{
+		"machineId":       "test-migrate",
+		"gameDirectories": []string{".\\Games"},
+		"maxScanDepth":    3,
+		"language":        "zh-CN",
+		"metadataSources": []map[string]interface{}{
+			{"key": "steam", "name": "Steam", "enabled": true},
+			{"key": "dlsite", "name": "DLsite", "enabled": false},
+		},
+	}
+	data, _ := json.MarshalIndent(oldCfg, "", "  ")
+	os.WriteFile(filepath.Join(dir, "config.json"), data, 0644)
+
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load failed: %s", err)
+	}
+	if len(loaded.Sources) != 6 {
+		t.Errorf("expected 6 sources after migration, got %d: %v", len(loaded.Sources), loaded.Sources)
+	}
+	if loaded.Sources[0].Key != "steam" {
+		t.Errorf("steam should still be first: got %s", loaded.Sources[0].Key)
+	}
+	if loaded.Sources[1].Key != "dlsite" || loaded.Sources[1].Enabled {
+		t.Error("dlsite should be at index 1 and disabled")
+	}
+
+	hasBangumi := false
+	hasSteamGridDB := false
+	for _, s := range loaded.Sources {
+		if s.Key == "bangumi" {
+			hasBangumi = true
+		}
+		if s.Key == "steamgriddb" {
+			hasSteamGridDB = true
+		}
+	}
+	if !hasBangumi {
+		t.Error("bangumi should have been added by migration")
+	}
+	if !hasSteamGridDB {
+		t.Error("steamgriddb should have been added by migration")
+	}
+}
+
 func TestSourceReorder(t *testing.T) {
 	cfg := Default()
 	cfg.Sources = []MetadataSource{

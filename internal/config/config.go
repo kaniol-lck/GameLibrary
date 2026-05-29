@@ -74,8 +74,17 @@ func Load(exeDir string) (*Config, error) {
 	if cfg.Language == "" {
 		cfg.Language = "zh-CN"
 	}
-	if len(cfg.Sources) == 0 {
-		cfg.Sources = Default().Sources
+	for _, def := range Default().Sources {
+		found := false
+		for _, s := range cfg.Sources {
+			if s.Key == def.Key {
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.Sources = append(cfg.Sources, def)
+		}
 	}
 
 	return &cfg, nil

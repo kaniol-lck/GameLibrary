@@ -29,7 +29,9 @@ func Default() *Config {
 		Sources: []MetadataSource{
 			{Key: "steam", Name: "Steam", Enabled: true},
 			{Key: "vndb", Name: "VNDB (Visual Novel Database)", Enabled: true},
+			{Key: "bangumi", Name: "Bangumi (bgm.tv)", Enabled: true},
 			{Key: "dlsite", Name: "DLsite", Enabled: true},
+			{Key: "steamgriddb", Name: "SteamGridDB (Cover Art)", Enabled: false},
 			{Key: "igdb", Name: "IGDB", Enabled: false},
 		},
 	}
@@ -100,7 +102,9 @@ func migrateLegacyFields(raw map[string]json.RawMessage) {
 	}
 
 	sources = append(sources, MetadataSource{Key: "vndb", Name: "VNDB (Visual Novel Database)", Enabled: vndbEnabled})
+	sources = append(sources, MetadataSource{Key: "bangumi", Name: "Bangumi (bgm.tv)", Enabled: true})
 	sources = append(sources, MetadataSource{Key: "dlsite", Name: "DLsite", Enabled: dlsiteEnabled})
+	sources = append(sources, MetadataSource{Key: "steamgriddb", Name: "SteamGridDB (Cover Art)", Enabled: false})
 	sources = append(sources, MetadataSource{Key: "igdb", Name: "IGDB", Enabled: false})
 
 	data, _ := json.Marshal(sources)

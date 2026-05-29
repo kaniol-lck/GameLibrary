@@ -18,9 +18,19 @@ const SOURCE_META: Record<string, SourceMeta> = {
     description: 'Visual Novel Database. Best for VN titles with Japanese origin.',
     settings: [],
   },
-  dlsite: {
-    description: 'Japanese indie/doujin game store. Matches by RJ number.',
+  bangumi: {
+    description: 'Bangumi (bgm.tv). Chinese anime/game database with Chinese titles and descriptions.',
     settings: [],
+  },
+  dlsite: {
+    description: 'Japanese indie/doujin game store. Matches by RJ number in folder name.',
+    settings: [],
+  },
+  steamgriddb: {
+    description: 'SteamGridDB. High-quality cover art library. Requires Steam appID and API key.',
+    settings: [
+      { key: 'apiKey', label: 'SteamGridDB API Key', placeholder: 'Required: get from steamgriddb.com/profile/preferences/api', type: 'password' },
+    ],
   },
   igdb: {
     description: 'Internet Game Database. Large general-purpose game database via Twitch API.',

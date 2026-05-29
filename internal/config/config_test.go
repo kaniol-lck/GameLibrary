@@ -43,7 +43,7 @@ func TestSaveLoad(t *testing.T) {
 	if loaded.MaxScanDepth != 5 {
 		t.Errorf("MaxScanDepth mismatch: %d", loaded.MaxScanDepth)
 	}
-	if len(loaded.Sources) != 4 {
+	if len(loaded.Sources) != 6 {
 		t.Errorf("Sources count mismatch: %d", len(loaded.Sources))
 	}
 	if loaded.Sources[1].Enabled {
@@ -53,8 +53,8 @@ func TestSaveLoad(t *testing.T) {
 
 func TestDefaultSources(t *testing.T) {
 	cfg := Default()
-	if len(cfg.Sources) != 4 {
-		t.Fatalf("expected 4 sources, got %d", len(cfg.Sources))
+	if len(cfg.Sources) != 6 {
+		t.Fatalf("expected 6 sources, got %d", len(cfg.Sources))
 	}
 	if cfg.Sources[0].Key != "steam" {
 		t.Errorf("first source should be steam, got %s", cfg.Sources[0].Key)
@@ -86,13 +86,13 @@ func TestLegacyMigration(t *testing.T) {
 	if loaded.MachineID != "legacy-test" {
 		t.Errorf("MachineID: %s", loaded.MachineID)
 	}
-	if len(loaded.Sources) != 4 {
-		t.Errorf("expected 4 migrated sources, got %d", len(loaded.Sources))
+	if len(loaded.Sources) != 6 {
+		t.Errorf("expected 6 migrated sources, got %d", len(loaded.Sources))
 	}
 	if !loaded.Sources[1].Enabled {
 		t.Error("vndb should be enabled from legacy")
 	}
-	if loaded.Sources[2].Enabled {
+	if loaded.Sources[3].Enabled {
 		t.Error("dlsite should be disabled from legacy")
 	}
 }
@@ -133,7 +133,7 @@ func TestJSONRoundtrip(t *testing.T) {
 func TestSourceSettings(t *testing.T) {
 	cfg := Default()
 	cfg.Sources[0].Settings = map[string]string{"apiKey": "my-key"}
-	cfg.Sources[3].Settings = map[string]string{"clientId": "cid", "clientSecret": "csec"}
+	cfg.Sources[5].Settings = map[string]string{"clientId": "cid", "clientSecret": "csec"}
 
 	data, _ := json.Marshal(cfg)
 	var decoded Config

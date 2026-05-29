@@ -19,7 +19,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.2.1-alpha"
+var version = "0.2.2-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -79,7 +79,15 @@ func (a *App) startup(ctx context.Context) {
 	vndbScraper.Configure(a.config.Language, a.config.SourceSettings("vndb"))
 	a.pipeline.Register(vndbScraper)
 
+	bangumiScraper := scraper.NewBangumiScraper()
+	bangumiScraper.Configure(a.config.Language, a.config.SourceSettings("bangumi"))
+	a.pipeline.Register(bangumiScraper)
+
 	a.pipeline.Register(scraper.NewDLsiteScraper())
+
+	steamgriddbScraper := scraper.NewSteamGridDBScraper()
+	steamgriddbScraper.Configure(a.config.Language, a.config.SourceSettings("steamgriddb"))
+	a.pipeline.Register(steamgriddbScraper)
 
 	a.refreshGameCache()
 }

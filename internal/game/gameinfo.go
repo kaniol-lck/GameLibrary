@@ -180,6 +180,15 @@ func (g *GameInfo) AddAlias(name string) {
 	g.Aliases = append(g.Aliases, name)
 }
 
+func (g *GameInfo) HasTag(tag string) bool {
+	for _, t := range g.Tags {
+		if strings.EqualFold(t, tag) {
+			return true
+		}
+	}
+	return false
+}
+
 func LoadFromDir(gameDir string) (*GameInfo, error) {
 	path := InfoFilePath(gameDir)
 	data, err := os.ReadFile(path)

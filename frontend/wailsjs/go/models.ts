@@ -21,7 +21,7 @@ export namespace config {
 	export class Config {
 	    machineId: string;
 	    gameDirectories: string[];
-	    gameDirectoryLabels?: Record<string, string>;
+	    gameDirectoryLabels?: Record<string, Array<string>>;
 	    maxScanDepth: number;
 	    language: string;
 	    metadataSources: MetadataSource[];

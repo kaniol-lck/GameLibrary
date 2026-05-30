@@ -99,7 +99,13 @@ export default function Settings() {
   const updateDirLabel = (dir: string, label: string) => {
     if (!cfg) return;
     const labels = { ...(cfg.gameDirectoryLabels || {}) };
-    if (label) { labels[dir] = label; } else { delete labels[dir]; }
+    const current = labels[dir] || [];
+    if (label && !current.includes(label)) {
+      labels[dir] = [...current, label];
+    } else {
+      labels[dir] = current.filter((l: string) => l !== label);
+    }
+    if (labels[dir].length === 0) delete labels[dir];
     updateCfg({ gameDirectoryLabels: labels });
   };
 
@@ -176,22 +182,29 @@ export default function Settings() {
                 {cfg.gameDirectories.length === 0 && (
                   <p className="empty-hint">No directories configured.</p>
                 )}
-                {cfg.gameDirectories.map((dir: string, i: number) => (
+                {cfg.gameDirectories.map((dir: string, i: number) => {
+                   const dirLabels: string[] = (cfg.gameDirectoryLabels || {})[dir] || [];
+                   return (
                    <div key={i} className="dir-item">
                      <button className="btn-icon-sm dir-open-btn" onClick={() => OpenDirectory(dir)} title="Open in Explorer">{'\uD83D\uDCC1'}</button>
                      <div className="dir-info">
                        <span className="dir-path" onClick={() => OpenDirectory(dir)} title="Click to open">{dir}</span>
-                       <input
-                         className="dir-label-input"
-                         type="text"
-                         placeholder="Label..."
-                         value={(cfg.gameDirectoryLabels || {})[dir] || ''}
-                         onChange={(e) => updateDirLabel(dir, e.target.value)}
-                       />
+                       <div className="dir-tags">
+                         {dirLabels.map((label: string, j: number) => (
+                           <span key={j} className="dir-tag-chip">
+                             {label}
+                             <button className="context-tag-remove" onClick={() => updateDirLabel(dir, label)} title="Remove label">&times;</button>
+                           </span>
+                         ))}
+                         <button className="dir-tag-chip dir-tag-add" onClick={() => {
+                           const label = prompt('Enter path label:');
+                           if (label && label.trim()) updateDirLabel(dir, label.trim());
+                         }}>+</button>
+                       </div>
                      </div>
                      <button className="btn-icon-sm" onClick={() => removeGameDir(i)} title="Remove">&times;</button>
                    </div>
-                 ))}
+                 )})}
               </div>
               <div className="dir-add">
                 <button className="btn btn-secondary" onClick={browseDirectory}>Browse...</button>

@@ -893,6 +893,48 @@
 
 .dir-path:hover { color: #4f6ef7; }
 
+.dir-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.dir-tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  background: rgba(79, 110, 247, 0.12);
+  color: #a5b4fc;
+  border-radius: 3px;
+  font-size: 11px;
+  border: none;
+  font-family: inherit;
+  cursor: default;
+}
+
+.dir-tag-chip .context-tag-remove {
+  color: #a5b4fc;
+  font-size: 12px;
+  padding: 0 1px;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.dir-tag-chip .context-tag-remove:hover { color: #f87171; }
+
+.dir-tag-add {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: #888;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.dir-tag-add:hover { background: rgba(255, 255, 255, 0.1); color: #ccc; }
+
 .dir-label-input {
   padding: 3px 8px;
   background: rgba(255, 255, 255, 0.05);

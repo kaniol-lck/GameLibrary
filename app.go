@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.6.1-alpha"
+var version = "0.6.2-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -186,7 +186,50 @@ func (a *App) GetConfig() *config.Config {
 
 func (a *App) SaveConfig(cfg *config.Config) error {
 	a.config = cfg
-	return cfg.Save(a.exeDir)
+	if err := cfg.Save(a.exeDir); err != nil {
+		return err
+	}
+	a.applyPathLabels()
+	return nil
+}
+
+func (a *App) applyPathLabels() {
+	labels := a.config.GameDirectoryLabels
+	if labels == nil {
+		labels = map[string][]string{}
+	}
+	for _, info := range a.games {
+		newTags := info.Tags[:0]
+		for _, t := range info.Tags {
+			keep := true
+			for _, ls := range labels {
+				for _, l := range ls {
+					if strings.EqualFold(t, l) { keep = false; break }
+				}
+				if !keep { break }
+			}
+			if keep { newTags = append(newTags, t) }
+		}
+		for dirPath, ls := range labels {
+			absPath := filepath.Clean(dirPath)
+			if !filepath.IsAbs(absPath) {
+				absPath = filepath.Join(a.exeDir, dirPath)
+			}
+			infoPath := filepath.Clean(info.GameDir)
+			if strings.HasPrefix(strings.ToLower(infoPath)+"\\", strings.ToLower(absPath)+"\\") || strings.EqualFold(infoPath, absPath) {
+				for _, l := range ls {
+					if l == "" { continue }
+					found := false
+					for _, t := range newTags {
+						if strings.EqualFold(t, l) { found = true; break }
+					}
+					if !found { newTags = append(newTags, l) }
+				}
+			}
+		}
+		info.Tags = newTags
+		info.Save()
+	}
 }
 
 func (a *App) ScanGames() []scanner.ScanResult {

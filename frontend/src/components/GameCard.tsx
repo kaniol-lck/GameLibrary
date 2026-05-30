@@ -45,7 +45,7 @@ function platformUrl(platform: string, id: string): string {
 export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr, refreshKey }: GameCardProps) {
   const [coverData, setCoverData] = useState('');
 
-  const primaryPlatform = (game as any).preferredSource || (game as any).platforms?.[0]?.platform || (game as any).platform || 'local';
+  const primaryPlatform = (game as any).preferredSource || (game as any).platforms?.[0]?.platform || (game as any).platform || '';
 
   useEffect(() => {
     if (!game.metadata?.coverUrl) return;

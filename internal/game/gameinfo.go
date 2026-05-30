@@ -176,7 +176,7 @@ func migratePlatform(raw map[string]json.RawMessage) {
 		return
 	}
 
-	plat := "local"
+	plat := ""
 	pid := ""
 	if v, ok := raw["platform"]; ok {
 		json.Unmarshal(v, &plat)

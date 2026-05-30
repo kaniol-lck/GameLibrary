@@ -38,14 +38,15 @@ type Metadata struct {
 }
 
 type GameInfo struct {
-	ID           string         `json:"id"`
-	Title        string         `json:"title"`
-	TitleNative  string         `json:"titleNative,omitempty"`
-	Platforms    []PlatformInfo `json:"platforms,omitempty"`
-	Aliases      []string       `json:"aliases,omitempty"`
-	Type         string         `json:"type"`
-	Executables  []Executable   `json:"executables"`
-	SavePaths    []SavePath     `json:"savePaths,omitempty"`
+	ID              string         `json:"id"`
+	Title           string         `json:"title"`
+	TitleNative     string         `json:"titleNative,omitempty"`
+	Platforms       []PlatformInfo `json:"platforms,omitempty"`
+	Aliases         []string       `json:"aliases,omitempty"`
+	PreferredSource string         `json:"preferredSource,omitempty"`
+	Type            string         `json:"type"`
+	Executables     []Executable   `json:"executables"`
+	SavePaths       []SavePath     `json:"savePaths,omitempty"`
 	Metadata     *Metadata      `json:"metadata,omitempty"`
 	ScannedAt    string         `json:"scannedAt"`
 
@@ -72,10 +73,15 @@ func (g *GameInfo) Save() error {
 }
 
 func (g *GameInfo) PrimaryPlatform() string {
-	if len(g.Platforms) == 0 {
-		return "local"
+	if g.PreferredSource != "" {
+		return g.PreferredSource
 	}
-	return g.Platforms[0].Platform
+	for _, p := range g.Platforms {
+		if p.Platform != "local" {
+			return p.Platform
+		}
+	}
+	return "local"
 }
 
 func (g *GameInfo) PrimaryPlatformID() string {
@@ -117,7 +123,10 @@ func (g *GameInfo) SetPlatform(platform, id, name string) {
 		}
 	}
 	info := PlatformInfo{Platform: platform, ID: id, Name: name}
-	g.Platforms = append([]PlatformInfo{info}, g.Platforms...)
+	g.Platforms = append(g.Platforms, info)
+	if g.PreferredSource == "" && platform != "local" {
+		g.PreferredSource = platform
+	}
 }
 
 func (g *GameInfo) AddAlias(name string) {

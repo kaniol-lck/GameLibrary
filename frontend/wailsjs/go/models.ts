@@ -141,6 +141,7 @@ export namespace game {
 	    titleNative?: string;
 	    platforms?: PlatformInfo[];
 	    aliases?: string[];
+	    preferredSource?: string;
 	    type: string;
 	    executables: Executable[];
 	    savePaths?: SavePath[];
@@ -162,6 +163,7 @@ export namespace game {
 	        this.titleNative = source["titleNative"];
 	        this.platforms = this.convertValues(source["platforms"], PlatformInfo);
 	        this.aliases = source["aliases"];
+	        this.preferredSource = source["preferredSource"];
 	        this.type = source["type"];
 	        this.executables = this.convertValues(source["executables"], Executable);
 	        this.savePaths = this.convertValues(source["savePaths"], SavePath);

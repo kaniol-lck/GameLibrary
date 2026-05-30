@@ -74,6 +74,10 @@ export function ScrapeGame(arg1) {
   return window['go']['main']['App']['ScrapeGame'](arg1);
 }
 
+export function SetPreferredSource(arg1, arg2) {
+  return window['go']['main']['App']['SetPreferredSource'](arg1, arg2);
+}
+
 export function ToggleGameStar(arg1) {
   return window['go']['main']['App']['ToggleGameStar'](arg1);
 }

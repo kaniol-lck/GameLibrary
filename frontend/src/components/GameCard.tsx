@@ -44,7 +44,7 @@ function platformUrl(platform: string, id: string): string {
 export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr }: GameCardProps) {
   const [coverData, setCoverData] = useState('');
 
-  const primaryPlatform = (game as any).platforms?.[0]?.platform || (game as any).platform || 'local';
+  const primaryPlatform = (game as any).preferredSource || (game as any).platforms?.[0]?.platform || (game as any).platform || 'local';
 
   useEffect(() => {
     if (!game.metadata?.coverUrl) return;
@@ -89,6 +89,11 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
         <span className="game-card-platform" style={{ backgroundColor: badge.color }}>
           {badge.label}
         </span>
+        {allPlatforms.map((p) => p.platform !== primaryPlatform ? (
+          <span key={p.platform} className="game-card-platform-extra" style={{ backgroundColor: getPlatformBadge(p.platform).color }}>
+            {getPlatformBadge(p.platform).label}
+          </span>
+        ) : null)}
         {game.starred && (
           <span className="game-card-star" title="Starred">{'\u2605'}</span>
         )}

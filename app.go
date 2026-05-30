@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.5.1-alpha"
+var version = "0.6.0-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -426,6 +426,15 @@ func (a *App) ToggleGameStar(id string) error {
 		return fmt.Errorf("game not found: %s", id)
 	}
 	info.Starred = !info.Starred
+	return info.Save()
+}
+
+func (a *App) SetPreferredSource(id string, source string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	info.PreferredSource = source
 	return info.Save()
 }
 

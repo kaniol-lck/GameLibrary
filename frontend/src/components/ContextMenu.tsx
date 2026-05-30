@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame } from '../../wailsjs/go/main/App';
+import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame, SetPreferredSource } from '../../wailsjs/go/main/App';
 
 interface ContextMenuProps {
   game: game.GameInfo;
@@ -81,7 +81,12 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
     }
   };
 
+  const handleSetPreferred = async (source: string) => {
+    try { await SetPreferredSource(game.id, source); onUpdated(); } catch { /* ignore */ }
+  };
+
   const platforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
+  const preferredSource = (game as any).preferredSource || '';
   const hasExe = (game.executables || []).length > 0;
 
   return (
@@ -128,7 +133,21 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
         ) : null;
       })}
 
-      <div className="context-divider" />
+      {platforms.length > 1 && (
+        <>
+          <div className="context-divider" />
+          <div className="context-menu-section">
+            <div className="context-menu-label">Preferred Source</div>
+          </div>
+          {platforms.map((p) => (
+            <button key={'pref-'+p.platform} className="context-item" onClick={() => handleSetPreferred(p.platform)}>
+              <span className="context-item-icon">{p.platform === preferredSource ? '\u25C9' : '\u25CB'}</span>
+              <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}{p.platform === preferredSource ? ' (current)' : ''}</span>
+            </button>
+          ))}
+          <div className="context-divider" />
+        </>
+      )}
 
       {!showTagInput ? (
         <button className="context-item" onClick={() => setShowTagInput(true)}>

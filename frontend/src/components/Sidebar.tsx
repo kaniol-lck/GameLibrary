@@ -24,8 +24,14 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
   const userCounts = new Map<string, number>();
 
   for (const g of games) {
-    const plat = (g as any).platforms?.[0]?.platform || (g as any).platform || 'local';
-    platformCounts.set(plat, (platformCounts.get(plat) || 0) + 1);
+    const plats: any[] = (g as any).platforms || [];
+    for (const p of plats) {
+      const plat = p.platform || 'local';
+      platformCounts.set(plat, (platformCounts.get(plat) || 0) + 1);
+    }
+    if (plats.length === 0) {
+      platformCounts.set('local', (platformCounts.get('local') || 0) + 1);
+    }
 
     for (const tag of g.metadata?.tags || []) {
       genreCounts.set(tag, (genreCounts.get(tag) || 0) + 1);

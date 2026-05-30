@@ -182,10 +182,7 @@ func splitCamelCase(s string) string {
 	var result strings.Builder
 	runes := []rune(s)
 	for i, r := range runes {
-		if i > 0 && isUpper(r) && !isUpper(runes[i-1]) {
-			result.WriteRune(' ')
-		}
-		if i > 1 && i < len(runes)-1 && isUpper(runes[i-1]) && isLower(r) {
+		if i > 0 && isUpper(r) && isLower(runes[i-1]) {
 			result.WriteRune(' ')
 		}
 		result.WriteRune(r)

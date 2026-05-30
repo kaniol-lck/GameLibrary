@@ -44,19 +44,30 @@ func (s *DLsiteScraper) searchByRJCode(rjCode string) (*Result, error) {
 
 	resp, err := s.client.Get(pageURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dlsite: network error: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("dlsite: product %s not found (404)", rjCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("dlsite: HTTP %d for %s", resp.StatusCode, rjCode)
+	}
+
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	html := string(body)
+
+	if strings.Contains(html, "この作品は存在しません") || strings.Contains(html, "product not found") {
+		return nil, fmt.Errorf("dlsite: product %s not found", rjCode)
+	}
 
 	title := extractMeta(html, "og:title")
 	desc := extractMeta(html, "og:description")
 	coverURL := extractMeta(html, "og:image")
 
 	if title == "" {
-		return nil, fmt.Errorf("dlsite: could not extract metadata for %s", rjCode)
+		return nil, fmt.Errorf("dlsite: product %s page has no metadata (may not exist or require login)", rjCode)
 	}
 
 	return &Result{

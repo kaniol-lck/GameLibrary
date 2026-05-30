@@ -93,6 +93,7 @@ function App() {
         active.delete(g.id);
         done++;
         report();
+        await loadGames();
       }
     };
 

@@ -158,3 +158,81 @@ func TestRJPattern(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitCamelCase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"ArcadeShooter", "Arcade Shooter"},
+		{"FateStayNight", "Fate Stay Night"},
+		{"SteinsGate", "Steins Gate"},
+		{"Clannad", "Clannad"},
+		{"MultiExeDemo", "Multi Exe Demo"},
+		{"LocalRPG", "Local RPG"},
+		{"PuzzleQuest", "Puzzle Quest"},
+		{"Higurashi", "Higurashi"},
+		{"BaldursGate3", "Baldurs Gate3"},
+	}
+
+	for _, tc := range tests {
+		result := splitCamelCase(tc.input)
+		if result != tc.expected {
+			t.Errorf("splitCamelCase(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestNameVariations(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"SteinsGate", []string{"SteinsGate", "Steins Gate"}},
+		{"FateStayNight", []string{"FateStayNight", "Fate Stay Night"}},
+		{"hello-world", []string{"hello-world", "hello world"}},
+	}
+
+	for _, tc := range tests {
+		result := nameVariations(tc.input)
+		for _, exp := range tc.expected {
+			found := false
+			for _, r := range result {
+				if r == exp {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("nameVariations(%q) should contain %q, got %v", tc.input, exp, result)
+			}
+		}
+	}
+}
+
+func TestRawgScraperKey(t *testing.T) {
+	s := NewRawgScraper()
+	if s.Key() != "rawg" {
+		t.Errorf("expected 'rawg', got '%s'", s.Key())
+	}
+}
+
+func TestNormalizeSearchName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"steam_12345", "steam_12345"},
+		{"RJ401234", "RJ401234"},
+		{"rj401234", "rj401234"},
+		{"Clannad", "Clannad"},
+		{"Hollow Knight", "Hollow Knight"},
+	}
+
+	for _, tc := range tests {
+		result := normalizeSearchName(tc.input)
+		if result != tc.expected {
+			t.Errorf("normalizeSearchName(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}

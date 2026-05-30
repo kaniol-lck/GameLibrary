@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.3-alpha (2026-05-30)
+
+### Fixed
+
+- CamelCase 拆分错误：首字母大写的缩写词（如 `LocalRPG`）不再被错误拆成 `Local R P G`
+  *CamelCase splitting: acronyms (e.g. `LocalRPG`) no longer incorrectly split into `Local R P G`*
+- DLsite 刮削器改进：区分「产品不存在(404)」和「无元数据」，避免误报 `could not extract metadata`
+  *DLsite scraper: distinguish "product not found (404)" from "no metadata" cases*
+- 批量刮削时逐步刷新卡片，每完成一个游戏即更新显示，不再等到全部结束
+  *Batch scrape now refreshes game cards progressively after each game completes*
+
+### Added
+
+- `splitCamelCase` / `nameVariations` / `normalizeSearchName` 单元测试覆盖
+  *Unit tests for name normalization functions*
+
+---
+
 ## v0.3.2-alpha (2026-05-30)
 
 ### Added

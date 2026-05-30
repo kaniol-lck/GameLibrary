@@ -6,30 +6,38 @@
 
 - 扫描到新游戏时自动刮削元数据（后台异步执行）
   *Auto-scrape metadata for newly discovered games after scan*
-- 右键菜单优先数据源子菜单，可单选切换各平台，持久化到 `preferredSource`
-  *Context menu preferred source picker with radio buttons, persisted to .gameinfo.json*
-- 卡面各平台标签全部可见（主平台不透明，附加半透明）
-  *All platform badges visible on card (primary opaque, extras semi-transparent)*
-- 多源并行刮削 `ScrapeAll`：遍历所有启用的源，一游戏关联多平台（steam+dlsite）
+- 右键菜单侧滑子菜单（`Open Web Page` / `Preferred Source`），hover 右侧展开，不需点击
+  *Side-sliding sub-menus on hover, no click-to-expand needed*
+- 卡面 + 详情页展示所有平台标签（主平台不透明，附加半透明）
+  *All platform badges on card + detail panel (primary opaque, extras semi-transparent)*
+- 多源并行刮削 `ScrapeAll`：遍历所有启用的源，一游戏关联多平台
   *Multi-source ScrapeAll: tries ALL enabled sources, multi-platform per game*
-- `GameInfo.PreferredSource` + `Aliases` 字段，旧 `platform/platformId` 自动迁移
-  *PreferredSource + Aliases fields, legacy platform/platformId auto-migrated*
+- `GameInfo.PreferredSource` 字段：`PrimaryPlatform()` 优先读取首选来源
+  *PreferredSource field: PrimaryPlatform() reads preferred source first*
 - `ForceScanGames`：强制重读 steam_appid.txt 和重新生成 .gameinfo.json
   *ForceScanGames: re-read steam_appid.txt and regenerate .gameinfo.json*
+- Unmatched 标签：未刮削游戏从 All Games 隐藏，仅在侧边栏 Unmatched 分类查看
+  *Unmatched tag: unscraped games hidden from All Games, viewed via sidebar filter*
+- 刮削代码模块化：`src/hooks/useScrape.ts`（`scrapeSingle` / `scrapeBatch`）
+  *Modularized scrape: useScrape hook (scrapeSingle / scrapeBatch)*
+- 手动刮削（详情面板/右键菜单）显示进度条 + 卡片角标
+  *Manual scrape shows progress bar + card badge*
 
 ### Changed
 
-- `Platform` / `PlatformID` 字段 → `Platforms []PlatformInfo` 多平台数组
-- `PrimaryPlatform()` 读取 `preferredSource`，不再依赖数组顺序
-- `SetPlatform` append 而非 prepend
-- 侧边栏平台计数改为统计所有平台（非仅主平台）
+- `Platform` / `PlatformID` → `Platforms []PlatformInfo` + `Aliases []string` 多平台数组
+- `SetPlatform` append 非 prepend；侧边栏计数改为按所有平台统计
+- 移除 `local` 平台：新游戏 platform 为空，刮削后自动设置
+- 右键菜单刮削改用 App 级 `useScrape` hook（统一进度和角标）
+- 刮削后封面自动刷新（`refreshKey` 递增触发 re-fetch）
 
 ### Fixed
 
 - Steam 刮削器跳过 RJ 码目录名，避免劫持 DLsite 游戏
-  *Steam scraper skips RJ-code directory names*
-- DJsite RJ195371 刮削失败：SanobaWitch → NEKOPARA（Steam 333600 已验证）
-  *Replaced SanobaWitch test with NEKOPARA (verified Steam 333600)*
+- 首选源刮削：preferred source 全量 ApplyResult，其他源仅添加平台+别名
+- SanobaWitch → NEKOPARA 测试用例修复（Steam 333600 已验证）
+- 右键重新刮削未触发进度条/角标 → 统一经 `useScrape` hook
+- 刮削后游戏卡片封面不刷新 → 添加 `refreshKey` 依赖
 
 ---
 

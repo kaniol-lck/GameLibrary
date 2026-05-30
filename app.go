@@ -335,11 +335,32 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 		return &ScrapeReport{GameID: id, Title: info.Title, Source: "none", Error: "no source matched"}
 	}
 
-	for _, sr := range sourceResults {
-		scraper.ApplyResult(info, sr.Result, sr.Source)
+	prefIdx := 0
+	for i, sr := range sourceResults {
+		if sr.Source == info.PreferredSource {
+			prefIdx = i
+			break
+		}
 	}
 
-	primary := sourceResults[0]
+	primary := sourceResults[prefIdx]
+	scraper.ApplyResult(info, primary.Result, primary.Source)
+
+	for i, sr := range sourceResults {
+		if i == prefIdx {
+			continue
+		}
+		pid := ""
+		if sr.Result.Links != nil {
+			if id2, ok := sr.Result.Links["platformId"]; ok {
+				pid = id2
+			}
+		}
+		info.SetPlatform(sr.Source, pid, sr.Result.Title)
+		info.AddAlias(sr.Result.Title)
+		info.AddAlias(sr.Result.TitleNative)
+	}
+
 	scraper.DownloadCoverWithLog(info.GameDir, info.ID, primary.Result.CoverURL, "cover")
 	scraper.DownloadCoverWithLog(info.GameDir, info.ID, primary.Result.CoverLandscapeURL, "cover_landscape")
 

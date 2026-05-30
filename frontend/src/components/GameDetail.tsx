@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ScrapeGame, LaunchGame, GetGameCoverLandscape } from '../../wailsjs/go/main/App';
+import { LaunchGame, GetGameCoverLandscape } from '../../wailsjs/go/main/App';
 
 interface GameDetailProps {
   game: game.GameInfo;
   onClose: () => void;
   onUpdated: () => void;
+  onScrape?: (id: string) => Promise<void>;
+  isScraping?: boolean;
 }
 
 function formatPlaytime(seconds: number): string {
@@ -26,10 +28,9 @@ function getPlatColor(platform: string): string {
   }
 }
 
-export default function GameDetail({ game: initialGame, onClose, onUpdated }: GameDetailProps) {
+export default function GameDetail({ game: initialGame, onClose, onUpdated, onScrape, isScraping }: GameDetailProps) {
   const [g, setG] = useState<game.GameInfo>(initialGame);
   const [coverData, setCoverData] = useState('');
-  const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState('');
 
   useEffect(() => {
@@ -38,20 +39,15 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
   }, [g.id, g.metadata?.coverUrl]);
 
   const handleScrape = async () => {
-    setScraping(true);
-    setScrapeMsg('');
+    setScrapeMsg('Scraping...');
     try {
-      const report = await ScrapeGame(g.id);
-      if (report.error) {
-        setScrapeMsg(report.error);
-      } else {
-        setScrapeMsg(`Scraped from ${report.source}: ${report.title}`);
-        onUpdated();
+      if (onScrape) {
+        await onScrape(g.id);
+        setScrapeMsg('Scrape completed');
       }
-    } catch (err) {
-      setScrapeMsg(String(err));
-    } finally {
-      setScraping(false);
+      onUpdated();
+    } catch {
+      setScrapeMsg('Scrape failed');
     }
   };
 
@@ -158,10 +154,10 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
             }}>
               &#9654; Launch Game
             </button>
-            <button className="btn btn-secondary" onClick={handleScrape} disabled={scraping}>
-              {scraping ? 'Scraping...' : 'Scrape Metadata'}
+            <button className="btn btn-secondary" onClick={handleScrape} disabled={isScraping}>
+              {isScraping ? 'Scraping...' : 'Scrape Metadata'}
             </button>
-            <button className="btn btn-ghost-sm" onClick={handleScrape} disabled={scraping} title="Force re-scrape">
+            <button className="btn btn-ghost-sm" onClick={handleScrape} disabled={isScraping} title="Force re-scrape">
               Re-scrape
             </button>
           </div>

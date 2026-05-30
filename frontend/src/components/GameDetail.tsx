@@ -39,7 +39,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
   const platforms: Array<{platform: string, id: string}> = (g as any).platforms || [];
   const preferredSource = (g as any).preferredSource || '';
 
-  const handleStar = async () => { try { await ToggleGameStar(g.id); onUpdated(); } catch {} };
+  const handleStar = async () => { try { await ToggleGameStar(g.id); g.starred = !g.starred; setG({ ...g } as any); onUpdated(); } catch {} };
   const handleLaunch = async () => { try { await LaunchGame(g.id); } catch (err) { setScrapeMsg(String(err)); } };
   const handleScrape = async () => {
     setScrapeMsg('Scraping...');
@@ -47,13 +47,13 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
   };
   const handleOpenDir = async () => { try { await OpenGameDirectory(g.id); } catch {} };
   const handleOpenMeta = async () => { try { await OpenGameMetadata(g.id); } catch {} };
-  const handleSetPreferred = async (src: string) => { try { await SetPreferredSource(g.id, src); onUpdated(); } catch {} };
+  const handleSetPreferred = async (src: string) => { try { await SetPreferredSource(g.id, src); (g as any).preferredSource = src; setG({ ...g } as any); onUpdated(); } catch {} };
   const handleOpenPage = (url: string) => { if (url) OpenBrowser(url).catch(() => {}); };
   const handleAddTag = async () => {
     const tag = tagInput.trim(); if (!tag) { setShowTagInput(false); return; }
-    try { await AddGameTag(g.id, tag); onUpdated(); setTagInput(''); setShowTagInput(false); } catch {}
+    try { await AddGameTag(g.id, tag); g.tags = [...(g.tags || []), tag]; setG({ ...g } as any); onUpdated(); setTagInput(''); setShowTagInput(false); } catch {}
   };
-  const handleRemoveTag = async (tag: string) => { try { await RemoveGameTag(g.id, tag); onUpdated(); } catch {} };
+  const handleRemoveTag = async (tag: string) => { try { await RemoveGameTag(g.id, tag); g.tags = (g.tags || []).filter((t: string) => t !== tag); setG({ ...g } as any); onUpdated(); } catch {} };
 
   const platUrl = (p: any) => {
     if (p.platform === 'steam' && p.id) return `https://store.steampowered.com/app/${p.id}/`;

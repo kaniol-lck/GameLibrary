@@ -1445,6 +1445,29 @@
   flex-wrap: wrap;
 }
 
+.detail-pref-btn {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.detail-pref-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+.detail-pref-active {
+  background: rgba(79, 110, 247, 0.15);
+  border-color: rgba(79, 110, 247, 0.4);
+  color: #a5b4fc;
+}
+
 .detail-bottom-actions {
   display: flex;
   gap: 6px;

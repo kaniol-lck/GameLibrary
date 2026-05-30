@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
-import { GetGameList, ScanGames, GetAppInfo } from '../wailsjs/go/main/App';
-import { game, scanner } from '../wailsjs/go/models';
+import { GetGameList, ScanGames, GetAppInfo, GetConfig } from '../wailsjs/go/main/App';
+import { game, scanner, config } from '../wailsjs/go/models';
 import { useScrape } from './hooks/useScrape';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
@@ -32,6 +32,7 @@ function App() {
   const [error, setError] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ game: game.GameInfo; x: number; y: number } | null>(null);
   const [coverRefresh, setCoverRefresh] = useState(0);
+  const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
@@ -51,6 +52,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try { const info = await GetAppInfo(); setAppInfo(info); } catch { /* ignore */ }
+      try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch { /* ignore */ }
       await loadGames();
     })();
   }, [loadGames]);
@@ -113,6 +115,16 @@ function App() {
     if (selectedNav.startsWith('type:')) return games.filter((g) => g.type === selectedNav.slice(5));
     if (selectedNav.startsWith('tag:')) return games.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
     if (selectedNav.startsWith('usertag:')) return games.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
+    if (selectedNav.startsWith('pathlabel:')) {
+      const label = selectedNav.slice(10);
+      return games.filter((g: any) => {
+        const gameDir = (g.gameDir || '').replace(/\\/g, '/');
+        for (const [dirPath, labels] of Object.entries(pathLabels)) {
+          if (gameDir.startsWith(dirPath.replace(/\\/g, '/')) && (labels as string[]).includes(label)) return true;
+        }
+        return false;
+      });
+    }
     return games;
   })();
 
@@ -128,6 +140,7 @@ function App() {
     if (selectedNav.startsWith('type:')) return selectedNav.slice(5);
     if (selectedNav.startsWith('tag:')) return selectedNav.slice(4);
     if (selectedNav.startsWith('usertag:')) return '#' + selectedNav.slice(8);
+    if (selectedNav.startsWith('pathlabel:')) return selectedNav.slice(10);
     return 'Games';
   };
 
@@ -140,6 +153,7 @@ function App() {
         selectedNav={selectedNav}
         onSelectNav={(key) => { setSelectedNav(key); setSelectedGame(null); }}
         machineName={appInfo?.['machineName'] ?? ''}
+        pathLabels={pathLabels}
       />
 
       <div className="main-area">

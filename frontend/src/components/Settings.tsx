@@ -47,6 +47,8 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
+  const [newLabelDir, setNewLabelDir] = useState('');
+  const [newLabelInput, setNewLabelInput] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -99,14 +101,19 @@ export default function Settings() {
   const updateDirLabel = (dir: string, label: string) => {
     if (!cfg) return;
     const labels = { ...(cfg.gameDirectoryLabels || {}) };
-    const current = labels[dir] || [];
-    if (label && !current.includes(label)) {
-      labels[dir] = [...current, label];
-    } else {
-      labels[dir] = current.filter((l: string) => l !== label);
-    }
-    if (labels[dir].length === 0) delete labels[dir];
+    const current = [...(labels[dir] || [])];
+    const idx = current.indexOf(label);
+    if (idx >= 0) { current.splice(idx, 1); } else if (label) { current.push(label); }
+    if (current.length === 0) { delete labels[dir]; } else { labels[dir] = current; }
     updateCfg({ gameDirectoryLabels: labels });
+  };
+
+  const addDirLabel = (dir: string) => {
+    const label = newLabelInput.trim();
+    if (!label) { setNewLabelDir(''); setNewLabelInput(''); return; }
+    updateDirLabel(dir, label);
+    setNewLabelDir('');
+    setNewLabelInput('');
   };
 
   const toggleSource = (index: number) => {
@@ -196,10 +203,16 @@ export default function Settings() {
                              <button className="context-tag-remove" onClick={() => updateDirLabel(dir, label)} title="Remove label">&times;</button>
                            </span>
                          ))}
-                         <button className="dir-tag-chip dir-tag-add" onClick={() => {
-                           const label = prompt('Enter path label:');
-                           if (label && label.trim()) updateDirLabel(dir, label.trim());
-                         }}>+</button>
+                         {newLabelDir === dir ? (
+                           <div className="context-tag-input dir-tag-inline">
+                             <input autoFocus type="text" placeholder="label..." value={newLabelInput}
+                               onChange={(e) => setNewLabelInput(e.target.value)}
+                               onKeyDown={(e) => { if (e.key === 'Enter') addDirLabel(dir); if (e.key === 'Escape') { setNewLabelDir(''); setNewLabelInput(''); } }} />
+                             <button onClick={() => addDirLabel(dir)}>Add</button>
+                           </div>
+                         ) : (
+                           <button className="dir-tag-chip dir-tag-add" onClick={() => { setNewLabelDir(dir); setNewLabelInput(''); }}>+</button>
+                         )}
                        </div>
                      </div>
                      <button className="btn-icon-sm" onClick={() => removeGameDir(i)} title="Remove">&times;</button>

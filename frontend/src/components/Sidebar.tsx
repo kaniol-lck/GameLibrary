@@ -4,7 +4,7 @@ interface Category {
   key: string;
   label: string;
   count: number;
-  section: 'platform' | 'genre' | 'user';
+  section: 'platform' | 'genre' | 'user' | 'path';
 }
 
 interface SidebarProps {
@@ -14,14 +14,16 @@ interface SidebarProps {
   selectedNav: string;
   onSelectNav: (key: string) => void;
   machineName: string;
+  pathLabels?: Record<string, string[]>;
 }
 
-function deriveCategories(games: game.GameInfo[]): Category[] {
+function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined): Category[] {
   const cats: Category[] = [];
 
   const platformCounts = new Map<string, number>();
   const genreCounts = new Map<string, number>();
   const userCounts = new Map<string, number>();
+  const pathCounts = new Map<string, number>();
   let unmatchedCount = 0;
 
   for (const g of games) {
@@ -41,6 +43,17 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
     for (const tag of g.tags || []) {
       userCounts.set(tag, (userCounts.get(tag) || 0) + 1);
     }
+
+    if (pathLabels) {
+      const gameDir = ((g as any).gameDir || '').replace(/\\/g, '/');
+      for (const [dirPath, labels] of Object.entries(pathLabels)) {
+        if (gameDir.startsWith(dirPath.replace(/\\/g, '/'))) {
+          for (const l of (labels as string[])) {
+            if (l) pathCounts.set(l, (pathCounts.get(l) || 0) + 1);
+          }
+        }
+      }
+    }
   }
 
   if (unmatchedCount > 0) {
@@ -59,6 +72,10 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
 
   for (const [key, count] of [...userCounts].sort((a, b) => b[1] - a[1])) {
     cats.push({ key: `usertag:${key}`, label: key, count, section: 'user' });
+  }
+
+  for (const [key, count] of [...pathCounts].sort((a, b) => b[1] - a[1])) {
+    cats.push({ key: `pathlabel:${key}`, label: key, count, section: 'path' });
   }
 
   return cats;
@@ -92,14 +109,16 @@ export default function Sidebar({
   selectedNav,
   onSelectNav,
   machineName,
+  pathLabels,
 }: SidebarProps) {
-  const categories = deriveCategories(games);
+  const categories = deriveCategories(games, pathLabels);
   const allCount = games.length;
   const starredCount = games.filter((g) => g.starred).length;
 
   const platforms = categories.filter((c) => c.section === 'platform');
   const genres = categories.filter((c) => c.section === 'genre');
   const userTags = categories.filter((c) => c.section === 'user');
+  const pathTags = categories.filter((c) => c.section === 'path');
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -203,6 +222,28 @@ export default function Sidebar({
             onClick={() => onSelectNav(cat.key)}
           >
             <span className="sidebar-item-icon">#</span>
+            {!collapsed && (
+              <>
+                <span className="sidebar-item-label">{cat.label}</span>
+                <span className="sidebar-item-badge">{cat.count}</span>
+              </>
+            )}
+          </button>
+        ))}
+
+        {pathTags.length > 0 && !collapsed && (
+          <div className="sidebar-divider" />
+        )}
+        {pathTags.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">Paths</div>
+        )}
+        {pathTags.map((cat) => (
+          <button
+            key={cat.key}
+            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
+            onClick={() => onSelectNav(cat.key)}
+          >
+            <span className="sidebar-item-icon">{'\uD83D\uDCC1'}</span>
             {!collapsed && (
               <>
                 <span className="sidebar-item-label">{cat.label}</span>

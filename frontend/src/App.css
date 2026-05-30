@@ -935,17 +935,35 @@
 
 .dir-tag-add:hover { background: rgba(255, 255, 255, 0.1); color: #ccc; }
 
-.dir-label-input {
-  padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+.dir-tag-inline {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.dir-tag-inline input {
+  width: 80px;
+  padding: 2px 6px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
   color: #e0e0e0;
-  font-size: 12px;
   outline: none;
-  width: 100%;
-  max-width: 200px;
-  font-family: inherit;
+}
+
+.dir-tag-inline input:focus { border-color: #4f6ef7; }
+
+.dir-tag-inline button {
+  padding: 2px 8px;
+  background: #4f6ef7;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
 }
 
 .dir-label-input:focus { border-color: #4f6ef7; }

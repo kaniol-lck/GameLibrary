@@ -30,6 +30,14 @@ func New(exeDir string, cfg *config.Config) *Scanner {
 }
 
 func (s *Scanner) ScanAll() ([]ScanResult, error) {
+	return s.scanAll(false)
+}
+
+func (s *Scanner) ForceScanAll() ([]ScanResult, error) {
+	return s.scanAll(true)
+}
+
+func (s *Scanner) scanAll(force bool) ([]ScanResult, error) {
 	logger.ScanStarted(s.config.GameDirectories, s.config.MaxScanDepth)
 
 	var results []ScanResult
@@ -41,7 +49,7 @@ func (s *Scanner) ScanAll() ([]ScanResult, error) {
 			continue
 		}
 
-		dirResults := s.scanDir(absDir, 0)
+		dirResults := s.scanDirForce(absDir, 0, force)
 		results = append(results, dirResults...)
 	}
 
@@ -67,10 +75,14 @@ func (s *Scanner) ScanAll() ([]ScanResult, error) {
 }
 
 func (s *Scanner) ScanDir(dir string) []ScanResult {
-	return s.scanDir(dir, 0)
+	return s.scanDirForce(dir, 0, false)
 }
 
 func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
+	return s.scanDirForce(dir, depth, false)
+}
+
+func (s *Scanner) scanDirForce(dir string, depth int, force bool) []ScanResult {
 	logger.ScanDirectoryEntered(dir, depth)
 
 	entries, err := os.ReadDir(dir)
@@ -79,7 +91,7 @@ func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
 	}
 
 	if s.isGameDirectory(entries) {
-		result := s.identifyGame(dir)
+		result := s.identifyGameForce(dir, force)
 		return []ScanResult{result}
 	}
 
@@ -100,7 +112,7 @@ func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
 		}
 
 		subDir := filepath.Join(dir, name)
-		subResults := s.scanDir(subDir, depth+1)
+		subResults := s.scanDirForce(subDir, depth+1, force)
 		results = append(results, subResults...)
 	}
 	return results
@@ -120,12 +132,18 @@ func (s *Scanner) isGameDirectory(entries []os.DirEntry) bool {
 }
 
 func (s *Scanner) identifyGame(gameDir string) ScanResult {
-	existing, err := game.LoadFromDir(gameDir)
-	if err == nil && existing != nil {
-		existing.GameDir = gameDir
-		existing.InfoRelPath = ".gameinfo.json"
-		logger.ScanGameAlreadyExists(gameDir, existing.ID)
-		return ScanResult{GameDir: gameDir, GameInfo: existing, IsNew: false}
+	return s.identifyGameForce(gameDir, false)
+}
+
+func (s *Scanner) identifyGameForce(gameDir string, force bool) ScanResult {
+	if !force {
+		existing, err := game.LoadFromDir(gameDir)
+		if err == nil && existing != nil {
+			existing.GameDir = gameDir
+			existing.InfoRelPath = ".gameinfo.json"
+			logger.ScanGameAlreadyExists(gameDir, existing.ID)
+			return ScanResult{GameDir: gameDir, GameInfo: existing, IsNew: false}
+		}
 	}
 
 	entries, _ := os.ReadDir(gameDir)

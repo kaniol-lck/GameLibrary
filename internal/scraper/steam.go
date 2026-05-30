@@ -46,6 +46,10 @@ func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
 	}
 
 	baseName := filepath.Base(gameDir)
+	if rjPattern.MatchString(baseName) {
+		return nil, fmt.Errorf("steam: skipping RJ code game '%s'", baseName)
+	}
+
 	searchName := normalizeSearchName(baseName)
 	logger.Debug("steam scraper: searching by name", "searchTerm", searchName, "gameDir", gameDir)
 

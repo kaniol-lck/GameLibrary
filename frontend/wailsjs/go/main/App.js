@@ -6,6 +6,10 @@ export function AddGameTag(arg1, arg2) {
   return window['go']['main']['App']['AddGameTag'](arg1, arg2);
 }
 
+export function ForceScanGames() {
+  return window['go']['main']['App']['ForceScanGames']();
+}
+
 export function GetAppInfo() {
   return window['go']['main']['App']['GetAppInfo']();
 }

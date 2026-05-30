@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.5.0-alpha"
+var version = "0.5.1-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -190,7 +190,21 @@ func (a *App) SaveConfig(cfg *config.Config) error {
 }
 
 func (a *App) ScanGames() []scanner.ScanResult {
-	results, err := a.scanner.ScanAll()
+	return a.doScan(false)
+}
+
+func (a *App) ForceScanGames() []scanner.ScanResult {
+	return a.doScan(true)
+}
+
+func (a *App) doScan(force bool) []scanner.ScanResult {
+	var results []scanner.ScanResult
+	var err error
+	if force {
+		results, err = a.scanner.ForceScanAll()
+	} else {
+		results, err = a.scanner.ScanAll()
+	}
 	if err != nil {
 		logger.Error("scan failed", "error", err.Error())
 		return []scanner.ScanResult{{
@@ -304,27 +318,27 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 		return &ScrapeReport{GameID: id, Error: "game not found"}
 	}
 
-	result, source, err := a.pipeline.Scrape(info.GameDir, info)
-	if err != nil {
-		return &ScrapeReport{GameID: id, Title: info.Title, Error: err.Error()}
-	}
-	if result == nil {
+	sourceResults := a.pipeline.ScrapeAll(info.GameDir, info)
+	if len(sourceResults) == 0 {
 		return &ScrapeReport{GameID: id, Title: info.Title, Source: "none", Error: "no source matched"}
 	}
 
-	scraper.ApplyResult(info, result, source)
+	for _, sr := range sourceResults {
+		scraper.ApplyResult(info, sr.Result, sr.Source)
+	}
 
-	scraper.DownloadCoverWithLog(info.GameDir, info.ID, result.CoverURL, "cover")
-	scraper.DownloadCoverWithLog(info.GameDir, info.ID, result.CoverLandscapeURL, "cover_landscape")
+	primary := sourceResults[0]
+	scraper.DownloadCoverWithLog(info.GameDir, info.ID, primary.Result.CoverURL, "cover")
+	scraper.DownloadCoverWithLog(info.GameDir, info.ID, primary.Result.CoverLandscapeURL, "cover_landscape")
 
 	if err := info.Save(); err != nil {
 		logger.GameInfoSaved(id, info.Title, err)
-		return &ScrapeReport{GameID: id, Title: info.Title, Source: source, Error: "save failed: " + err.Error()}
+		return &ScrapeReport{GameID: id, Title: info.Title, Source: primary.Source, Error: "save failed: " + err.Error()}
 	}
 
 	logger.GameInfoSaved(id, info.Title, nil)
 
-	return &ScrapeReport{GameID: id, Title: info.Title, Source: source}
+	return &ScrapeReport{GameID: id, Title: info.Title, Source: primary.Source}
 }
 
 func (a *App) ScrapeAllGames() []ScrapeReport {

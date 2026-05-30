@@ -76,6 +76,62 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 	return nil, "", nil
 }
 
+type SourceResult struct {
+	Result *Result
+	Source string
+}
+
+func (p *Pipeline) ScrapeAll(gameDir string, gameInfo *game.GameInfo) []SourceResult {
+	logger.ScrapeStarted(gameInfo.ID, gameInfo.Title)
+
+	var results []SourceResult
+
+	for _, srcCfg := range p.config.Sources {
+		if !srcCfg.Enabled {
+			logger.ScrapeSourceSkipped(gameInfo.ID, srcCfg.Key, "disabled")
+			continue
+		}
+		scraper, ok := p.source[srcCfg.Key]
+		if !ok {
+			logger.ScrapeSourceSkipped(gameInfo.ID, srcCfg.Key, "not registered")
+			continue
+		}
+
+		logger.ScrapeSourceAttempt(gameInfo.ID, srcCfg.Key, gameInfo.Title)
+
+		appID := ""
+		for _, plat := range gameInfo.Platforms {
+			if plat.Platform == srcCfg.Key && plat.ID != "" {
+				appID = plat.ID
+				break
+			}
+		}
+		if appID == "" {
+			appID = gameInfo.PrimaryPlatformID()
+		}
+
+		result, err := scraper.Search(gameDir, appID)
+		if err != nil {
+			logger.ScrapeSourceFailed(gameInfo.ID, gameInfo.Title, srcCfg.Key, err)
+			continue
+		}
+		if result == nil {
+			logger.ScrapeSourceEmpty(gameInfo.ID, gameInfo.Title, srcCfg.Key)
+			continue
+		}
+
+		logger.ScrapeSuccess(gameInfo.ID, gameInfo.Title, srcCfg.Key, result.Title, appID)
+
+		results = append(results, SourceResult{Result: result, Source: srcCfg.Key})
+	}
+
+	if len(results) == 0 {
+		logger.ScrapeAllSourcesFailed(gameInfo.ID, gameInfo.Title)
+	}
+
+	return results
+}
+
 func ApplyResult(info *game.GameInfo, result *Result, sourceKey string) {
 	info.Title = result.Title
 	info.AddAlias(result.TitleNative)

@@ -42,6 +42,10 @@ export function LaunchGame(arg1) {
   return window['go']['main']['App']['LaunchGame'](arg1);
 }
 
+export function OpenBrowser(arg1) {
+  return window['go']['main']['App']['OpenBrowser'](arg1);
+}
+
 export function OpenGameDirectory(arg1) {
   return window['go']['main']['App']['OpenGameDirectory'](arg1);
 }

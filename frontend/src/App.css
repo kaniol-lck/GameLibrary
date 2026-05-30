@@ -1384,6 +1384,11 @@
   cursor: not-allowed;
 }
 
+.context-sub {
+  padding-left: 28px;
+  font-size: 12px;
+}
+
 .context-item-icon {
   flex-shrink: 0;
   width: 18px;

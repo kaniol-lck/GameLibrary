@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame, SetPreferredSource } from '../../wailsjs/go/main/App';
+import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame, SetPreferredSource, OpenBrowser } from '../../wailsjs/go/main/App';
 
 interface ContextMenuProps {
   game: game.GameInfo;
@@ -14,9 +14,10 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
   const menuRef = useRef<HTMLDivElement>(null);
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [subMenu, setSubMenu] = useState('');
 
-  const adjustedX = Math.min(x, window.innerWidth - 220);
-  const adjustedY = Math.min(y, window.innerHeight - 420);
+  const adjustedX = Math.min(x, window.innerWidth - 230);
+  const adjustedY = Math.min(y, window.innerHeight - 480);
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -74,15 +75,18 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
     try { await RemoveGameTag(game.id, tag); onUpdated(); } catch { /* ignore */ }
   };
 
-  const openPage = (url: string) => {
+  const handleSetPreferred = async (source: string) => {
+    try { await SetPreferredSource(game.id, source); onUpdated(); } catch { /* ignore */ }
+  };
+
+  const handleOpenPage = (url: string) => {
     if (url) {
-      try { (window as any).wails?.Browser?.OpenURL?.(url); } catch { /* fallback */ }
-      window.open(url, '_blank');
+      OpenBrowser(url).catch(() => {});
     }
   };
 
-  const handleSetPreferred = async (source: string) => {
-    try { await SetPreferredSource(game.id, source); onUpdated(); } catch { /* ignore */ }
+  const toggleSubMenu = (key: string) => {
+    setSubMenu(subMenu === key ? '' : key);
   };
 
   const platforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
@@ -118,36 +122,7 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
         <span>Re-scrape Metadata</span>
       </button>
 
-      {platforms.length > 0 && <div className="context-divider" />}
-
-      {platforms.map((p) => {
-        let url = '';
-        if (p.platform === 'steam') url = `https://store.steampowered.com/app/${p.id}/`;
-        else if (p.platform === 'dlsite') url = `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
-        else if (p.platform === 'bangumi') url = `https://bgm.tv/subject/${p.id}`;
-        return url ? (
-          <button key={p.platform} className="context-item" onClick={() => openPage(url)}>
-            <span className="context-item-icon">{'\uD83D\uDD17'}</span>
-            <span>Open {p.platform.charAt(0).toUpperCase() + p.platform.slice(1)} Page</span>
-          </button>
-        ) : null;
-      })}
-
-      {platforms.length > 1 && (
-        <>
-          <div className="context-divider" />
-          <div className="context-menu-section">
-            <div className="context-menu-label">Preferred Source</div>
-          </div>
-          {platforms.map((p) => (
-            <button key={'pref-'+p.platform} className="context-item" onClick={() => handleSetPreferred(p.platform)}>
-              <span className="context-item-icon">{p.platform === preferredSource ? '\u25C9' : '\u25CB'}</span>
-              <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}{p.platform === preferredSource ? ' (current)' : ''}</span>
-            </button>
-          ))}
-          <div className="context-divider" />
-        </>
-      )}
+      <div className="context-divider" />
 
       {!showTagInput ? (
         <button className="context-item" onClick={() => setShowTagInput(true)}>
@@ -176,17 +151,45 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
           {game.tags.map((tag) => (
             <span key={tag} className="context-tag-chip">
               {tag}
-              <button
-                className="context-tag-remove"
-                onClick={() => handleRemoveTag(tag)}
-                title="Remove tag"
-              >
-                &times;
-              </button>
+              <button className="context-tag-remove" onClick={() => handleRemoveTag(tag)} title="Remove tag">&times;</button>
             </span>
           ))}
         </div>
       )}
+
+      {platforms.length > 0 && <div className="context-divider" />}
+
+      {platforms.length > 0 && (
+        <button className="context-item" onClick={() => toggleSubMenu('pages')}>
+          <span className="context-item-icon">{subMenu === 'pages' ? '\u25BC' : '\u25B6'}</span>
+          <span>Open Web Page</span>
+        </button>
+      )}
+      {subMenu === 'pages' && platforms.map((p) => {
+        let url = '';
+        if (p.platform === 'steam' && p.id) url = `https://store.steampowered.com/app/${p.id}/`;
+        else if (p.platform === 'dlsite' && p.id) url = `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
+        else if (p.platform === 'bangumi' && p.id) url = `https://bgm.tv/subject/${p.id}`;
+        return url ? (
+          <button key={'link-'+p.platform} className="context-item context-sub" onClick={() => handleOpenPage(url)}>
+            <span className="context-item-icon">{getPlatIcon(p.platform)}</span>
+            <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}</span>
+          </button>
+        ) : null;
+      })}
+
+      {platforms.length > 1 && (
+        <button className="context-item" onClick={() => toggleSubMenu('pref')}>
+          <span className="context-item-icon">{subMenu === 'pref' ? '\u25BC' : '\u25B6'}</span>
+          <span>Preferred Source</span>
+        </button>
+      )}
+      {subMenu === 'pref' && platforms.map((p) => (
+        <button key={'pref-'+p.platform} className="context-item context-sub" onClick={() => { handleSetPreferred(p.platform); setSubMenu(''); }}>
+          <span className="context-item-icon">{p.platform === preferredSource ? '\u25C9' : '\u25CB'}</span>
+          <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}</span>
+        </button>
+      ))}
 
       <div className="context-divider" />
 
@@ -208,4 +211,14 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
       </button>
     </div>
   );
+}
+
+function getPlatIcon(p: string): string {
+  switch (p) {
+    case 'steam': return '\u25A0';
+    case 'dlsite': return '\u25C6';
+    case 'vndb': return '\u25B6';
+    case 'bangumi': return '\u25CF';
+    default: return '\u25CB';
+  }
 }

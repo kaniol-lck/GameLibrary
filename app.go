@@ -502,3 +502,8 @@ func (a *App) OpenGameMetadata(id string) error {
 	}
 	return exec.Command("notepad", info.InfoFilePath()).Start()
 }
+
+func (a *App) OpenBrowser(url string) error {
+	runtime.BrowserOpenURL(a.ctx, url)
+	return nil
+}

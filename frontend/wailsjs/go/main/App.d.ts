@@ -25,6 +25,8 @@ export function GetMachineName():Promise<string>;
 
 export function LaunchGame(arg1:string):Promise<void>;
 
+export function OpenBrowser(arg1:string):Promise<void>;
+
 export function OpenGameDirectory(arg1:string):Promise<void>;
 
 export function OpenGameMetadata(arg1:string):Promise<void>;

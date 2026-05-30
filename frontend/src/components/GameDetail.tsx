@@ -19,7 +19,7 @@ function formatPlaytime(seconds: number): string {
 }
 
 function getPlatColor(platform: string): string {
-  switch (platform) { case 'steam': return '#1a3a5c'; case 'vndb': return '#2255a4'; case 'dlsite': return '#c2185b'; case 'bangumi': return '#e57399'; default: return '#555'; }
+  switch (platform) { case 'steam': return '#1a4b8a'; case 'vndb': return '#2255a4'; case 'dlsite': return '#c2185b'; case 'bangumi': return '#e57399'; default: return '#555'; }
 }
 
 export default function GameDetail({ game: initialGame, onClose, onUpdated, onScrape, isScraping }: GameDetailProps) {

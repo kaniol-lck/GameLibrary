@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.3.1-alpha (2026-05-30)
+
+### Changed
+
+- 日志系统改为按会话归档（`session_2026-05-30_14-30-01.log`），每次启动独立文件
+  *Logger now archives per session (`session_2026-05-30_14-30-01.log`), one file per launch*
+
+### Fixed
+
+- Steam 刮削器搜索本地游戏时误用完整路径作为搜索词，改为仅用目录名
+  *Steam scraper used full directory path as search term for local games; now uses dir basename only*
+- `steam_appid.txt` 含 UTF-8 BOM 导致 AppID 无效（如 `﻿1086940`），已自动去除
+  *steam_appid.txt with UTF-8 BOM produced invalid AppID (e.g. `﻿1086940`); now auto-stripped*
+- 过滤 `UnityCrashHandler64.exe` 等引擎辅助程序，不再列为游戏可执行文件
+  *Engine helper executables like UnityCrashHandler64.exe are now filtered out*
+- 刮削日志新增搜索词和匹配结果详情，便于排查失败原因
+  *Scrape logs now include search term and matched result details for diagnostics*
+
+---
+
 ## v0.3.0-alpha (2026-05-30)
 
 ### Added

@@ -6,8 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"GameLibrary/internal/logger"
 )
 
 type SteamScraper struct {
@@ -38,9 +41,13 @@ func (s *SteamScraper) Configure(lang string, settings map[string]string) {
 
 func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
 	if appID != "" {
+		logger.Debug("steam scraper: searching by appID", "appId", appID)
 		return s.searchByAppID(appID)
 	}
-	return s.searchByName(gameDir)
+
+	searchName := filepath.Base(gameDir)
+	logger.Debug("steam scraper: searching by name", "searchTerm", searchName, "gameDir", gameDir)
+	return s.searchByName(searchName)
 }
 
 func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
@@ -123,8 +130,8 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 	}, nil
 }
 
-func (s *SteamScraper) searchByName(dirName string) (*Result, error) {
-	query := url.QueryEscape(dirName)
+func (s *SteamScraper) searchByName(name string) (*Result, error) {
+	query := url.QueryEscape(name)
 	apiURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&l=%s", query, languageCode(s.language))
 
 	resp, err := s.client.Get(apiURL)
@@ -147,10 +154,11 @@ func (s *SteamScraper) searchByName(dirName string) (*Result, error) {
 	}
 
 	if searchResult.Total == 0 {
-		return nil, fmt.Errorf("steam: no results for '%s'", dirName)
+		return nil, fmt.Errorf("steam: no results for '%s'", name)
 	}
 
 	bestID := fmt.Sprintf("%d", searchResult.Items[0].ID)
+	logger.Debug("steam name search result", "searchTerm", name, "matchedId", bestID, "matchedName", searchResult.Items[0].Name)
 	return s.searchByAppID(bestID)
 }
 

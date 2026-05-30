@@ -14,26 +14,25 @@ import (
 )
 
 var (
-	mu     sync.Mutex
-	logDir string
-	file   *os.File
-	today  string
-	root   *slog.Logger
+	logFile    *os.File
+	logDir     string
+	root       *slog.Logger
+	mu         sync.Mutex
 )
 
 func Init(dir string) {
 	logDir = filepath.Join(dir, "logs")
 	os.MkdirAll(logDir, 0755)
-	today = dateStr()
-	root = slog.New(&dailyHandler{})
-}
 
-func dateStr() string {
-	return time.Now().Format("2006-01-02")
-}
+	sessionName := time.Now().Format("2006-01-02_15-04-05")
+	path := filepath.Join(logDir, fmt.Sprintf("session_%s.log", sessionName))
+	var err error
+	logFile, err = os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		logFile = nil
+	}
 
-func logFilePath(day string) string {
-	return filepath.Join(logDir, fmt.Sprintf("gamemanager_%s.log", day))
+	root = slog.New(&fileHandler{})
 }
 
 func Debug(msg string, args ...any) { log(slog.LevelDebug, msg, args...) }
@@ -52,32 +51,24 @@ func log(level slog.Level, msg string, args ...any) {
 	_ = root.Handler().Handle(context.Background(), r)
 }
 
-type dailyHandler struct {
+type fileHandler struct {
 	mu sync.Mutex
 }
 
-func (h *dailyHandler) Enabled(_ context.Context, _ slog.Level) bool {
+func (h *fileHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return true
 }
 
-func (h *dailyHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *fileHandler) Handle(_ context.Context, r slog.Record) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	day := dateStr()
-	if day != today || file == nil {
-		if file != nil {
-			file.Close()
-		}
-		today = day
-		var err error
-		file, err = os.OpenFile(logFilePath(day), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
+	w := io.Writer(nil)
+	if logFile != nil {
+		w = logFile
+	} else {
+		return nil
 	}
-
-	w := file
 
 	ts := r.Time.Format("2006-01-02 15:04:05.000")
 	level := levelStr(r.Level)
@@ -107,11 +98,11 @@ func (h *dailyHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func (h *dailyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *fileHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return h
 }
 
-func (h *dailyHandler) WithGroup(name string) slog.Handler {
+func (h *fileHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
@@ -139,9 +130,9 @@ func source(pc uintptr) (string, int) {
 }
 
 func Close() {
-	if file != nil {
-		file.Close()
-		file = nil
+	if logFile != nil {
+		logFile.Close()
+		logFile = nil
 	}
 }
 
@@ -246,8 +237,12 @@ func ScrapeSourceSkipped(gameID, sourceKey, reason string) {
 	Debug("scrape source skipped", "gameId", gameID, "source", sourceKey, "reason", reason)
 }
 
-func ScrapeSourceAttempt(gameID, sourceKey string) {
-	Debug("scrape source attempt", "gameId", gameID, "source", sourceKey)
+func ScrapeSourceAttempt(gameID, sourceKey, searchTerm string) {
+	Info("scrape source attempt",
+		"gameId", gameID,
+		"source", sourceKey,
+		"searchTerm", searchTerm,
+	)
 }
 
 func ScrapeSourceFailed(gameID, title, sourceKey string, err error) {

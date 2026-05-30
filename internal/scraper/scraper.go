@@ -54,7 +54,7 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 			continue
 		}
 
-		logger.ScrapeSourceAttempt(gameInfo.ID, srcCfg.Key)
+		logger.ScrapeSourceAttempt(gameInfo.ID, srcCfg.Key, gameInfo.Title)
 
 		result, err := scraper.Search(gameDir, gameInfo.PlatformID)
 		if err != nil {

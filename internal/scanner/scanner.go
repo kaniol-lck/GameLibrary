@@ -168,7 +168,12 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 		path := filepath.Join(gameDir, "steam_appid.txt")
 		data, err := os.ReadFile(path)
 		if err == nil {
-			return strings.TrimSpace(string(data))
+			content := strings.TrimSpace(string(data))
+			content = strings.TrimPrefix(content, "\uFEFF")
+			content = strings.TrimSpace(content)
+			if content != "" {
+				return content
+			}
 		}
 		parent := filepath.Dir(gameDir)
 		if parent == gameDir {
@@ -190,6 +195,10 @@ func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {
 		if strings.HasSuffix(lower, ".exe") {
 			if strings.HasPrefix(lower, "unins") {
 				logger.ScanExeFiltered(name, "uninstaller")
+				continue
+			}
+			if strings.HasPrefix(lower, "unitycrashhandler") {
+				logger.ScanExeFiltered(name, "unity crash handler")
 				continue
 			}
 			logger.ScanExeFound(name)

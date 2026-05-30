@@ -21,14 +21,14 @@ function formatPlaytime(seconds: number): string {
   return `${minutes}m`;
 }
 
-function getPlatformBadge(platform: string): { label: string; color: string } {
+function getPlatformBadge(platform: string): { label: string; color: string } | null {
+  if (!platform) return null;
   switch (platform) {
     case 'steam':   return { label: 'Steam', color: '#1a3a5c' };
     case 'vndb':    return { label: 'VNDB', color: '#2255a4' };
     case 'dlsite':  return { label: 'DLsite', color: '#c2185b' };
     case 'bangumi': return { label: 'Bangumi', color: '#e57399' };
-    case 'local':
-    default:        return { label: 'Local', color: '#555' };
+    default:        return { label: platform, color: '#555' };
   }
 }
 
@@ -87,15 +87,17 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
             <span>{game.title.charAt(0).toUpperCase()}</span>
           </div>
         )}
-        <span className="game-card-platform" style={{ backgroundColor: badge.color }}>
-          {badge.label}
-        </span>
+        {badge && (
+          <span className="game-card-platform" style={{ backgroundColor: badge.color }}>
+            {badge.label}
+          </span>
+        )}
         <div className="game-card-platforms">
           {allPlatforms.map((p) => (
             <span key={p.platform} className={`game-card-plat-tag ${p.platform === primaryPlatform ? 'game-card-plat-primary' : ''}`}
-              style={{ backgroundColor: getPlatformBadge(p.platform).color }}
+              style={{ backgroundColor: (getPlatformBadge(p.platform) || { color: '#555' }).color }}
               title={p.platform}>
-              {getPlatformBadge(p.platform).label}
+              {(getPlatformBadge(p.platform) || { label: p.platform }).label}
             </span>
           ))}
         </div>
@@ -136,7 +138,7 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
         {allPlatforms.length > 1 && (
           <div className="game-card-platform-dots">
             {allPlatforms.map((p) => (
-              <span key={p.platform} className="game-card-plat-dot" style={{ backgroundColor: getPlatformBadge(p.platform).color }} title={p.platform} />
+              <span key={p.platform} className="game-card-plat-dot" style={{ backgroundColor: (getPlatformBadge(p.platform) || { color: '#555' }).color }} title={p.platform} />
             ))}
           </div>
         )}

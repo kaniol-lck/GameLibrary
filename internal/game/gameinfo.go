@@ -77,11 +77,11 @@ func (g *GameInfo) PrimaryPlatform() string {
 		return g.PreferredSource
 	}
 	for _, p := range g.Platforms {
-		if p.Platform != "local" {
+		if p.Platform != "" {
 			return p.Platform
 		}
 	}
-	return "local"
+	return ""
 }
 
 func (g *GameInfo) PrimaryPlatformID() string {
@@ -124,7 +124,7 @@ func (g *GameInfo) SetPlatform(platform, id, name string) {
 	}
 	info := PlatformInfo{Platform: platform, ID: id, Name: name}
 	g.Platforms = append(g.Platforms, info)
-	if g.PreferredSource == "" && platform != "local" {
+	if g.PreferredSource == "" && platform != "" {
 		g.PreferredSource = platform
 	}
 }
@@ -209,8 +209,6 @@ func New(gameDir string, executables []Executable, steamAppID string) *GameInfo 
 	if steamAppID != "" {
 		id = "steam_" + steamAppID
 		platforms = []PlatformInfo{{Platform: "steam", ID: steamAppID}}
-	} else {
-		platforms = []PlatformInfo{{Platform: "local"}}
 	}
 
 	return &GameInfo{

@@ -59,11 +59,11 @@ func TestNewLocal(t *testing.T) {
 	if info.ID != "MyGame" {
 		t.Errorf("expected ID MyGame, got %s", info.ID)
 	}
-	if info.PrimaryPlatform() != "local" {
-		t.Errorf("expected platform local, got %s", info.PrimaryPlatform())
+	if info.PrimaryPlatform() != "" {
+		t.Errorf("expected empty platform, got %s", info.PrimaryPlatform())
 	}
-	if info.PrimaryPlatformID() != "" {
-		t.Errorf("expected empty primary platformId, got %s", info.PrimaryPlatformID())
+	if len(info.Platforms) != 0 {
+		t.Errorf("expected 0 platforms, got %d", len(info.Platforms))
 	}
 }
 

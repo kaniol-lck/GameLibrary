@@ -150,7 +150,7 @@ func TestScanMultiExeGame(t *testing.T) {
 func TestScanLocalGame(t *testing.T) {
 	testDir := testdataDir(t)
 	gameDir := filepath.Join(testDir, "local_game")
-	defer cleanupGameInfo(gameDir)
+	cleanupGameInfo(gameDir)
 
 	cfg := testConfig()
 	scanner := New(testDir, cfg)
@@ -160,13 +160,14 @@ func TestScanLocalGame(t *testing.T) {
 	if r == nil {
 		t.Fatal("local_game not found")
 	}
+	defer cleanupGameInfo(gameDir)
 
 	info := r.GameInfo
 	if info.ID != "local_game" {
 		t.Errorf("expected ID local_game, got %s", info.ID)
 	}
-	if info.PrimaryPlatform() != "local" {
-		t.Errorf("expected platform local, got %s", info.PrimaryPlatform())
+	if info.PrimaryPlatform() != "" {
+		t.Errorf("expected empty primary platform, got %s", info.PrimaryPlatform())
 	}
 }
 

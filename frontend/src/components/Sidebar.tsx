@@ -22,15 +22,16 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
   const platformCounts = new Map<string, number>();
   const genreCounts = new Map<string, number>();
   const userCounts = new Map<string, number>();
+  let unmatchedCount = 0;
 
   for (const g of games) {
     const plats: any[] = (g as any).platforms || [];
-    for (const p of plats) {
-      const plat = p.platform || 'local';
-      platformCounts.set(plat, (platformCounts.get(plat) || 0) + 1);
-    }
     if (plats.length === 0) {
-      platformCounts.set('local', (platformCounts.get('local') || 0) + 1);
+      unmatchedCount++;
+    } else {
+      for (const p of plats) {
+        platformCounts.set(p.platform, (platformCounts.get(p.platform) || 0) + 1);
+      }
     }
 
     for (const tag of g.metadata?.tags || []) {
@@ -42,7 +43,11 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
     }
   }
 
-  if (platformCounts.size > 1) {
+  if (unmatchedCount > 0) {
+    cats.push({ key: 'platform:unmatched', label: 'Unmatched', count: unmatchedCount, section: 'platform' });
+  }
+
+  if (platformCounts.size > 0) {
     for (const [key, count] of [...platformCounts].sort((a, b) => b[1] - a[1])) {
       cats.push({ key: `platform:${key}`, label: platformLabel(key), count, section: 'platform' });
     }
@@ -75,6 +80,7 @@ function platformIcon(plat: string): string {
     case 'dlsite': return '\u25C6';
     case 'vndb': return '\u25B6';
     case 'bangumi': return '\u25CF';
+    case 'unmatched': return '\u25CB';
     default: return '\u25A0';
   }
 }

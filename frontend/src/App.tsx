@@ -98,13 +98,16 @@ function App() {
   const handleDetailUpdated = () => { loadGames(); };
 
   const filteredGames = (() => {
-    if (selectedNav === 'all') return games;
+    if (selectedNav === 'all') return games.filter((g) => ((g as any).platforms || []).length > 0);
     if (selectedNav === 'starred') return games.filter((g) => g.starred);
     if (selectedNav.startsWith('platform:')) {
       const plat = selectedNav.slice(9);
+      if (plat === 'unmatched') {
+        return games.filter((g) => ((g as any).platforms || []).length === 0);
+      }
       return games.filter((g) => {
         const plats: any[] = (g as any).platforms || [];
-        return plats.some((p: any) => p.platform === plat) || (g as any).platform === plat;
+        return plats.some((p: any) => p.platform === plat);
       });
     }
     if (selectedNav.startsWith('type:')) return games.filter((g) => g.type === selectedNav.slice(5));
@@ -120,6 +123,7 @@ function App() {
   const getContentTitle = () => {
     if (selectedNav === 'all') return 'All Games';
     if (selectedNav === 'starred') return 'Starred';
+    if (selectedNav === 'platform:unmatched') return 'Unmatched';
     if (selectedNav.startsWith('platform:')) return selectedNav.slice(9);
     if (selectedNav.startsWith('type:')) return selectedNav.slice(5);
     if (selectedNav.startsWith('tag:')) return selectedNav.slice(4);

@@ -153,6 +153,7 @@ export namespace game {
 	    lastPlayedAt?: string;
 	    starred?: boolean;
 	    tags?: string[];
+	    gameDir?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GameInfo(source);
@@ -175,6 +176,7 @@ export namespace game {
 	        this.lastPlayedAt = source["lastPlayedAt"];
 	        this.starred = source["starred"];
 	        this.tags = source["tags"];
+	        this.gameDir = source["gameDir"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -118,9 +118,9 @@ function App() {
     if (selectedNav.startsWith('pathlabel:')) {
       const label = selectedNav.slice(10);
       return games.filter((g: any) => {
-        const gameDir = (g.gameDir || '').replace(/\\/g, '/');
+        const gd = (g.gameDir || '').replace(/\\/g, '/');
         for (const [dirPath, labels] of Object.entries(pathLabels)) {
-          if (gameDir.startsWith(dirPath.replace(/\\/g, '/')) && (labels as string[]).includes(label)) return true;
+          if (gd.startsWith(dirPath.replace(/\\/g, '/')) && (labels as string[]).includes(label)) return true;
         }
         return false;
       });

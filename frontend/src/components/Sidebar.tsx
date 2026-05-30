@@ -165,6 +165,28 @@ export default function Sidebar({
           </button>
         )}
 
+        {pathTags.length > 0 && !collapsed && (
+          <div className="sidebar-divider" />
+        )}
+        {pathTags.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">Folders</div>
+        )}
+        {pathTags.map((cat) => (
+          <button
+            key={cat.key}
+            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
+            onClick={() => onSelectNav(cat.key)}
+          >
+            <span className="sidebar-item-icon">{'\uD83D\uDCC1'}</span>
+            {!collapsed && (
+              <>
+                <span className="sidebar-item-label">{cat.label}</span>
+                <span className="sidebar-item-badge">{cat.count}</span>
+              </>
+            )}
+          </button>
+        ))}
+
         {platforms.length > 0 && !collapsed && (
           <div className="sidebar-divider" />
         )}
@@ -222,28 +244,6 @@ export default function Sidebar({
             onClick={() => onSelectNav(cat.key)}
           >
             <span className="sidebar-item-icon">#</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">{cat.label}</span>
-                <span className="sidebar-item-badge">{cat.count}</span>
-              </>
-            )}
-          </button>
-        ))}
-
-        {pathTags.length > 0 && !collapsed && (
-          <div className="sidebar-divider" />
-        )}
-        {pathTags.length > 0 && !collapsed && (
-          <div className="sidebar-section-label">Paths</div>
-        )}
-        {pathTags.map((cat) => (
-          <button
-            key={cat.key}
-            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
-            onClick={() => onSelectNav(cat.key)}
-          >
-            <span className="sidebar-item-icon">{'\uD83D\uDCC1'}</span>
             {!collapsed && (
               <>
                 <span className="sidebar-item-label">{cat.label}</span>

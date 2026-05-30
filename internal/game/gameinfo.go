@@ -64,7 +64,7 @@ type GameInfo struct {
 	Starred       bool     `json:"starred,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
 
-	GameDir string `json:"-"`
+	GameDir string `json:"gameDir,omitempty"`
 }
 
 func ManagerDir(gameDir string) string  { return filepath.Join(gameDir, gmDir) }

@@ -45,9 +45,18 @@ func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
 		return s.searchByAppID(appID)
 	}
 
-	searchName := filepath.Base(gameDir)
+	baseName := filepath.Base(gameDir)
+	searchName := normalizeSearchName(baseName)
 	logger.Debug("steam scraper: searching by name", "searchTerm", searchName, "gameDir", gameDir)
-	return s.searchByName(searchName)
+
+	terms := nameVariations(searchName)
+	for _, term := range terms {
+		r, err := s.searchByName(term)
+		if err == nil && r != nil {
+			return r, nil
+		}
+	}
+	return nil, fmt.Errorf("steam: no results for '%s'", baseName)
 }
 
 func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {

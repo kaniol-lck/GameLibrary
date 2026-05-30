@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.3.1-alpha** | Last updated: 2026-05-30
+> AI-assisted project. Current version: **0.3.2-alpha** | Last updated: 2026-05-30
 
 ## 版本路线图
 
@@ -15,6 +15,7 @@
 | 0.2.5-alpha | Phase 2 — 修复 | 跨盘符绝对路径扫描修复 | ✅ |
 | 0.3.0-alpha | Phase 2 — 交互 | 右键菜单、星标、标签系统 | ✅ |
 | 0.3.1-alpha | Phase 2 — 修复 | 会话日志、BOM/路径/刮削修复 | ✅ |
+| 0.3.2-alpha | Phase 2 — 数据源 | RAWG.io 刮削器、搜索名智能拆分 | ✅ |
 | 0.4.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |

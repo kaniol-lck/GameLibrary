@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.3.1-alpha"
+var version = "0.3.2-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -93,6 +93,10 @@ func (a *App) startup(ctx context.Context) {
 	steamgriddbScraper := scraper.NewSteamGridDBScraper()
 	steamgriddbScraper.Configure(a.config.Language, a.config.SourceSettings("steamgriddb"))
 	a.pipeline.Register(steamgriddbScraper)
+
+	rawgScraper := scraper.NewRawgScraper()
+	rawgScraper.Configure(a.config.Language, a.config.SourceSettings("rawg"))
+	a.pipeline.Register(rawgScraper)
 
 	a.refreshGameCache()
 

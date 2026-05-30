@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -79,9 +80,19 @@ func LoadFromDir(gameDir string) (*GameInfo, error) {
 	if err := json.Unmarshal(data, &info); err != nil {
 		return nil, err
 	}
+
+	info.PlatformID = stripBOM(info.PlatformID)
+	info.ID = stripBOM(info.ID)
+
 	info.GameDir = gameDir
 	info.InfoRelPath = ".gameinfo.json"
 	return &info, nil
+}
+
+func stripBOM(s string) string {
+	s = strings.TrimPrefix(s, "\uFEFF")
+	s = strings.TrimPrefix(s, "\uFFFE")
+	return strings.TrimSpace(s)
 }
 
 func New(gameDir string, executables []Executable, steamAppID string) *GameInfo {

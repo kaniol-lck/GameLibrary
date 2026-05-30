@@ -43,7 +43,7 @@ func TestSaveLoad(t *testing.T) {
 	if loaded.MaxScanDepth != 5 {
 		t.Errorf("MaxScanDepth mismatch: %d", loaded.MaxScanDepth)
 	}
-	if len(loaded.Sources) != 6 {
+	if len(loaded.Sources) != 7 {
 		t.Errorf("Sources count mismatch: %d", len(loaded.Sources))
 	}
 	if loaded.Sources[1].Enabled {
@@ -53,8 +53,8 @@ func TestSaveLoad(t *testing.T) {
 
 func TestDefaultSources(t *testing.T) {
 	cfg := Default()
-	if len(cfg.Sources) != 6 {
-		t.Fatalf("expected 6 sources, got %d", len(cfg.Sources))
+	if len(cfg.Sources) != 7 {
+		t.Fatalf("expected 7 sources, got %d", len(cfg.Sources))
 	}
 	if cfg.Sources[0].Key != "steam" {
 		t.Errorf("first source should be steam, got %s", cfg.Sources[0].Key)
@@ -86,8 +86,8 @@ func TestLegacyMigration(t *testing.T) {
 	if loaded.MachineID != "legacy-test" {
 		t.Errorf("MachineID: %s", loaded.MachineID)
 	}
-	if len(loaded.Sources) != 6 {
-		t.Errorf("expected 6 migrated sources, got %d", len(loaded.Sources))
+	if len(loaded.Sources) != 7 {
+		t.Errorf("expected 7 migrated sources, got %d", len(loaded.Sources))
 	}
 	if !loaded.Sources[1].Enabled {
 		t.Error("vndb should be enabled from legacy")
@@ -133,7 +133,7 @@ func TestJSONRoundtrip(t *testing.T) {
 func TestSourceSettings(t *testing.T) {
 	cfg := Default()
 	cfg.Sources[0].Settings = map[string]string{"apiKey": "my-key"}
-	cfg.Sources[5].Settings = map[string]string{"clientId": "cid", "clientSecret": "csec"}
+	cfg.Sources[6].Settings = map[string]string{"clientId": "cid", "clientSecret": "csec"}
 
 	data, _ := json.Marshal(cfg)
 	var decoded Config
@@ -197,8 +197,8 @@ func TestMigrationAddsMissingSources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %s", err)
 	}
-	if len(loaded.Sources) != 6 {
-		t.Errorf("expected 6 sources after migration, got %d: %v", len(loaded.Sources), loaded.Sources)
+	if len(loaded.Sources) != 7 {
+		t.Errorf("expected 7 sources after migration, got %d: %v", len(loaded.Sources), loaded.Sources)
 	}
 	if loaded.Sources[0].Key != "steam" {
 		t.Errorf("steam should still be first: got %s", loaded.Sources[0].Key)

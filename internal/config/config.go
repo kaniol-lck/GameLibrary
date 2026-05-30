@@ -33,6 +33,7 @@ func Default() *Config {
 			{Key: "vndb", Name: "VNDB (Visual Novel Database)", Enabled: true},
 			{Key: "bangumi", Name: "Bangumi (bgm.tv)", Enabled: true},
 			{Key: "dlsite", Name: "DLsite", Enabled: true},
+			{Key: "rawg", Name: "RAWG.io", Enabled: true},
 			{Key: "steamgriddb", Name: "SteamGridDB (Cover Art)", Enabled: false},
 			{Key: "igdb", Name: "IGDB", Enabled: false},
 		},
@@ -124,6 +125,7 @@ func migrateLegacyFields(raw map[string]json.RawMessage) bool {
 	sources = append(sources, MetadataSource{Key: "vndb", Name: "VNDB (Visual Novel Database)", Enabled: vndbEnabled})
 	sources = append(sources, MetadataSource{Key: "bangumi", Name: "Bangumi (bgm.tv)", Enabled: true})
 	sources = append(sources, MetadataSource{Key: "dlsite", Name: "DLsite", Enabled: dlsiteEnabled})
+	sources = append(sources, MetadataSource{Key: "rawg", Name: "RAWG.io", Enabled: true})
 	sources = append(sources, MetadataSource{Key: "steamgriddb", Name: "SteamGridDB (Cover Art)", Enabled: false})
 	sources = append(sources, MetadataSource{Key: "igdb", Name: "IGDB", Enabled: false})
 

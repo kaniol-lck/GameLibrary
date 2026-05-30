@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.3.2-alpha (2026-05-30)
+
+### Added
+
+- 新增 RAWG.io 刮削器（免费 API，覆盖全平台游戏元数据、封面、标签）
+  *RAWG.io scraper: free API covering cross-platform metadata, covers, and tags*
+- 搜索名称智能拆分：自动处理 CamelCase（`SteinsGate` → `Steins Gate`）、下划线、连字符等变体，依次尝试直到匹配
+  *Smart search name normalization: auto-splits CamelCase, underscores, dashes; tries variations until match*
+- 刮削失败时日志记录 HTTP 响应预览，便于排查网络问题
+  *Scrape logs now include HTTP response preview on non-JSON errors*
+
+### Changed
+
+- 默认数据源从 6 个扩展为 7 个（新增 rawg）
+  *Default sources expanded from 6 to 7 (rawg added)*
+
+### Fixed
+
+- 旧 `.gameinfo.json` 中的 BOM 污染残留（`PlatformID` / `ID` 字段），`LoadFromDir` 自动清洗
+  *Auto-strip BOM from stale .gameinfo.json PlatformID/ID fields on load*
+- VNDB 刮削器增加 User-Agent 头、非 JSON 响应检测与日志
+  *VNDB scraper: add User-Agent header, detect non-JSON responses with logging*
+- Bangumi 网络超时时输出明确诊断日志（站点可能被墙或过慢）
+  *Bangumi timeout: explicit diagnostic log (site may be blocked or slow)*
+
+---
+
 ## v0.3.1-alpha (2026-05-30)
 
 ### Changed

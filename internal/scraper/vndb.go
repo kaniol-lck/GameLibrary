@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"GameLibrary/internal/logger"
 )
 
 type VNDBScraper struct {
@@ -34,8 +36,17 @@ func (s *VNDBScraper) Configure(lang string, settings map[string]string) {
 
 func (s *VNDBScraper) Search(gameDir string, appID string) (*Result, error) {
 	_ = appID
-	name := filepath.Base(gameDir)
-	return s.searchByName(name)
+	baseName := filepath.Base(gameDir)
+	name := normalizeSearchName(baseName)
+
+	terms := nameVariations(name)
+	for _, term := range terms {
+		r, err := s.searchByName(term)
+		if err == nil && r != nil {
+			return r, nil
+		}
+	}
+	return nil, fmt.Errorf("vndb: no results for '%s'", baseName)
 }
 
 func (s *VNDBScraper) searchByName(name string) (*Result, error) {
@@ -52,6 +63,7 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "GameLibrary/0.3")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -60,6 +72,10 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("vndb: HTTP %d", resp.StatusCode)
+	}
 
 	var apiResp struct {
 		Results []struct {
@@ -75,13 +91,17 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 				Name string `json:"name"`
 			} `json:"tags"`
 			Image *struct {
-				URL    string `json:"url"`
+				URL    string  `json:"url"`
 				Sexual float64 `json:"sexual"`
 			} `json:"image"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, err
+		logger.Warn("vndb: non-JSON response",
+			"status", resp.StatusCode,
+			"bodyPreview", string(respBody[:min(len(respBody), 100)]),
+		)
+		return nil, fmt.Errorf("vndb: non-JSON response, HTTP %d", resp.StatusCode)
 	}
 
 	if len(apiResp.Results) == 0 {
@@ -119,6 +139,8 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 		releaseDate = vn.Released[:10]
 	}
 
+	logger.Debug("vndb search result", "searchTerm", name, "matchedTitle", vn.Title)
+
 	return &Result{
 		Title:             vn.Title,
 		TitleNative:       vn.AltTitle,
@@ -132,6 +154,13 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 			"vndb": fmt.Sprintf("https://vndb.org/v?q=%s", name),
 		},
 	}, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func vndbLangCode(lang string) string {

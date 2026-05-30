@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.4.0-alpha (2026-05-30)
+
+### Added
+
+- 三级标签系统：平台标签（自动，steam/dlsite/vndb 等）、分类标签（刮削器返回的 genres/tags）、用户标签（手动添加），卡片覆盖层分色显示
+  *Three-tier tag system: platform (auto), genre (from scraper), user (manual) — color-coded card overlay*
+- 侧边栏分段筛选：Platforms / Genres / My Tags 三个独立区块，按类型过滤游戏
+  *Sidebar sections: Platforms, Genres, My Tags — filter by tag type*
+
+### Changed
+
+- 刮削指示器从齿轮图标改为 CSS 旋转圆环（spinner），完成后显示 ✓（绿色）或 ✗（红色）弹入动画
+  *Scrape indicator: CSS spinning ring, success ✓ (green) / fail ✗ (red) with pop-in animation*
+- 平台标签角标样式增强（字体加粗、阴影），卡面上区分展示 genre 标签和 user 标签
+  *Platform badge enhanced, genre vs user tags visually distinct on card*
+- 侧边栏完全重构：All Games → Starred → Platforms → Genres → My Tags 层次结构
+  *Sidebar restructured with hierarchical sections*
+
+### Fixed
+
+- 测试游戏库新增 `烟火` (1566720) 和 `黑神话悟空` (2358720) 的 steam_appid，使其可被刮削
+  *Added steam_appid for Firework and Black Myth Wukong in test library*
+
+---
+
 ## v0.3.3-alpha (2026-05-30)
 
 ### Fixed

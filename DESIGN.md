@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.3.3-alpha** | Last updated: 2026-05-30
+> AI-assisted project. Current version: **0.4.0-alpha** | Last updated: 2026-05-30
 
 ## 版本路线图
 
@@ -17,6 +17,7 @@
 | 0.3.1-alpha | Phase 2 — 修复 | 会话日志、BOM/路径/刮削修复 | ✅ |
 | 0.3.2-alpha | Phase 2 — 数据源 | RAWG.io 刮削器、搜索名智能拆分 | ✅ |
 | 0.3.3-alpha | Phase 2 — 修复 | CamelCase 拆分修正、刮削后实时刷新 | ✅ |
+| 0.4.0-alpha | Phase 2 — 标签 | 三级标签系统、侧边栏分段筛选 | ✅ |
 | 0.4.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
@@ -330,30 +331,31 @@ App
 4. **Metadata Sources** — 可排序列表，toggle 开关，▲▼ 排序
 5. **About** — 展示自动获取的机器名
 
-### 4.4 右键菜单 (Phase 2 — 交互)
+### 4.4 标签系统 (Phase 2 — 标签)
 
-游戏卡片右键唤出上下文菜单，支持以下操作：
+三级标签架构，各标签类型对应侧边栏不同区块筛选：
 
-| 功能 | 实现 | 说明 |
-|------|------|------|
-| 星标 | `ToggleGameStar` | 切换 Starred 布尔值，侧边栏 Starred 分类过滤 |
-| 添加标签 | `AddGameTag` / `RemoveGameTag` | 自定义标签系统，卡片底部覆盖层 + 侧边栏 # 分类 |
-| 浏览游戏路径 | `OpenGameDirectory` | 调用 `explorer <path>` 打开游戏目录 |
-| 浏览元数据 | `OpenGameMetadata` | 调用 `notepad <.gameinfo.json>` 查看元数据 |
-| 浏览存档 | (灰显，待云存档功能) | 预留接口 |
+| 层级 | 来源 | 存储字段 | 卡片样式 | 侧边栏 |
+|------|------|---------|---------|--------|
+| 平台标签 | `platform` 字段（自动） | `GameInfo.Platform` | 左上角角标（Steam=蓝/DLsite=粉/Local=灰） | Platforms 区块 |
+| 分类标签 | 刮削器返回的 genres/tags | `Metadata.Tags` | 左下角紫色 overlay | Genres 区块 |
+| 用户标签 | 右键菜单手动添加 | `GameInfo.Tags` | 下中黄色 overlay，`#` 前缀 | My Tags 区块 |
 
 ```
-ContextMenu 组件
-├── 游戏标题标题栏
-├── 星标 ★/☆ (切换按钮)
-├── ── 分隔 ──
-├── 添加标签 (内联输入框)
-│   └── 已有标签列表 (× 删除)
-├── ── 分隔 ──
-├── 打开游戏目录 📁
-├── 打开存档目录 💾 (禁用)
-├── ── 分隔 ──
-└── 打开元数据文件 📄
+侧边栏层次:
+├── All Games
+├── Starred
+├── ── Platforms ──
+│   ├── Steam (10)
+│   ├── DLsite (3)
+│   └── Local (2)
+├── ── Genres ──
+│   ├── Action (5)
+│   ├── RPG (3)
+│   └── ...
+├── ── My Tags ──
+│   └── #favorites (2)
+└── Settings
 ```
 
 ---

@@ -31,6 +31,8 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<scanner.ScanResult[] | null>(null);
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
+  const [scrapedOkIds, setScrapedOkIds] = useState<Set<string>>(new Set());
+  const [scrapedErrIds, setScrapedErrIds] = useState<Set<string>>(new Set());
   const [scrapeDone, setScrapeDone] = useState(0);
   const [scrapeTotal, setScrapeTotal] = useState(0);
   const [error, setError] = useState('');
@@ -73,10 +75,14 @@ function App() {
   const runScrapeBatch = async (targets: game.GameInfo[]) => {
     setScrapeDone(0);
     setScrapeTotal(targets.length);
+    setScrapedOkIds(new Set());
+    setScrapedErrIds(new Set());
 
     let idx = 0;
     let done = 0;
     const active = new Set<string>();
+    const ok = new Set<string>();
+    const err = new Set<string>();
 
     const report = () => {
       setScrapingIds(new Set(active));
@@ -89,8 +95,15 @@ function App() {
         const g = targets[i];
         active.add(g.id);
         report();
-        try { await ScrapeGame(g.id); } catch { /* continue */ }
+        let success = false;
+        try {
+          const r = await ScrapeGame(g.id);
+          success = !r.error;
+        } catch { /* continue */ }
         active.delete(g.id);
+        if (success) { ok.add(g.id); } else { err.add(g.id); }
+        setScrapedOkIds(new Set(ok));
+        setScrapedErrIds(new Set(err));
         done++;
         report();
         await loadGames();
@@ -107,6 +120,7 @@ function App() {
     setScrapingIds(new Set());
     setScrapeDone(0);
     setScrapeTotal(0);
+    setTimeout(() => { setScrapedOkIds(new Set()); setScrapedErrIds(new Set()); }, 4000);
   };
 
   const handleScrapeAll = async () => {
@@ -143,7 +157,11 @@ function App() {
 
   const filteredGames = (() => {
     if (selectedNav === 'all') return games;
-    if (selectedNav.startsWith('starred')) return games.filter((g) => g.starred);
+    if (selectedNav === 'starred') return games.filter((g) => g.starred);
+    if (selectedNav.startsWith('platform:')) {
+      const plat = selectedNav.slice(9);
+      return games.filter((g) => g.platform === plat);
+    }
     if (selectedNav.startsWith('type:')) {
       return games.filter((g) => g.type === selectedNav.slice(5));
     }
@@ -165,6 +183,7 @@ function App() {
   const getContentTitle = () => {
     if (selectedNav === 'all') return 'All Games';
     if (selectedNav === 'starred') return 'Starred';
+    if (selectedNav.startsWith('platform:')) return selectedNav.slice(9);
     if (selectedNav.startsWith('type:')) return selectedNav.slice(5);
     if (selectedNav.startsWith('tag:')) return selectedNav.slice(4);
     if (selectedNav.startsWith('usertag:')) return '#' + selectedNav.slice(8);
@@ -259,6 +278,8 @@ function App() {
                     onClick={handleGameClick}
                     onContextMenu={handleGameContextMenu}
                     isScraping={scrapingIds.has(g.id)}
+                    scrapedOk={scrapedOkIds.has(g.id)}
+                    scrapedErr={scrapedErrIds.has(g.id)}
                   />
                 ))}
               </div>

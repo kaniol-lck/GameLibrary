@@ -4,6 +4,7 @@ interface Category {
   key: string;
   label: string;
   count: number;
+  section: 'platform' | 'genre' | 'user';
 }
 
 interface SidebarProps {
@@ -16,38 +17,60 @@ interface SidebarProps {
 }
 
 function deriveCategories(games: game.GameInfo[]): Category[] {
-  const map = new Map<string, number>();
+  const cats: Category[] = [];
+
+  const platformCounts = new Map<string, number>();
+  const genreCounts = new Map<string, number>();
+  const userCounts = new Map<string, number>();
 
   for (const g of games) {
-    const tags = g.metadata?.tags || [];
-    if (tags.length > 0) {
-      for (const tag of tags) {
-        const key = `tag:${tag}`;
-        map.set(key, (map.get(key) || 0) + 1);
-      }
+    const plat = g.platform || 'local';
+    platformCounts.set(plat, (platformCounts.get(plat) || 0) + 1);
+
+    for (const tag of g.metadata?.tags || []) {
+      genreCounts.set(tag, (genreCounts.get(tag) || 0) + 1);
     }
-    const typeKey = `type:${g.type}`;
-    map.set(typeKey, (map.get(typeKey) || 0) + 1);
-  }
 
-  for (const g of games) {
     for (const tag of g.tags || []) {
-      const key = `usertag:${tag}`;
-      map.set(key, (map.get(key) || 0) + 1);
+      userCounts.set(tag, (userCounts.get(tag) || 0) + 1);
     }
   }
 
-  return Array.from(map.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, count]) => ({
-      key,
-      label: key.startsWith('tag:')
-        ? key.slice(4)
-        : key.startsWith('usertag:')
-          ? `#${key.slice(8)}`
-          : key.slice(5),
-      count,
-    }));
+  if (platformCounts.size > 1) {
+    for (const [key, count] of [...platformCounts].sort((a, b) => b[1] - a[1])) {
+      cats.push({ key: `platform:${key}`, label: platformLabel(key), count, section: 'platform' });
+    }
+  }
+
+  for (const [key, count] of [...genreCounts].sort((a, b) => b[1] - a[1])) {
+    cats.push({ key: `tag:${key}`, label: key, count, section: 'genre' });
+  }
+
+  for (const [key, count] of [...userCounts].sort((a, b) => b[1] - a[1])) {
+    cats.push({ key: `usertag:${key}`, label: key, count, section: 'user' });
+  }
+
+  return cats;
+}
+
+function platformLabel(plat: string): string {
+  switch (plat) {
+    case 'steam': return 'Steam';
+    case 'dlsite': return 'DLsite';
+    case 'vndb': return 'VNDB';
+    case 'bangumi': return 'Bangumi';
+    default: return plat;
+  }
+}
+
+function platformIcon(plat: string): string {
+  switch (plat) {
+    case 'steam': return '\u25A0';
+    case 'dlsite': return '\u25C6';
+    case 'vndb': return '\u25B6';
+    case 'bangumi': return '\u25CF';
+    default: return '\u25A0';
+  }
 }
 
 export default function Sidebar({
@@ -61,6 +84,10 @@ export default function Sidebar({
   const categories = deriveCategories(games);
   const allCount = games.length;
   const starredCount = games.filter((g) => g.starred).length;
+
+  const platforms = categories.filter((c) => c.section === 'platform');
+  const genres = categories.filter((c) => c.section === 'genre');
+  const userTags = categories.filter((c) => c.section === 'user');
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -107,25 +134,63 @@ export default function Sidebar({
           </button>
         )}
 
-        {categories.length > 0 && !collapsed && (
+        {platforms.length > 0 && !collapsed && (
           <div className="sidebar-divider" />
         )}
-
-        {categories.length > 0 && !collapsed && (
-          <div className="sidebar-section-label">Categories</div>
+        {platforms.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">Platforms</div>
         )}
-
-        {categories.map((cat) => (
+        {platforms.map((cat) => (
           <button
             key={cat.key}
             className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
             onClick={() => onSelectNav(cat.key)}
           >
-            <span className="sidebar-item-icon">
-              {cat.key.startsWith('tag:') ? '\u25C9' :
-               cat.key.startsWith('usertag:') ? '#' :
-               '\u25A0'}
-            </span>
+            <span className="sidebar-item-icon">{platformIcon(cat.key.slice(9))}</span>
+            {!collapsed && (
+              <>
+                <span className="sidebar-item-label">{cat.label}</span>
+                <span className="sidebar-item-badge">{cat.count}</span>
+              </>
+            )}
+          </button>
+        ))}
+
+        {genres.length > 0 && !collapsed && (
+          <div className="sidebar-divider" />
+        )}
+        {genres.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">Genres</div>
+        )}
+        {genres.map((cat) => (
+          <button
+            key={cat.key}
+            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
+            onClick={() => onSelectNav(cat.key)}
+          >
+            <span className="sidebar-item-icon">{'\u25C9'}</span>
+            {!collapsed && (
+              <>
+                <span className="sidebar-item-label">{cat.label}</span>
+                <span className="sidebar-item-badge">{cat.count}</span>
+              </>
+            )}
+          </button>
+        ))}
+
+        {userTags.length > 0 && !collapsed && (
+          <div className="sidebar-divider" />
+        )}
+        {userTags.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">My Tags</div>
+        )}
+        {userTags.map((cat) => (
+          <button
+            key={cat.key}
+            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
+            onClick={() => onSelectNav(cat.key)}
+          >
+            <span className="sidebar-item-icon">#</span>
             {!collapsed && (
               <>
                 <span className="sidebar-item-label">{cat.label}</span>

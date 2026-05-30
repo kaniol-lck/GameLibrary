@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.2.4-alpha"
+var version = "0.2.5-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -103,8 +103,10 @@ func (a *App) refreshGameCache() {
 	a.games = make(map[string]*game.GameInfo)
 
 	for _, relDir := range a.config.GameDirectories {
-		absDir := filepath.Join(a.exeDir, relDir)
-		absDir = filepath.Clean(absDir)
+		absDir := filepath.Clean(relDir)
+		if !filepath.IsAbs(absDir) {
+			absDir = filepath.Join(a.exeDir, relDir)
+		}
 		a.loadGamesFromDir(absDir, 0)
 	}
 }

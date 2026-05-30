@@ -34,8 +34,7 @@ func (s *Scanner) ScanAll() ([]ScanResult, error) {
 
 	var results []ScanResult
 	for _, relDir := range s.config.GameDirectories {
-		absDir := filepath.Join(s.exeDir, relDir)
-		absDir = filepath.Clean(absDir)
+		absDir := resolveDir(s.exeDir, relDir)
 
 		if _, err := os.Stat(absDir); os.IsNotExist(err) {
 			logger.ScanGameDirNotExist(absDir)
@@ -240,4 +239,11 @@ func (s *Scanner) pickPrimaryExec(executables []game.Executable) game.Executable
 	}
 
 	return executables[0]
+}
+
+func resolveDir(exeDir, dir string) string {
+	if filepath.IsAbs(dir) {
+		return filepath.Clean(dir)
+	}
+	return filepath.Join(exeDir, dir)
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.5-alpha (2026-05-30)
+
+### Fixed
+
+- 修复跨盘符绝对路径（如 `E:\SteamLibrary`）被错误拼接到 exeDir 后面导致扫描失效
+  *Fixed cross-volume absolute paths (e.g. `E:\SteamLibrary`) incorrectly joined with exeDir, breaking game discovery*
+
+---
+
 ## v0.2.4-alpha (2026-05-30)
 
 ### Added

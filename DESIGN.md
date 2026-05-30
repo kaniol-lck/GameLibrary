@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.2.4-alpha** | Last updated: 2026-05-30
+> AI-assisted project. Current version: **0.2.5-alpha** | Last updated: 2026-05-30
 
 ## 版本路线图
 
@@ -12,6 +12,7 @@
 | 0.2.2-alpha | Phase 2 — 数据源 | SteamGridDB + Bangumi 刮削器 | ✅ |
 | 0.2.3-alpha | Phase 2 — 修复 | 配置迁移、缺失源自动补齐 | ✅ |
 | 0.2.4-alpha | Phase 2 — 日志 | 结构化日志系统、按天归档 | ✅ |
+| 0.2.5-alpha | Phase 2 — 修复 | 跨盘符绝对路径扫描修复 | ✅ |
 | 0.3.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |

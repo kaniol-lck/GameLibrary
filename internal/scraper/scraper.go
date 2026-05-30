@@ -3,6 +3,7 @@ package scraper
 import (
 	"GameLibrary/internal/config"
 	"GameLibrary/internal/game"
+	"GameLibrary/internal/logger"
 )
 
 type Result struct {
@@ -40,25 +41,37 @@ func (p *Pipeline) Register(src Source) {
 }
 
 func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, string, error) {
+	logger.ScrapeStarted(gameInfo.ID, gameInfo.Title)
+
 	for _, srcCfg := range p.config.Sources {
 		if !srcCfg.Enabled {
+			logger.ScrapeSourceSkipped(gameInfo.ID, srcCfg.Key, "disabled")
 			continue
 		}
 		scraper, ok := p.source[srcCfg.Key]
 		if !ok {
+			logger.ScrapeSourceSkipped(gameInfo.ID, srcCfg.Key, "not registered")
 			continue
 		}
+
+		logger.ScrapeSourceAttempt(gameInfo.ID, srcCfg.Key)
 
 		result, err := scraper.Search(gameDir, gameInfo.PlatformID)
 		if err != nil {
+			logger.ScrapeSourceFailed(gameInfo.ID, gameInfo.Title, srcCfg.Key, err)
 			continue
 		}
 		if result == nil {
+			logger.ScrapeSourceEmpty(gameInfo.ID, gameInfo.Title, srcCfg.Key)
 			continue
 		}
 
+		logger.ScrapeSuccess(gameInfo.ID, gameInfo.Title, srcCfg.Key, result.Title, gameInfo.PlatformID)
+
 		return result, srcCfg.Key, nil
 	}
+
+	logger.ScrapeAllSourcesFailed(gameInfo.ID, gameInfo.Title)
 
 	return nil, "", nil
 }

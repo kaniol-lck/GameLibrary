@@ -13,13 +13,14 @@ import (
 
 	"GameLibrary/internal/config"
 	"GameLibrary/internal/game"
+	"GameLibrary/internal/logger"
 	"GameLibrary/internal/scanner"
 	"GameLibrary/internal/scraper"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.2.3-alpha"
+var version = "0.2.4-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -60,7 +61,11 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.exeDir = filepath.Dir(exePath)
 
+	logger.Init(a.exeDir)
+
 	a.host, _ = os.Hostname()
+
+	logger.AppStarted(version, a.exeDir, a.host)
 
 	cfg, err := config.Load(a.exeDir)
 	if err != nil {
@@ -90,6 +95,8 @@ func (a *App) startup(ctx context.Context) {
 	a.pipeline.Register(steamgriddbScraper)
 
 	a.refreshGameCache()
+
+	logger.Info("startup complete", "gameCount", len(a.games))
 }
 
 func (a *App) refreshGameCache() {
@@ -179,6 +186,7 @@ func (a *App) SaveConfig(cfg *config.Config) error {
 func (a *App) ScanGames() []scanner.ScanResult {
 	results, err := a.scanner.ScanAll()
 	if err != nil {
+		logger.Error("scan failed", "error", err.Error())
 		return []scanner.ScanResult{{
 			Error: "scan failed: " + err.Error(),
 		}}
@@ -241,8 +249,11 @@ func (a *App) UpdateGameInfo(info *game.GameInfo) error {
 	}
 
 	if err := existing.Save(); err != nil {
+		logger.GameInfoSaved(info.ID, info.Title, err)
 		return err
 	}
+
+	logger.GameInfoUpdated(info.ID, info.Title)
 
 	a.games[info.ID] = existing
 	return nil
@@ -283,6 +294,7 @@ func (a *App) GetGameCoverLandscape(id string) string {
 func (a *App) ScrapeGame(id string) *ScrapeReport {
 	info, ok := a.games[id]
 	if !ok {
+		logger.ScrapeGameNotFound(id)
 		return &ScrapeReport{GameID: id, Error: "game not found"}
 	}
 
@@ -296,22 +308,36 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 
 	scraper.ApplyResult(info, result, source)
 
-	scraper.DownloadCover(info.GameDir, result.CoverURL, "cover")
-	scraper.DownloadCover(info.GameDir, result.CoverLandscapeURL, "cover_landscape")
+	scraper.DownloadCoverWithLog(info.GameDir, info.ID, result.CoverURL, "cover")
+	scraper.DownloadCoverWithLog(info.GameDir, info.ID, result.CoverLandscapeURL, "cover_landscape")
 
 	if err := info.Save(); err != nil {
+		logger.GameInfoSaved(id, info.Title, err)
 		return &ScrapeReport{GameID: id, Title: info.Title, Source: source, Error: "save failed: " + err.Error()}
 	}
+
+	logger.GameInfoSaved(id, info.Title, nil)
 
 	return &ScrapeReport{GameID: id, Title: info.Title, Source: source}
 }
 
 func (a *App) ScrapeAllGames() []ScrapeReport {
+	logger.Info("batch scrape started", "gameCount", len(a.games))
+
 	var reports []ScrapeReport
 	for _, info := range a.games {
 		report := a.ScrapeGame(info.ID)
 		reports = append(reports, *report)
 	}
+
+	successCount := 0
+	for _, r := range reports {
+		if r.Error == "" {
+			successCount++
+		}
+	}
+	logger.Info("batch scrape finished", "total", len(reports), "success", successCount)
+
 	return reports
 }
 
@@ -323,19 +349,24 @@ func (a *App) LaunchGame(id string) error {
 
 	primary := findPrimaryExec(info.Executables)
 	if primary == nil {
+		logger.GameLaunchFailed(id, info.Title, fmt.Errorf("no executable found"))
 		return fmt.Errorf("no executable found for %s", info.Title)
 	}
 
 	exePath := filepath.Join(info.GameDir, primary.Path)
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		logger.GameLaunchFailed(id, info.Title, fmt.Errorf("executable not found: %s", exePath))
 		return fmt.Errorf("executable not found: %s", exePath)
 	}
 
 	cmd := exec.Command(exePath)
 	cmd.Dir = info.GameDir
 	if err := cmd.Start(); err != nil {
+		logger.GameLaunchFailed(id, info.Title, err)
 		return fmt.Errorf("failed to launch: %w", err)
 	}
+
+	logger.GameLaunched(id, info.Title, primary.Path)
 
 	go func() {
 		cmd.Wait()

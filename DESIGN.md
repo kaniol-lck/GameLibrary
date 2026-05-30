@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.2.1-alpha** | Last updated: 2026-05-29
+> AI-assisted project. Current version: **0.2.4-alpha** | Last updated: 2026-05-30
 
 ## 版本路线图
 
@@ -9,6 +9,9 @@
 | 0.1.0-alpha | Phase 1 — 骨架 | 项目搭建、扫描器、基础 UI | ✅ |
 | 0.2.0-alpha | Phase 2 — 刮削 | 多源元数据刮削、详情页、双封面 | ✅ |
 | 0.2.1-alpha | Phase 2 — 增强 | 强制重刮、游戏启动、多平台 CI | ✅ |
+| 0.2.2-alpha | Phase 2 — 数据源 | SteamGridDB + Bangumi 刮削器 | ✅ |
+| 0.2.3-alpha | Phase 2 — 修复 | 配置迁移、缺失源自动补齐 | ✅ |
+| 0.2.4-alpha | Phase 2 — 日志 | 结构化日志系统、按天归档 | ✅ |
 | 0.3.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
@@ -82,9 +85,20 @@ GameLibrary/
 │   ├── game/
 │   │   ├── gameinfo.go         # 游戏元数据模型 + JSON 持久化
 │   │   └── gameinfo_test.go
-│   └── scanner/
-│       ├── scanner.go          # 目录递归扫描 + exe 识别
-│       └── scanner_test.go
+│   ├── scanner/
+│   │   ├── scanner.go          # 目录递归扫描 + exe 识别
+│   │   └── scanner_test.go
+│   ├── scraper/
+│   │   ├── scraper.go          # 刮削流水线 + Source 接口
+│   │   ├── steam.go            # Steam 刮削器
+│   │   ├── vndb.go             # VNDB 刮削器
+│   │   ├── dlsite.go           # DLsite 爬虫
+│   │   ├── bangumi.go          # Bangumi 刮削器
+│   │   ├── steamgriddb.go      # SteamGridDB 封面刮削器
+│   │   ├── cover.go            # 封面下载工具
+│   │   └── scraper_test.go
+│   └── logger/
+│       └── logger.go           # 结构化日志系统 (slog + 按天归档)
 ├── frontend/                   # React SPA
 │   ├── index.html
 │   ├── package.json
@@ -228,6 +242,43 @@ identifyGame(dir):
 1. `steam_appid.txt` 精确匹配 → Steam ID
 2. 未来：文件名哈希 / VNDB 搜索 / DLsite RJ 号匹配
 3. 兜底：目录名作为 ID，platform=local
+
+### 3.4 Logger (`internal/logger/`)
+
+结构化日志系统，基于 Go `log/slog` + 自定义 `dailyHandler`：
+
+```
+App.startup()
+  → logger.Init(exeDir)
+    → 创建 exeDir/logs/ 目录
+    → 初始化 slog Logger + dailyHandler
+
+写入日志:
+  logger.Info("scan started", "gameDirectories", dirs, "maxDepth", 3)
+    → 格式化: 2026-05-30 14:30:01.234 [INFO] [scanner.go:42] scan started gameDirectories=[.\Games] maxDepth=3
+    → 写入 logs/gamemanager_2026-05-30.log
+
+按天轮转:
+  dailyHandler.Handle()
+    → 检查当前日期
+    → 跨天则关闭旧文件，创建新日期文件
+    → 追加写入
+```
+
+**日志级别：** `[DEBG]`—调试 / `[INFO]`—常规操作 / `[WARN]`—可恢复异常 / `[ERRO]`—严重错误
+
+**日志覆盖范围：**
+
+| 模块 | 记录内容 |
+|------|---------|
+| 应用生命周期 | 启动（版本/目录/主机名）、关闭、错误 |
+| 配置 | 加载、保存、默认创建、字段迁移 |
+| 扫描器 | 扫描开始/结束统计、目录进入/跳过、游戏发现（ID/标题/平台/可执行文件数）、exe 发现/过滤（unins 前缀）、主 exe 选择 |
+| 刮削器 | 刮削开始、每个源尝试/跳过/失败/空结果、刮削成功（源/结果标题/平台 ID） |
+| 封面下载 | 下载成功/失败，含 URL 和封面类型 |
+| 游戏操作 | 启动成功/失败、游戏信息更新/保存 |
+
+**设计要点：** 未初始化时（如单元测试）所有日志函数为空操作，无需额外配置。
 
 ---
 
@@ -430,7 +481,75 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 
 ---
 
-## 6. 开发进度
+## 6. 项目约定
+
+本节记录开发过程中需要遵守的约束和规范。
+
+### 6.1 版本号规则 (Semver)
+
+- 格式：`x.y.z-alpha`
+- `x`（主版本）— 重大架构重构、不兼容的 API 变更
+- `y`（次版本）— 重大功能更新（如整个 Phase 完成）
+- `z`（修订版本）— 小功能添加、Bug 修复、CI/文档更新
+- 每次提交（除纯文档外）必须步进最小版本号，生成新 tag
+- 所有 alpha 版 tag 对应 GitHub pre-release
+- 版本号硬编码在 `app.go` 的 `var version`，CI 通过 `-ldflags` 覆盖
+
+### 6.2 发布流程
+
+1. 本地确认编译通过：`wails build`
+2. 本地运行全部测试：`go test ./...`
+3. 提交代码：`git commit`
+4. 打 tag 并推送：`git tag vX.Y.Z-alpha && git push && git push origin vX.Y.Z-alpha`
+5. CI 自动构建 Windows / Linux / macOS 三平台产物并发布 GitHub Release
+
+### 6.3 文档更新要求
+
+| 变更类型 | 需更新的文件 |
+|---------|------------|
+| 新功能 | `CHANGELOG.md`（中英双语）、`DESIGN.md`（如涉及架构） |
+| Bug 修复 | `CHANGELOG.md` |
+| 版本发布 | `README.md` badges（如有）、`DESIGN.md` 路线图 |
+| 配置模型变更 | `DESIGN.md` 对应章节 + 兼容迁移逻辑 |
+| 新的数据源 | `DESIGN.md` 刮削系统章节 |
+
+### 6.4 CHANGELOG 格式
+
+- 中文为主要描述，英文斜体为辅助
+- 按 `Added` / `Changed` / `Fixed` 分类
+- 每个条目：中文一行 + 英文斜体一行
+
+```markdown
+- 新增某某功能（`按钮名`）
+  *Added some feature (`Button Name`)*
+```
+
+### 6.5 代码规范
+
+- Go 源码按功能模块放入 `internal/` 子包（`config` / `game` / `scanner` / `scraper` / `logger`）
+- Wails 绑定文件（`frontend/wailsjs/`）提交到 Git
+- React 组件放在 `frontend/src/components/`
+- 测试文件与源文件同目录，命名 `*_test.go`
+- 编译产物 `build/`、`*.exe`、`config.json` 均被 `.gitignore` 排除
+- 测试用模拟数据放在 `testdata/` 目录
+
+### 6.6 CI 约束
+
+- GitHub Actions 仅在推送 `v*` tag 时触发
+- 使用 `ubuntu-22.04`（非 `latest`，因 Wails v2 依赖 webkit2gtk-4.0）
+- macOS 产物取 `.app/Contents/MacOS/` 内二进制
+- 每个平台生成独立 SHA256 校验文件
+- Release 标记为 `prerelease: true`
+
+### 6.7 数据兼容性
+
+- `config.json` 新增字段时必须提供默认值和旧版迁移逻辑
+- `metadataSources` 新增默认源时用合并逻辑（保留用户已有源的顺序和状态）
+- 不可删除已有 JSON 字段（仅追加）
+
+---
+
+## 7. 开发进度
 
 ### Phase 1 — 骨架 ✅ (已完成)
 
@@ -445,11 +564,13 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 - [x] 17 个单元测试全部通过
 - [x] Git 版本控制 + GitHub 推送
 
-### Phase 2 — 刮削 ✅ (已完成) — `0.2.0-alpha`
+### Phase 2 — 刮削 ✅ (已完成) — `0.2.4-alpha`
 
 - [x] Steam API 集成 (appdetails + storesearch)
 - [x] VNDB API 集成
 - [x] DLsite 爬虫 (RJ 号识别)
+- [x] Bangumi 刮削器 (中文元数据)
+- [x] SteamGridDB 刮削器 (高清封面)
 - [x] 刮削流水线：Pipeline 按 metadataSources 优先级依次查询
 - [x] 封面下载到游戏目录 (竖版 cover + 横版 cover_landscape)
 - [x] 游戏详情页（右侧滑出面板）
@@ -458,6 +579,7 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 - [x] 不完整数据检测 (缺封面/描述/日期自动补刮)
 - [x] 语言感知刮削 (Steam/VNDB 按 zh-CN 返回本地化结果)
 - [x] 数据源专属设置 (展开式配置面板，API Key 等)
+- [x] 结构化日志系统 (slog + 按天归档，覆盖扫描/刮削/配置/启动)
 
 ### Phase 3 — 启动与锁 (规划中)
 
@@ -483,7 +605,7 @@ NAS 在每台客户端可能挂载为不同盘符 (Z:/ Y: 等)。存储相对路
 
 ---
 
-## 7. 构建与开发
+## 8. 构建与开发
 
 ```bash
 # 环境要求: Go 1.23+, Node.js 18+

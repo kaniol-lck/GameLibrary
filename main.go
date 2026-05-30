@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"embed"
+
+	"GameLibrary/internal/logger"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -26,6 +29,10 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 15, G: 15, B: 25, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown: func(ctx context.Context) {
+			logger.Info("application shutting down")
+			logger.Close()
+		},
 		Bind: []interface{}{
 			app,
 		},
@@ -36,6 +43,7 @@ func main() {
 	})
 
 	if err != nil {
-		println("Error:", err.Error())
+		logger.Error("application error", "error", err.Error())
+		logger.Close()
 	}
 }

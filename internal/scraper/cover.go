@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"GameLibrary/internal/logger"
 )
 
 func DownloadCover(gameDir, coverURL, filename string) error {
@@ -65,4 +67,9 @@ func CoverLandscapePath(gameDir string) string {
 		}
 	}
 	return ""
+}
+
+func DownloadCoverWithLog(gameDir, gameID, coverURL, filename string) {
+	err := DownloadCover(gameDir, coverURL, filename)
+	logger.CoverDownloaded(gameID, filename, coverURL, err)
 }

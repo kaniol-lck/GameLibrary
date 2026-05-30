@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.2.4-alpha (2026-05-30)
+
+### Added
+
+- 规范化日志系统：基于 `log/slog` 的异步文件日志，按天轮转归档
+  *Structured logging system: slog-based async file logging with daily rotation*
+- 日志覆盖所有核心操作：扫描（目录进入/游戏发现/exe 识别/过滤）、刮削（源尝试/成功/失败/ID）、配置读写、游戏启动、封面下载
+  *Logs cover all core operations: scan, scrape, config, launch, cover download*
+- 日志格式包含毫秒精度时间戳、调用源位置、结构化键值对
+  *Log format: millisecond timestamps, source locations, structured key-value pairs*
+
+---
+
+## v0.2.3-alpha (2026-05-29)
+
+### Fixed
+
+- 已有配置升级时自动补齐缺失的数据源（如新增的 Bangumi / SteamGridDB）
+  *Auto-migrate missing sources into existing config on load (merge defaults)*
+
+---
+
+## v0.2.2-alpha (2026-05-29)
+
+### Added
+
+- 新增 SteamGridDB 刮削器：通过 Steam AppID 获取高清封面图
+  *SteamGridDB scraper: high-quality cover art via Steam AppID (needs API key)*
+- 新增 Bangumi (bgm.tv) 刮削器：中文元数据（标题、简介、封面）
+  *Bangumi scraper: Chinese metadata from bgm.tv (title, description, cover)*
+- 默认数据源从 4 个扩展为 6 个（新增 bangumi、steamgriddb）
+  *Default sources expanded from 4 to 6 (bangumi, steamgriddb added)*
+
+---
+
 ## v0.2.1-alpha (2026-05-29)
 
 ### Added

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"GameLibrary/internal/logger"
 )
 
 type MetadataSource struct {
@@ -42,6 +44,7 @@ func Load(exeDir string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			logger.ConfigDefaultCreated(exeDir)
 			cfg := Default()
 			cfg.MachineID = generateMachineID()
 			if saveErr := cfg.Save(exeDir); saveErr != nil {
@@ -57,7 +60,9 @@ func Load(exeDir string) (*Config, error) {
 		return nil, err
 	}
 
-	migrateLegacyFields(raw)
+	if migrateLegacyFields(raw) {
+		logger.ConfigMigrated()
+	}
 
 	remediated, _ := json.Marshal(raw)
 	var cfg Config
@@ -87,12 +92,18 @@ func Load(exeDir string) (*Config, error) {
 		}
 	}
 
+	sourceKeys := make([]string, len(cfg.Sources))
+	for i, s := range cfg.Sources {
+		sourceKeys[i] = s.Key
+	}
+	logger.ConfigLoaded(exeDir, cfg.GameDirectories, len(cfg.Sources))
+
 	return &cfg, nil
 }
 
-func migrateLegacyFields(raw map[string]json.RawMessage) {
+func migrateLegacyFields(raw map[string]json.RawMessage) bool {
 	if _, hasSources := raw["metadataSources"]; hasSources {
-		return
+		return false
 	}
 
 	sources := []MetadataSource{
@@ -118,6 +129,8 @@ func migrateLegacyFields(raw map[string]json.RawMessage) {
 
 	data, _ := json.Marshal(sources)
 	raw["metadataSources"] = data
+
+	return true
 }
 
 func (c *Config) Save(exeDir string) error {
@@ -126,6 +139,7 @@ func (c *Config) Save(exeDir string) error {
 	if err != nil {
 		return err
 	}
+	logger.ConfigSaved(exeDir)
 	return os.WriteFile(path, data, 0644)
 }
 

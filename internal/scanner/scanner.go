@@ -7,6 +7,7 @@ import (
 
 	"GameLibrary/internal/config"
 	"GameLibrary/internal/game"
+	"GameLibrary/internal/logger"
 )
 
 type ScanResult struct {
@@ -29,18 +30,40 @@ func New(exeDir string, cfg *config.Config) *Scanner {
 }
 
 func (s *Scanner) ScanAll() ([]ScanResult, error) {
+	logger.ScanStarted(s.config.GameDirectories, s.config.MaxScanDepth)
+
 	var results []ScanResult
 	for _, relDir := range s.config.GameDirectories {
 		absDir := filepath.Join(s.exeDir, relDir)
 		absDir = filepath.Clean(absDir)
 
 		if _, err := os.Stat(absDir); os.IsNotExist(err) {
+			logger.ScanGameDirNotExist(absDir)
 			continue
 		}
 
 		dirResults := s.scanDir(absDir, 0)
 		results = append(results, dirResults...)
 	}
+
+	newCount := 0
+	existingCount := 0
+	for _, r := range results {
+		if r.Error != "" {
+			continue
+		}
+		if r.IsNew {
+			newCount++
+		} else {
+			existingCount++
+		}
+	}
+	logger.Info("scan finished",
+		"totalDirs", len(results),
+		"newGames", newCount,
+		"existingGames", existingCount,
+	)
+
 	return results, nil
 }
 
@@ -49,6 +72,8 @@ func (s *Scanner) ScanDir(dir string) []ScanResult {
 }
 
 func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
+	logger.ScanDirectoryEntered(dir, depth)
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -60,6 +85,7 @@ func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
 	}
 
 	if depth >= s.config.MaxScanDepth {
+		logger.ScanMaxDepthReached(dir, depth, s.config.MaxScanDepth)
 		return nil
 	}
 
@@ -70,6 +96,7 @@ func (s *Scanner) scanDir(dir string, depth int) []ScanResult {
 		}
 		name := entry.Name()
 		if strings.HasPrefix(name, ".") {
+			logger.ScanDirectorySkipped(filepath.Join(dir, name), "hidden directory")
 			continue
 		}
 
@@ -98,15 +125,21 @@ func (s *Scanner) identifyGame(gameDir string) ScanResult {
 	if err == nil && existing != nil {
 		existing.GameDir = gameDir
 		existing.InfoRelPath = ".gameinfo.json"
+		logger.ScanGameAlreadyExists(gameDir, existing.ID)
 		return ScanResult{GameDir: gameDir, GameInfo: existing, IsNew: false}
 	}
 
 	entries, _ := os.ReadDir(gameDir)
 
 	steamAppID := s.readSteamAppID(gameDir)
+	if steamAppID != "" {
+		logger.ScanGameSteamDetected(gameDir, steamAppID)
+	}
+
 	executables := s.findExecutables(entries)
 
 	if len(executables) == 0 {
+		logger.ScanGameNoExecutable(gameDir)
 		return ScanResult{
 			GameDir: gameDir,
 			Error:   "no executable found",
@@ -116,7 +149,10 @@ func (s *Scanner) identifyGame(gameDir string) ScanResult {
 	info := game.New(gameDir, executables, steamAppID)
 	isNew := true
 
+	logger.ScanGameDiscovered(gameDir, info.ID, info.Title, info.Platform, len(executables))
+
 	if saveErr := info.Save(); saveErr != nil {
+		logger.ScanGameSaveFailed(gameDir, saveErr)
 		return ScanResult{
 			GameDir:  gameDir,
 			GameInfo: info,
@@ -152,7 +188,12 @@ func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {
 		}
 		name := e.Name()
 		lower := strings.ToLower(name)
-		if strings.HasSuffix(lower, ".exe") && !strings.HasPrefix(lower, "unins") {
+		if strings.HasSuffix(lower, ".exe") {
+			if strings.HasPrefix(lower, "unins") {
+				logger.ScanExeFiltered(name, "uninstaller")
+				continue
+			}
+			logger.ScanExeFound(name)
 			executables = append(executables, game.Executable{
 				Path:    name,
 				Name:    strings.TrimSuffix(name, ".exe"),
@@ -181,6 +222,7 @@ func (s *Scanner) pickPrimaryExec(executables []game.Executable) game.Executable
 		for _, exe := range executables {
 			lower := strings.ToLower(exe.Name)
 			if strings.Contains(lower, kw) {
+				logger.ScanExePrimaryPicked(exe.Name, kw)
 				return exe
 			}
 		}
@@ -193,6 +235,7 @@ func (s *Scanner) pickPrimaryExec(executables []game.Executable) game.Executable
 				shortest = exe
 			}
 		}
+		logger.ScanExeShortestPicked(shortest.Name)
 		return shortest
 	}
 

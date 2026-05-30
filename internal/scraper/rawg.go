@@ -3,6 +3,7 @@ package scraper
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -122,8 +123,8 @@ func (s *RawgScraper) search(name string) (*Result, error) {
 	}
 
 	return &Result{
-		Title:             item.Name,
-		Description:       desc,
+		Title:             html.UnescapeString(item.Name),
+		Description:       html.UnescapeString(desc),
 		Developer:         dev,
 		Publisher:         pub,
 		ReleaseDate:       item.Released,

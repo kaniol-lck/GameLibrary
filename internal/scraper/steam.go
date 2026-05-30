@@ -3,6 +3,7 @@ package scraper
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -128,8 +129,8 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 	coverLandscape := fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%s/header.jpg", appID)
 
 	return &Result{
-		Title:             appData.Name,
-		Description:       desc,
+		Title:             html.UnescapeString(appData.Name),
+		Description:       html.UnescapeString(desc),
 		Developer:         firstOrEmpty(appData.Developers),
 		Publisher:         firstOrEmpty(appData.Publishers),
 		ReleaseDate:       appData.ReleaseDate.Date,

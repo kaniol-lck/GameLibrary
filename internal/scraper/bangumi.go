@@ -3,6 +3,7 @@ package scraper
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -109,8 +110,8 @@ func (s *BangumiScraper) searchByName(name string) (*Result, error) {
 	logger.Debug("bangumi search result", "searchTerm", name, "matchedTitle", title, "id", item.ID)
 
 	return &Result{
-		Title:             title,
-		TitleNative:       item.Name,
+		Title:             html.UnescapeString(title),
+		TitleNative:       html.UnescapeString(item.Name),
 		Description:       desc,
 		ReleaseDate:       item.Date,
 		CoverURL:          item.Images.Large,

@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"fmt"
+	htmlpkg "html"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -71,8 +72,8 @@ func (s *DLsiteScraper) searchByRJCode(rjCode string) (*Result, error) {
 	}
 
 	return &Result{
-		Title:             cleanText(title),
-		Description:       cleanText(desc),
+		Title:             htmlpkg.UnescapeString(cleanText(title)),
+		Description:       htmlpkg.UnescapeString(cleanText(desc)),
 		CoverURL:          coverURL,
 		CoverLandscapeURL: coverURL,
 		Links: map[string]string{
@@ -108,10 +109,5 @@ func extractMeta(html, property string) string {
 }
 
 func cleanText(s string) string {
-	s = strings.ReplaceAll(s, "&amp;", "&")
-	s = strings.ReplaceAll(s, "&lt;", "<")
-	s = strings.ReplaceAll(s, "&gt;", ">")
-	s = strings.ReplaceAll(s, "&quot;", `"`)
-	s = strings.ReplaceAll(s, "&#39;", "'")
 	return strings.TrimSpace(s)
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -142,9 +143,9 @@ func (s *VNDBScraper) searchByName(name string) (*Result, error) {
 	logger.Debug("vndb search result", "searchTerm", name, "matchedTitle", vn.Title)
 
 	return &Result{
-		Title:             vn.Title,
-		TitleNative:       vn.AltTitle,
-		Description:       desc,
+		Title:             html.UnescapeString(vn.Title),
+		TitleNative:       html.UnescapeString(vn.AltTitle),
+		Description:       html.UnescapeString(desc),
 		Developer:         devName,
 		ReleaseDate:       releaseDate,
 		Tags:              tags,

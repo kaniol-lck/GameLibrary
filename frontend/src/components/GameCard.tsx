@@ -89,11 +89,15 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
         <span className="game-card-platform" style={{ backgroundColor: badge.color }}>
           {badge.label}
         </span>
-        {allPlatforms.map((p) => p.platform !== primaryPlatform ? (
-          <span key={p.platform} className="game-card-platform-extra" style={{ backgroundColor: getPlatformBadge(p.platform).color }}>
-            {getPlatformBadge(p.platform).label}
-          </span>
-        ) : null)}
+        <div className="game-card-platforms">
+          {allPlatforms.map((p) => (
+            <span key={p.platform} className={`game-card-plat-tag ${p.platform === primaryPlatform ? 'game-card-plat-primary' : ''}`}
+              style={{ backgroundColor: getPlatformBadge(p.platform).color }}
+              title={p.platform}>
+              {getPlatformBadge(p.platform).label}
+            </span>
+          ))}
+        </div>
         {game.starred && (
           <span className="game-card-star" title="Starred">{'\u2605'}</span>
         )}

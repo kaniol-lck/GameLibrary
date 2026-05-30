@@ -569,19 +569,33 @@
   z-index: 4;
 }
 
-.game-card-platform-extra {
+.game-card-platforms {
   position: absolute;
   top: 6px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 9px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 4;
+  align-items: flex-end;
+}
+
+.game-card-plat-tag {
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 8px;
   font-weight: 700;
   color: #fff;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  z-index: 3;
+  letter-spacing: 0.4px;
   opacity: 0.7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.game-card-plat-primary {
+  opacity: 1;
+  font-size: 9px;
+  padding: 2px 6px;
 }
 
 .game-card-launch {
@@ -1105,14 +1119,20 @@
   margin-bottom: 20px;
 }
 
-.detail-badge {
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 11px;
+.detail-platforms {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.detail-platform-tag {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  background: #4f6ef7;
   color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .detail-meta-text {
@@ -1471,6 +1491,35 @@
 
 .context-tag-remove:hover {
   color: #f87171;
+}
+
+.ctx-parent {
+  position: relative;
+}
+
+.ctx-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: #555;
+}
+
+.ctx-submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: -4px;
+  min-width: 180px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  z-index: 10;
+  animation: ctxFadeIn 0.1s ease;
+}
+
+.ctx-sub-left {
+  left: auto;
+  right: calc(100% + 4px);
 }
 
 /* ===== Game Card Tags & Star ===== */

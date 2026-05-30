@@ -9,11 +9,21 @@ interface GameDetailProps {
 }
 
 function formatPlaytime(seconds: number): string {
-  if (seconds <= 0) return 'Never played';
+  if (seconds <= 0) return '';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+function getPlatColor(platform: string): string {
+  switch (platform) {
+    case 'steam': return '#1a3a5c';
+    case 'vndb': return '#2255a4';
+    case 'dlsite': return '#c2185b';
+    case 'bangumi': return '#e57399';
+    default: return '#555';
+  }
 }
 
 export default function GameDetail({ game: initialGame, onClose, onUpdated }: GameDetailProps) {
@@ -67,7 +77,13 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
           {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
 
           <div className="detail-meta-row">
-            <span className="detail-badge">{(g as any).platforms?.[0]?.platform || (g as any).platform || 'local'}</span>
+            <div className="detail-platforms">
+              {((g as any).platforms || []).map((p: any) => (
+                <span key={p.platform} className="detail-platform-tag" style={{ backgroundColor: getPlatColor(p.platform) }}>
+                  {p.platform}
+                </span>
+              ))}
+            </div>
             <span className="detail-meta-text">{formatPlaytime(g.totalPlaytime)}</span>
           </div>
 

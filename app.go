@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.6.0-alpha"
+var version = "0.5.2-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -218,7 +218,19 @@ func (a *App) doScan(force bool) []scanner.ScanResult {
 		return results[i].GameDir < results[j].GameDir
 	})
 
+	go a.autoScrapeNew(results)
+
 	return results
+}
+
+func (a *App) autoScrapeNew(results []scanner.ScanResult) {
+	for _, r := range results {
+		if r.IsNew && r.GameInfo != nil && r.Error == "" {
+			logger.Info("auto-scraping new game", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
+			a.ScrapeGame(r.GameInfo.ID)
+		}
+	}
+	logger.Info("auto-scrape finished for new games")
 }
 
 func (a *App) GetGameList() []*game.GameInfo {

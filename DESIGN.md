@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.5.0-alpha** | Last updated: 2026-05-31
+> AI-assisted project. Current version: **0.5.2-alpha** | Last updated: 2026-05-31
 
 ## 版本路线图
 
@@ -19,6 +19,8 @@
 | 0.3.3-alpha | Phase 2 — 修复 | CamelCase 拆分修正、刮削后实时刷新 | ✅ |
 | 0.4.0-alpha | Phase 2 — 标签 | 三级标签系统、侧边栏分段筛选 | ✅ |
 | 0.5.0-alpha | Phase 2 — 多平台 | 多数据源关联、别名、启动/刮削按钮 | ✅ |
+| 0.5.1-alpha | Phase 2 — 修复 | 多源刮削、Steam 跳 RJ 码、强制重扫 | ✅ |
+| 0.5.2-alpha | Phase 2 — 优先源 | 首选数据源、全平台标签、自动刮削 | ✅ |
 | 0.6.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |

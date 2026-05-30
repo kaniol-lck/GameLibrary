@@ -1,271 +1,36 @@
 # Changelog
 
+## v0.5.2-alpha (2026-05-31)
+
+### Added
+
+- 扫描到新游戏时自动刮削元数据（后台异步执行）
+  *Auto-scrape metadata for newly discovered games after scan*
+- 右键菜单优先数据源子菜单，可单选切换各平台，持久化到 `preferredSource`
+  *Context menu preferred source picker with radio buttons, persisted to .gameinfo.json*
+- 卡面各平台标签全部可见（主平台不透明，附加半透明）
+  *All platform badges visible on card (primary opaque, extras semi-transparent)*
+- 多源并行刮削 `ScrapeAll`：遍历所有启用的源，一游戏关联多平台（steam+dlsite）
+  *Multi-source ScrapeAll: tries ALL enabled sources, multi-platform per game*
+- `GameInfo.PreferredSource` + `Aliases` 字段，旧 `platform/platformId` 自动迁移
+  *PreferredSource + Aliases fields, legacy platform/platformId auto-migrated*
+- `ForceScanGames`：强制重读 steam_appid.txt 和重新生成 .gameinfo.json
+  *ForceScanGames: re-read steam_appid.txt and regenerate .gameinfo.json*
+- 测试用例新增 `NEKOPARA_RJ157652`（Steam 333600 + DLsite 双平台）
+  *Added NEKOPARA_RJ157652 test case (cross-platform Steam + DLsite)*
+
+### Changed
+
+- `Platform` / `PlatformID` 字段 → `Platforms []PlatformInfo` 多平台数组
+- `PrimaryPlatform()` 读取 `preferredSource`，不再依赖数组顺序
+- `SetPlatform` append 而非 prepend
+- 侧边栏平台计数改为统计所有平台（非仅主平台）
+
+### Fixed
+
+- Steam 刮削器跳过 RJ 码目录名，避免劫持 DLsite 游戏
+- SanobaWitch Steam AppID 688390 → 替换为 NEKOPARA 333600（已验证）
+
+---
+
 ## v0.4.0-alpha (2026-05-30)
-
-### Added
-
-- **多平台支持**：游戏可关联多个数据源（steam + dlsite 等），每个平台记录独立 ID 和名称
-  *Multi-platform: games can link multiple sources (steam + dlsite), each with ID and name*
-- **别名系统**：记录不同平台返回的游戏名差异（`Aliases []string`）
-  *Alias system: records name variations from different platforms*
-- 右键菜单新增「启动游戏」、各平台「打开网页」、数据源「重新刮削」按钮
-  *Context menu: Launch Game, Open platform page, Re-scrape Metadata*
-- 卡片悬浮显示播放按钮（▶），单击直接启动游戏
-  *Hover-to-launch button (▶) on game cards*
-- 旧版 `platform/platformId` 字段自动迁移至 `platforms []PlatformInfo`
-  *Auto-migration from legacy platform/platformId to platforms array*
-
-### Changed
-
-- `GameInfo.Platform` / `PlatformID` → `Platforms []PlatformInfo` + `Aliases []string`
-- 卡面新增多平台标识点（steam 蓝 / dlsite 粉），平台角标显示主平台
-  *Card shows multi-platform dots, main badge shows primary platform*
-
----
-
-## v0.3.3-alpha (2026-05-30)
-
-### Added
-
-- 三级标签系统：平台标签（自动，steam/dlsite/vndb 等）、分类标签（刮削器返回的 genres/tags）、用户标签（手动添加），卡片覆盖层分色显示
-  *Three-tier tag system: platform (auto), genre (from scraper), user (manual) — color-coded card overlay*
-- 侧边栏分段筛选：Platforms / Genres / My Tags 三个独立区块，按类型过滤游戏
-  *Sidebar sections: Platforms, Genres, My Tags — filter by tag type*
-
-### Changed
-
-- 刮削指示器从齿轮图标改为 CSS 旋转圆环（spinner），完成后显示 ✓（绿色）或 ✗（红色）弹入动画
-  *Scrape indicator: CSS spinning ring, success ✓ (green) / fail ✗ (red) with pop-in animation*
-- 平台标签角标样式增强（字体加粗、阴影），卡面上区分展示 genre 标签和 user 标签
-  *Platform badge enhanced, genre vs user tags visually distinct on card*
-- 侧边栏完全重构：All Games → Starred → Platforms → Genres → My Tags 层次结构
-  *Sidebar restructured with hierarchical sections*
-
-### Fixed
-
-- 测试游戏库新增 `烟火` (1566720) 和 `黑神话悟空` (2358720) 的 steam_appid，使其可被刮削
-  *Added steam_appid for Firework and Black Myth Wukong in test library*
-
----
-
-## v0.3.3-alpha (2026-05-30)
-
-### Fixed
-
-- CamelCase 拆分错误：首字母大写的缩写词（如 `LocalRPG`）不再被错误拆成 `Local R P G`
-  *CamelCase splitting: acronyms (e.g. `LocalRPG`) no longer incorrectly split into `Local R P G`*
-- DLsite 刮削器改进：区分「产品不存在(404)」和「无元数据」，避免误报 `could not extract metadata`
-  *DLsite scraper: distinguish "product not found (404)" from "no metadata" cases*
-- 批量刮削时逐步刷新卡片，每完成一个游戏即更新显示，不再等到全部结束
-  *Batch scrape now refreshes game cards progressively after each game completes*
-
-### Added
-
-- `splitCamelCase` / `nameVariations` / `normalizeSearchName` 单元测试覆盖
-  *Unit tests for name normalization functions*
-
----
-
-## v0.3.2-alpha (2026-05-30)
-
-### Added
-
-- 新增 RAWG.io 刮削器（免费 API，覆盖全平台游戏元数据、封面、标签）
-  *RAWG.io scraper: free API covering cross-platform metadata, covers, and tags*
-- 搜索名称智能拆分：自动处理 CamelCase（`SteinsGate` → `Steins Gate`）、下划线、连字符等变体，依次尝试直到匹配
-  *Smart search name normalization: auto-splits CamelCase, underscores, dashes; tries variations until match*
-- 刮削失败时日志记录 HTTP 响应预览，便于排查网络问题
-  *Scrape logs now include HTTP response preview on non-JSON errors*
-
-### Changed
-
-- 默认数据源从 6 个扩展为 7 个（新增 rawg）
-  *Default sources expanded from 6 to 7 (rawg added)*
-
-### Fixed
-
-- 旧 `.gameinfo.json` 中的 BOM 污染残留（`PlatformID` / `ID` 字段），`LoadFromDir` 自动清洗
-  *Auto-strip BOM from stale .gameinfo.json PlatformID/ID fields on load*
-- VNDB 刮削器增加 User-Agent 头、非 JSON 响应检测与日志
-  *VNDB scraper: add User-Agent header, detect non-JSON responses with logging*
-- Bangumi 网络超时时输出明确诊断日志（站点可能被墙或过慢）
-  *Bangumi timeout: explicit diagnostic log (site may be blocked or slow)*
-
----
-
-## v0.3.1-alpha (2026-05-30)
-
-### Changed
-
-- 日志系统改为按会话归档（`session_2026-05-30_14-30-01.log`），每次启动独立文件
-  *Logger now archives per session (`session_2026-05-30_14-30-01.log`), one file per launch*
-
-### Fixed
-
-- Steam 刮削器搜索本地游戏时误用完整路径作为搜索词，改为仅用目录名
-  *Steam scraper used full directory path as search term for local games; now uses dir basename only*
-- `steam_appid.txt` 含 UTF-8 BOM 导致 AppID 无效（如 `﻿1086940`），已自动去除
-  *steam_appid.txt with UTF-8 BOM produced invalid AppID (e.g. `﻿1086940`); now auto-stripped*
-- 过滤 `UnityCrashHandler64.exe` 等引擎辅助程序，不再列为游戏可执行文件
-  *Engine helper executables like UnityCrashHandler64.exe are now filtered out*
-- 刮削日志新增搜索词和匹配结果详情，便于排查失败原因
-  *Scrape logs now include search term and matched result details for diagnostics*
-
----
-
-## v0.3.0-alpha (2026-05-30)
-
-### Added
-
-- 游戏卡片右键菜单：星标、标签系统、浏览游戏路径、浏览元数据文件
-  *Game card context menu: star, tag system, open game folder, open metadata file*
-- 星标功能（`Starred`）：侧边栏星标分类过滤，卡片右上角星标图标
-  *Star toggle with sidebar filter and card badge*
-- 自定义标签系统（`Tags`）：右键菜单添加/删除标签，卡片底部标签展示，侧边栏标签分类
-  *Custom tag system: add/remove tags via context menu, card overlay, sidebar tag filter*
-- `OpenGameDirectory` / `OpenGameMetadata` 后端接口
-  *Backend APIs for opening game folder in Explorer and metadata in Notepad*
-
----
-
-## v0.2.5-alpha (2026-05-30)
-
-### Fixed
-
-- 修复跨盘符绝对路径（如 `E:\SteamLibrary`）被错误拼接到 exeDir 后面导致扫描失效
-  *Fixed cross-volume absolute paths (e.g. `E:\SteamLibrary`) incorrectly joined with exeDir, breaking game discovery*
-
----
-
-## v0.2.4-alpha (2026-05-30)
-
-### Added
-
-- 规范化日志系统：基于 `log/slog` 的异步文件日志，按天轮转归档
-  *Structured logging system: slog-based async file logging with daily rotation*
-- 日志覆盖所有核心操作：扫描（目录进入/游戏发现/exe 识别/过滤）、刮削（源尝试/成功/失败/ID）、配置读写、游戏启动、封面下载
-  *Logs cover all core operations: scan, scrape, config, launch, cover download*
-- 日志格式包含毫秒精度时间戳、调用源位置、结构化键值对
-  *Log format: millisecond timestamps, source locations, structured key-value pairs*
-
----
-
-## v0.2.3-alpha (2026-05-29)
-
-### Fixed
-
-- 已有配置升级时自动补齐缺失的数据源（如新增的 Bangumi / SteamGridDB）
-  *Auto-migrate missing sources into existing config on load (merge defaults)*
-
----
-
-## v0.2.2-alpha (2026-05-29)
-
-### Added
-
-- 新增 SteamGridDB 刮削器：通过 Steam AppID 获取高清封面图
-  *SteamGridDB scraper: high-quality cover art via Steam AppID (needs API key)*
-- 新增 Bangumi (bgm.tv) 刮削器：中文元数据（标题、简介、封面）
-  *Bangumi scraper: Chinese metadata from bgm.tv (title, description, cover)*
-- 默认数据源从 4 个扩展为 6 个（新增 bangumi、steamgriddb）
-  *Default sources expanded from 4 to 6 (bangumi, steamgriddb added)*
-
----
-
-## v0.2.1-alpha (2026-05-29)
-
-### Added
-
-- 单游戏和批量强制重新刮削按钮（`Force` / `Re-scrape`）
-  *Force re-scrape buttons for single games and batch (`Force` / `Re-scrape`)*
-- 多平台 GitHub Actions 发布（Windows / Linux / macOS）
-  *Multi-platform GitHub Actions release (Windows, Linux, macOS)*
-- 每个发布资产附带 SHA256 校验文件
-  *SHA256 checksum file per release asset*
-- GitHub Release 标记为 pre-release
-  *Pre-release flag on GitHub Releases*
-- 详情面板新增启动游戏按钮（`▶ Launch Game`）
-  *Game launch button (`▶ Launch Game`) in detail panel*
-- 项目文档：README badges、CHANGELOG.md、DESIGN.md
-  *Project docs: README badges, CHANGELOG.md, DESIGN.md*
-
-### Fixed
-
-- macOS 发布产物路径修复（`.app` 包内二进制）
-  *macOS binary path inside `.app` bundle for release assets*
-- Ubuntu CI 固定为 22.04 以兼容 webkit2gtk-4.0
-  *Pin Ubuntu CI to 22.04 for webkit2gtk-4.0 compatibility*
-
----
-
-## v0.2.0-alpha (2026-05-29)
-
-### Added
-
-- 元数据刮削系统：Steam、VNDB、DLsite 三个数据源
-  *Metadata scraping system: Steam, VNDB, DLsite sources*
-- 按 `metadataSources` 优先级排序的刮削流水线
-  *Scraping pipeline with priority ordering via config*
-- 双封面下载：竖版 `cover.jpg`（卡片）+ 横版 `cover_landscape.jpg`（详情）
-  *Dual cover download: portrait for cards + landscape for detail panel*
-- Base64 图片传输，绕过 WebView2 的 `file://` 限制
-  *Base64 cover delivery bypassing WebView2 file:// restrictions*
-- 右侧滑出的游戏详情面板
-  *Right-side slide-in game detail panel*
-- 并行刮削进度条（3 并发限制）
-  *Parallel scraping progress bar (3 concurrent limit)*
-- 不完整元数据检测，自动补刮缺失字段
-  *Incomplete metadata detection for targeted re-scraping*
-- 语言感知刮削（Steam `l=schinese`，VNDB `zh-Hans`）
-  *Language-aware scraping (Steam l=schinese, VNDB zh-Hans)*
-- 数据源专属设置面板（可展开，API Key 等）
-  *Per-source settings with expandable inline panel*
-- GitHub Actions CI，推送 tag 自动发布 Release
-  *GitHub Actions CI with auto-release on version tags*
-
-### Changed
-
-- 设置页：卡片式布局、toggle 开关、可排序数据源列表
-  *Settings page: card-based layout, toggle switches, reorderable sources*
-- 配置模型：`metadataSources` 替代 `vndbEnabled` / `dlsiteEnabled`，旧配置自动迁移
-  *Config: metadataSources replaces vndbEnabled/dlsiteEnabled, legacy migration*
-- 机器名从 `config.json` 移除，改为 `os.Hostname()` 自动检测
-  *Machine name removed from shared config, auto-detected via os.Hostname()*
-- 游戏目录选择改用系统原生文件夹对话框，自动转换相对路径
-  *Game directories: native folder picker with relative path conversion*
-- 可折叠侧边栏布局，自动派生游戏分类
-  *Collapsible sidebar layout with auto-derived categories*
-- Go 源码模块化重组织为 `internal/` 子包
-  *Go source modularized into internal/ sub-packages*
-
-### Fixed
-
-- 封面图片在 WebView2 中无法显示（改用 base64 传输）
-  *Cover images not displaying in WebView2 (base64 workaround)*
-- 多客户端共享配置导致机器名互相覆盖
-  *Machine name conflicts across shared config*
-- Steam 封面使用竖版 `library_600x900_2x.jpg` 替代横版 header
-  *Steam portrait cover using library_600x900_2x.jpg*
-
----
-
-## v0.1.0-alpha (2026-05-29)
-
-### Added
-
-- Wails v2 + React + TypeScript 项目脚手架
-  *Wails v2 + React + TypeScript project scaffold*
-- 配置模型（JSON 持久化、旧字段迁移）
-  *Config model with JSON persistence and legacy migration*
-- 游戏扫描器：递归目录遍历、`.exe` 识别、`steam_appid.txt` 解析
-  *Game scanner: recursive walk, .exe detection, steam_appid.txt parsing*
-- `.gameinfo.json` 元数据文件生成
-  *Game info metadata file generation*
-- React 前端：侧边栏导航、游戏卡片网格、暗色主题
-  *React frontend: sidebar nav, game card grid, dark theme*
-- 设置页：机器配置、游戏目录管理、扫描深度
-  *Settings page: machine config, game directories, scan depth*
-- 17 个单元测试（扫描器、配置、游戏信息）
-  *17 unit tests for scanner, config, and gameinfo*
-- Git 版本控制与 GitHub 推送
-  *Git version control and GitHub push*

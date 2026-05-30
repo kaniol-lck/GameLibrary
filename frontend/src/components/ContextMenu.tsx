@@ -79,19 +79,19 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }
         <div className="context-menu-title">{game.title}</div>
       </div>
 
+      {hasExe && (
+        <button className="context-item context-launch" onClick={handleLaunch}>
+          <span className="context-item-icon">{'\u25B6'}</span>
+          <span>Launch Game</span>
+        </button>
+      )}
+
       <button className="context-item" onClick={handleStar}>
         <span className="context-item-icon">{game.starred ? '\u2605' : '\u2606'}</span>
         <span>{game.starred ? 'Unstar' : 'Star'}</span>
       </button>
 
       <div className="context-divider" />
-
-      {hasExe && (
-        <button className="context-item" onClick={handleLaunch}>
-          <span className="context-item-icon">{'\u25B6'}</span>
-          <span>Launch Game</span>
-        </button>
-      )}
 
       <button className="context-item" onClick={handleReScrape}>
         <span className="context-item-icon">{'\u21BB'}</span>

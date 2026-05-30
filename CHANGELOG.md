@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.4-alpha (2026-05-31)
+
+### Changed
+
+- 右键菜单启动游戏置于菜单顶部，绿色强调色
+  *Context menu: Launch Game at top with green accent color*
+- 详情弹窗启动按钮改为绿色圆形大按钮（52px），与标题/封面并排位于顶部
+  *Detail: large green circular launch button (52px) at top, aligned with title and cover*
+
+---
+
 ## v0.5.3-alpha (2026-05-31)
 
 ### Changed

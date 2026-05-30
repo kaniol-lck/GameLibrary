@@ -88,22 +88,31 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
 
         <div className="detail-body">
           <div className="detail-header-row">
-            <h2 className="detail-title">{g.title}</h2>
+            <div className="detail-header-left">
+              <h2 className="detail-title">{g.title}</h2>
+              {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
+              <div className="detail-meta-row">
+                <div className="detail-platforms">
+                  {platforms.map((p: any) => (
+                    <span key={p.platform} className="detail-platform-tag" style={{ backgroundColor: getPlatColor(p.platform) }}>
+                      {p.platform}
+                    </span>
+                  ))}
+                </div>
+                <span className="detail-meta-text">{formatPlaytime(g.totalPlaytime)}</span>
+              </div>
+            </div>
+            <button className="detail-launch-btn" onClick={handleLaunch} disabled={g.executables.length === 0}>
+              {'\u25B6'}
+            </button>
+          </div>
+          <div className="detail-header-actions">
             <button className="detail-star-btn" onClick={handleStar} title={g.starred ? 'Unstar' : 'Star'}>
               {g.starred ? '\u2605' : '\u2606'}
             </button>
-          </div>
-          {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
-
-          <div className="detail-meta-row">
-            <div className="detail-platforms">
-              {platforms.map((p: any) => (
-                <span key={p.platform} className="detail-platform-tag" style={{ backgroundColor: getPlatColor(p.platform) }}>
-                  {p.platform}
-                </span>
-              ))}
-            </div>
-            <span className="detail-meta-text">{formatPlaytime(g.totalPlaytime)}</span>
+            <button className="btn btn-secondary" onClick={handleScrape} disabled={isScraping}>
+              {isScraping ? 'Scraping...' : '\u21BB'}
+            </button>
           </div>
 
           {meta && (
@@ -174,17 +183,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
           )}
 
           <div className="detail-actions">
-            <button className="btn btn-launch" onClick={handleLaunch} disabled={g.executables.length === 0}>
-              {'\u25B6'} Launch Game
-            </button>
-            <button className="btn btn-secondary" onClick={handleScrape} disabled={isScraping}>
-              {isScraping ? 'Scraping...' : '\u21BB Re-scrape'}
-            </button>
-          </div>
-
-          {platforms.length > 0 && (
-            <div className="detail-actions">
-              {platforms.map((p) => {
+            {platforms.length > 0 && platforms.map((p) => {
                 let url = '';
                 if (p.platform === 'steam' && p.id) url = `https://store.steampowered.com/app/${p.id}/`;
                 else if (p.platform === 'dlsite' && p.id) url = `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
@@ -196,7 +195,6 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
                 ) : null;
               })}
             </div>
-          )}
 
           <div className="detail-section">
             <label>Tags</label>

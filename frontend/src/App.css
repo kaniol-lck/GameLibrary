@@ -446,6 +446,11 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+.game-card-scraping-dim {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .game-card:focus {
   outline: 2px solid #4f6ef7;
   outline-offset: 2px;
@@ -1405,7 +1410,25 @@
 .detail-tag-user {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
+  position: relative;
+  padding-right: 20px;
 }
+
+.detail-tag-remove {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(251, 191, 36, 0.5);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.detail-tag-remove:hover { color: #f87171; }
 
 .detail-tag-alias {
   background: rgba(255, 255, 255, 0.06);

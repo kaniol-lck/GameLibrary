@@ -72,7 +72,7 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
 
   return (
     <div
-      className="game-card"
+      className={`game-card ${isScraping ? 'game-card-scraping-dim' : ''}`}
       onClick={() => onClick?.(game)}
       onContextMenu={handleContextMenu}
       role="button"

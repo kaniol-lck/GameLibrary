@@ -17,6 +17,24 @@
 
 ---
 
+## v0.5.5-alpha (2026-05-31)
+
+### Changed
+
+- 详情页启动按钮改为左对齐方形，重新刮削按钮标注 `↻ Re-scrape Metadata` 完整文字
+  *Detail: launch button left-aligned square; re-scrape button with full text label*
+
+---
+
+## v0.5.4-alpha (2026-05-31)
+
+### Changed
+
+- 右键菜单启动游戏置顶 + 绿色强调色；详情页 52px 绿色圆形启动按钮
+  *Context menu: Launch at top with green accent; detail: 52px green circular launch*
+
+---
+
 ## v0.5.3-alpha (2026-05-31)
 
 ### Changed
@@ -30,6 +48,8 @@
 
 - 最终消除 `local` 平台残留：`GameCard` 兜底值、`migratePlatform` 默认值改为空字符串
   *Final removal of 'local' platform fallbacks in GameCard and migratePlatform*
+
+---
 
 ---
 
@@ -71,6 +91,18 @@
 - SanobaWitch → NEKOPARA 测试用例修复（Steam 333600 已验证）
 - 右键重新刮削未触发进度条/角标 → 统一经 `useScrape` hook
 - 刮削后游戏卡片封面不刷新 → 添加 `refreshKey` 依赖
+
+---
+
+## v0.5.1-alpha (2026-05-30)
+
+多源刮削 + Steam 跳 RJ 码 + 强制重扫修复。
+*Multi-source scrape, Steam RJ skip, force re-scan fix.*
+
+## v0.5.0-alpha (2026-05-30)
+
+多平台数据模型（`Platforms + Aliases`）+ 侧滑子菜单 + 启动/重刮。
+*Multi-platform model + side-sliding menu + launch/re-scrape.*
 
 ---
 

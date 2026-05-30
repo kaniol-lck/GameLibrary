@@ -117,10 +117,21 @@ function App() {
     if (selectedNav.startsWith('usertag:')) return games.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
     if (selectedNav.startsWith('pathlabel:')) {
       const label = selectedNav.slice(10);
+      const exeDir = (appInfo?.['exeDir'] || '').replace(/\\/g, '/');
       return games.filter((g: any) => {
         const gd = (g.gameDir || '').replace(/\\/g, '/');
         for (const [dirPath, labels] of Object.entries(pathLabels)) {
-          if (gd.startsWith(dirPath.replace(/\\/g, '/')) && (labels as string[]).includes(label)) return true;
+          let absPath = dirPath.replace(/\\/g, '/');
+          if (absPath.startsWith('.')) {
+            absPath = exeDir + '/' + absPath;
+          }
+          while (absPath.includes('/./')) absPath = absPath.replace('/./', '/');
+          while (absPath.includes('/../')) {
+            const parts = absPath.split('/');
+            const idx = parts.indexOf('..');
+            if (idx > 1) { parts.splice(idx - 1, 2); absPath = parts.join('/'); } else break;
+          }
+          if (gd.startsWith(absPath) && (labels as string[]).includes(label)) return true;
         }
         return false;
       });
@@ -154,6 +165,7 @@ function App() {
         onSelectNav={(key) => { setSelectedNav(key); setSelectedGame(null); }}
         machineName={appInfo?.['machineName'] ?? ''}
         pathLabels={pathLabels}
+        exeDir={appInfo?.['exeDir'] || ''}
       />
 
       <div className="main-area">

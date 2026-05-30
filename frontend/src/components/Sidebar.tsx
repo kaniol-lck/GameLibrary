@@ -15,9 +15,10 @@ interface SidebarProps {
   onSelectNav: (key: string) => void;
   machineName: string;
   pathLabels?: Record<string, string[]>;
+  exeDir?: string;
 }
 
-function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined): Category[] {
+function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
   const cats: Category[] = [];
 
   const platformCounts = new Map<string, number>();
@@ -45,9 +46,18 @@ function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, str
     }
 
     if (pathLabels) {
-      const gameDir = ((g as any).gameDir || '').replace(/\\/g, '/');
+      const gd = ((g as any).gameDir || '').replace(/\\/g, '/');
+      const ed = (exeDir || '').replace(/\\/g, '/');
       for (const [dirPath, labels] of Object.entries(pathLabels)) {
-        if (gameDir.startsWith(dirPath.replace(/\\/g, '/'))) {
+        let absPath = dirPath.replace(/\\/g, '/');
+        if (absPath.startsWith('.')) { absPath = ed + '/' + absPath; }
+        while (absPath.includes('/./')) absPath = absPath.replace('/./', '/');
+        while (absPath.includes('/../')) {
+          const parts = absPath.split('/');
+          const idx = parts.indexOf('..');
+          if (idx > 1) { parts.splice(idx - 1, 2); absPath = parts.join('/'); } else break;
+        }
+        if (gd.startsWith(absPath)) {
           for (const l of (labels as string[])) {
             if (l) pathCounts.set(l, (pathCounts.get(l) || 0) + 1);
           }
@@ -110,8 +120,9 @@ export default function Sidebar({
   onSelectNav,
   machineName,
   pathLabels,
+  exeDir,
 }: SidebarProps) {
-  const categories = deriveCategories(games, pathLabels);
+  const categories = deriveCategories(games, pathLabels, exeDir);
   const allCount = games.length;
   const starredCount = games.filter((g) => g.starred).length;
 

@@ -1,0 +1,20 @@
+{
+  "id": "steam_222222",
+  "title": "visual_novel",
+  "platforms": [
+    {
+      "platform": "steam",
+      "id": "222222"
+    }
+  ],
+  "type": "game",
+  "executables": [
+    {
+      "path": "vn.exe",
+      "name": "vn",
+      "primary": true
+    }
+  ],
+  "scannedAt": "2026-05-30T19:02:05Z",
+  "totalPlaytime": 0
+}

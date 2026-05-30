@@ -1,0 +1,20 @@
+{
+  "id": "steam_123456",
+  "title": "simple_steam_game",
+  "platforms": [
+    {
+      "platform": "steam",
+      "id": "123456"
+    }
+  ],
+  "type": "game",
+  "executables": [
+    {
+      "path": "game.exe",
+      "name": "game",
+      "primary": true
+    }
+  ],
+  "scannedAt": "2026-05-30T19:03:54Z",
+  "totalPlaytime": 0
+}

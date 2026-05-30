@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.6.0-alpha (2026-05-31)
+
+### Changed
+
+- **文件结构重构**：所有管理器生成的文件移入 `.gamemanager/` 隐藏文件夹，含多平台元数据分储、封面集中管理
+  *File restructure: .gamemanager/ folder with per-platform metadata + centralized covers*
+- 旧 `.gameinfo.json` + 根目录封面自动迁移至新位置
+  *Legacy auto-migration from old .gameinfo.json + root covers*
+- `SaveMeta(source)` / `LoadMeta(source)`：每个平台独立保存/加载元数据文件
+  *Per-platform metadata save/load*
+
+---
+
+## v0.5.10-alpha (2026-05-31)
+
+### Changed
+
+- 刮削中卡片整体变暗（`opacity: 0.45`），标签删除按钮绝对定位修复
+  *Scraping cards dim to 45%, tag remove button positioned cleanly*
+
+## v0.5.9-alpha (2026-05-31)
+
+### Fixed
+
+- 详情页星标按钮样式（暗色边框 + 金色 hover）；全部刮削器 HTML 实体解码
+  *Detail star button styling; all scrapers decode HTML entities*
+
+## v0.5.8-alpha (2026-05-31)
+
+### Fixed
+
+- 优先平台按钮即时更新状态；按钮样式修复
+  *Preferred source button real-time update; restored CSS*
+
+## v0.5.7-alpha (2026-05-31)
+
+### Changed
+
+- 去重卡片平台标签；Steam 蓝色调整 `#1a4b8a`
+  *Deduplicated platform badges; Steam bluer*
+
+---
+
 ## v0.5.6-alpha (2026-05-31)
 
 ### Changed

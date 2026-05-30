@@ -1,0 +1,14 @@
+{
+  "id": "local_game",
+  "title": "local_game",
+  "type": "game",
+  "executables": [
+    {
+      "path": "start.exe",
+      "name": "start",
+      "primary": true
+    }
+  ],
+  "scannedAt": "2026-05-30T19:03:54Z",
+  "totalPlaytime": 0
+}

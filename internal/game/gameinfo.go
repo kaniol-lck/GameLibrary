@@ -8,6 +8,15 @@ import (
 	"time"
 )
 
+const (
+	gmDir       = ".gamemanager"
+	infoRel     = ".gamemanager/gameinfo.json"
+	coversRel   = ".gamemanager/covers"
+	metaRel     = ".gamemanager/meta"
+	legacyRel   = ".gameinfo.json"
+	legacyCover = "cover"
+)
+
 type Executable struct {
 	Path    string `json:"path"`
 	Name    string `json:"name"`
@@ -47,29 +56,59 @@ type GameInfo struct {
 	Type            string         `json:"type"`
 	Executables     []Executable   `json:"executables"`
 	SavePaths       []SavePath     `json:"savePaths,omitempty"`
-	Metadata     *Metadata      `json:"metadata,omitempty"`
-	ScannedAt    string         `json:"scannedAt"`
+	Metadata        *Metadata      `json:"metadata,omitempty"`
+	ScannedAt       string         `json:"scannedAt"`
 
 	TotalPlaytime int64    `json:"totalPlaytime"`
 	LastPlayedAt  string   `json:"lastPlayedAt,omitempty"`
 	Starred       bool     `json:"starred,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
 
-	GameDir     string `json:"-"`
-	InfoRelPath string `json:"-"`
+	GameDir string `json:"-"`
 }
 
-func (g *GameInfo) InfoFilePath() string {
-	return filepath.Join(g.GameDir, g.InfoRelPath)
-}
+func ManagerDir(gameDir string) string  { return filepath.Join(gameDir, gmDir) }
+func CoverDir(gameDir string) string    { return filepath.Join(gameDir, coversRel) }
+func MetaDir(gameDir string) string     { return filepath.Join(gameDir, metaRel) }
+func InfoFilePath(gameDir string) string { return filepath.Join(gameDir, infoRel) }
+func LegacyInfoPath(gameDir string) string { return filepath.Join(gameDir, legacyRel) }
+
+func (g *GameInfo) InfoFilePath() string { return InfoFilePath(g.GameDir) }
 
 func (g *GameInfo) Save() error {
+	os.MkdirAll(ManagerDir(g.GameDir), 0755)
 	path := g.InfoFilePath()
 	data, err := json.MarshalIndent(g, "", "  ")
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, data, 0644)
+}
+
+func (g *GameInfo) SaveMeta(source string) error {
+	if g.Metadata == nil {
+		return nil
+	}
+	os.MkdirAll(MetaDir(g.GameDir), 0755)
+	path := filepath.Join(MetaDir(g.GameDir), source+".json")
+	data, err := json.MarshalIndent(g.Metadata, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+func (g *GameInfo) LoadMeta(source string) *Metadata {
+	path := filepath.Join(MetaDir(g.GameDir), source+".json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var meta Metadata
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil
+	}
+	return &meta
 }
 
 func (g *GameInfo) PrimaryPlatform() string {
@@ -142,9 +181,12 @@ func (g *GameInfo) AddAlias(name string) {
 }
 
 func LoadFromDir(gameDir string) (*GameInfo, error) {
-	path := filepath.Join(gameDir, ".gameinfo.json")
+	path := InfoFilePath(gameDir)
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return tryMigrateLegacy(gameDir)
+		}
 		return nil, err
 	}
 
@@ -167,8 +209,56 @@ func LoadFromDir(gameDir string) (*GameInfo, error) {
 	}
 
 	info.GameDir = gameDir
-	info.InfoRelPath = ".gameinfo.json"
 	return &info, nil
+}
+
+func tryMigrateLegacy(gameDir string) (*GameInfo, error) {
+	legacyPath := filepath.Join(gameDir, legacyRel)
+	data, err := os.ReadFile(legacyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	migratePlatform(raw)
+
+	remediated, _ := json.Marshal(raw)
+	var info GameInfo
+	if err := json.Unmarshal(remediated, &info); err != nil {
+		return nil, err
+	}
+
+	info.ID = stripBOM(info.ID)
+	info.GameDir = gameDir
+
+	if info.Metadata != nil && info.Metadata.CoverURL == "cover" {
+		migrateLegacyCovers(gameDir, info.PrimaryPlatform())
+	}
+
+	info.Save()
+	os.Remove(legacyPath)
+
+	return &info, nil
+}
+
+func migrateLegacyCovers(gameDir string, source string) {
+	legacyExts := []string{".jpg", ".png"}
+	for _, fn := range []string{"cover", "cover_landscape"} {
+		for _, ext := range legacyExts {
+			oldPath := filepath.Join(gameDir, fn+ext)
+			if _, err := os.Stat(oldPath); err == nil {
+				os.MkdirAll(CoverDir(gameDir), 0755)
+				newPath := filepath.Join(CoverDir(gameDir), fn+ext)
+				os.Rename(oldPath, newPath)
+				break
+			}
+		}
+	}
+	_ = source
 }
 
 func migratePlatform(raw map[string]json.RawMessage) {
@@ -211,6 +301,8 @@ func New(gameDir string, executables []Executable, steamAppID string) *GameInfo 
 		platforms = []PlatformInfo{{Platform: "steam", ID: steamAppID}}
 	}
 
+	os.MkdirAll(ManagerDir(gameDir), 0755)
+
 	return &GameInfo{
 		ID:          id,
 		Title:       filepath.Base(gameDir),
@@ -219,6 +311,5 @@ func New(gameDir string, executables []Executable, steamAppID string) *GameInfo 
 		Executables: executables,
 		ScannedAt:   now,
 		GameDir:     gameDir,
-		InfoRelPath: ".gameinfo.json",
 	}
 }

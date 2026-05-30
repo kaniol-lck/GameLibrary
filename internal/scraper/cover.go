@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"GameLibrary/internal/game"
 	"GameLibrary/internal/logger"
 )
 
@@ -32,7 +33,9 @@ func DownloadCover(gameDir, coverURL, filename string) error {
 		ext = ".png"
 	}
 
-	filePath := filepath.Join(gameDir, filename+ext)
+	coverDir := game.CoverDir(gameDir)
+	os.MkdirAll(coverDir, 0755)
+	filePath := filepath.Join(coverDir, filename+ext)
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -50,20 +53,26 @@ func DownloadCover(gameDir, coverURL, filename string) error {
 }
 
 func CoverPath(gameDir string) string {
-	for _, ext := range []string{".jpg", ".png"} {
-		p := filepath.Join(gameDir, "cover"+ext)
-		if _, err := os.Stat(p); err == nil {
-			return p
+	dirs := []string{game.CoverDir(gameDir), gameDir}
+	for _, dir := range dirs {
+		for _, ext := range []string{".jpg", ".png"} {
+			p := filepath.Join(dir, "cover"+ext)
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
 		}
 	}
 	return ""
 }
 
 func CoverLandscapePath(gameDir string) string {
-	for _, ext := range []string{".jpg", ".png"} {
-		p := filepath.Join(gameDir, "cover_landscape"+ext)
-		if _, err := os.Stat(p); err == nil {
-			return p
+	dirs := []string{game.CoverDir(gameDir), gameDir}
+	for _, dir := range dirs {
+		for _, ext := range []string{".jpg", ".png"} {
+			p := filepath.Join(dir, "cover_landscape"+ext)
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
 		}
 	}
 	return ""

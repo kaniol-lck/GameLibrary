@@ -34,8 +34,8 @@ func fileExists(path string) bool {
 }
 
 func cleanupGameInfo(dir string) {
-	path := filepath.Join(dir, ".gameinfo.json")
-	os.Remove(path)
+	os.RemoveAll(filepath.Join(dir, ".gamemanager"))
+	os.Remove(filepath.Join(dir, ".gameinfo.json"))
 }
 
 func findResult(results []ScanResult, suffix string) *ScanResult {
@@ -50,6 +50,7 @@ func findResult(results []ScanResult, suffix string) *ScanResult {
 func TestScanSimpleSteamGame(t *testing.T) {
 	testDir := testdataDir(t)
 	gameDir := filepath.Join(testDir, "simple_steam_game")
+	cleanupGameInfo(gameDir)
 	defer cleanupGameInfo(gameDir)
 
 	cfg := testConfig()
@@ -90,14 +91,15 @@ func TestScanSimpleSteamGame(t *testing.T) {
 		t.Error("expected game.exe to be primary")
 	}
 
-	if !fileExists(filepath.Join(gameDir, ".gameinfo.json")) {
-		t.Error(".gameinfo.json not created")
+	if !fileExists(filepath.Join(gameDir, ".gamemanager", "gameinfo.json")) {
+		t.Error(".gamemanager/gameinfo.json not created")
 	}
 }
 
 func TestScanDeepExeGame(t *testing.T) {
 	testDir := testdataDir(t)
 	gameDir := filepath.Join(testDir, "deep_exe_game", "bin", "x64")
+	cleanupGameInfo(gameDir)
 	defer cleanupGameInfo(gameDir)
 
 	cfg := testConfig()
@@ -121,6 +123,7 @@ func TestScanDeepExeGame(t *testing.T) {
 func TestScanMultiExeGame(t *testing.T) {
 	testDir := testdataDir(t)
 	gameDir := filepath.Join(testDir, "multi_exe_game")
+	cleanupGameInfo(gameDir)
 	defer cleanupGameInfo(gameDir)
 
 	cfg := testConfig()
@@ -175,6 +178,8 @@ func TestScanCollection(t *testing.T) {
 	testDir := testdataDir(t)
 	sub1Dir := filepath.Join(testDir, "collection", "SubGame1")
 	sub2Dir := filepath.Join(testDir, "collection", "SubGame2")
+	cleanupGameInfo(sub1Dir)
+	cleanupGameInfo(sub2Dir)
 	defer cleanupGameInfo(sub1Dir)
 	defer cleanupGameInfo(sub2Dir)
 
@@ -238,7 +243,7 @@ func TestScanAll(t *testing.T) {
 			if err != nil {
 				return nil
 			}
-			if info.Name() == ".gameinfo.json" && !strings.Contains(path, "already_scanned") {
+			if info.Name() == ".gamemanager" || info.Name() == ".gameinfo.json" {
 				os.Remove(path)
 			}
 			return nil

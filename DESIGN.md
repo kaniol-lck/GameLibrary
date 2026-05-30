@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.5.7-alpha** | Last updated: 2026-05-31
+> AI-assisted project. Current version: **0.6.0-alpha** | Last updated: 2026-05-31
 
 ## 版本路线图
 

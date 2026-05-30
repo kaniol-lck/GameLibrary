@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.5.10-alpha"
+var version = "0.6.0-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -142,11 +142,11 @@ func (a *App) loadGamesFromDir(dir string, depth int) {
 
 func isGameDir(entries []os.DirEntry) bool {
 	for _, e := range entries {
+		if e.IsDir() && e.Name() == ".gamemanager" {
+			return true
+		}
 		if !e.IsDir() {
 			name := e.Name()
-			if name == ".gameinfo.json" {
-				return true
-			}
 			if len(name) > 4 {
 				ext := strings.ToLower(name[len(name)-4:])
 				if ext == ".exe" {

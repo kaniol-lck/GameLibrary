@@ -139,8 +139,6 @@ func (s *Scanner) identifyGameForce(gameDir string, force bool) ScanResult {
 	if !force {
 		existing, err := game.LoadFromDir(gameDir)
 		if err == nil && existing != nil {
-			existing.GameDir = gameDir
-			existing.InfoRelPath = ".gameinfo.json"
 			logger.ScanGameAlreadyExists(gameDir, existing.ID)
 			return ScanResult{GameDir: gameDir, GameInfo: existing, IsNew: false}
 		}

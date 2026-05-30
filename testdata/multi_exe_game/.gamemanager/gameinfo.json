@@ -1,0 +1,30 @@
+{
+  "id": "steam_111111",
+  "title": "multi_exe_game",
+  "platforms": [
+    {
+      "platform": "steam",
+      "id": "111111"
+    }
+  ],
+  "type": "game",
+  "executables": [
+    {
+      "path": "config.exe",
+      "name": "config",
+      "primary": false
+    },
+    {
+      "path": "game.exe",
+      "name": "game",
+      "primary": true
+    },
+    {
+      "path": "launcher.exe",
+      "name": "launcher",
+      "primary": false
+    }
+  ],
+  "scannedAt": "2026-05-30T19:03:54Z",
+  "totalPlaytime": 0
+}

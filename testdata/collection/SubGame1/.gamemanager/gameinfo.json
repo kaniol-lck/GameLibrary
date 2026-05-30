@@ -1,0 +1,20 @@
+{
+  "id": "steam_333333",
+  "title": "SubGame1",
+  "platforms": [
+    {
+      "platform": "steam",
+      "id": "333333"
+    }
+  ],
+  "type": "game",
+  "executables": [
+    {
+      "path": "sub1.exe",
+      "name": "sub1",
+      "primary": true
+    }
+  ],
+  "scannedAt": "2026-05-30T19:03:54Z",
+  "totalPlaytime": 0
+}

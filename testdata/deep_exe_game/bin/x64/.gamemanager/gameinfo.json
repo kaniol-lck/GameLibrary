@@ -1,0 +1,20 @@
+{
+  "id": "steam_789012",
+  "title": "x64",
+  "platforms": [
+    {
+      "platform": "steam",
+      "id": "789012"
+    }
+  ],
+  "type": "game",
+  "executables": [
+    {
+      "path": "launcher.exe",
+      "name": "launcher",
+      "primary": true
+    }
+  ],
+  "scannedAt": "2026-05-30T19:03:54Z",
+  "totalPlaytime": 0
+}

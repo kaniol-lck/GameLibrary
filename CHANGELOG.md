@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.3-alpha (2026-05-31)
+
+### Changed
+
+- 游戏详情弹窗从右侧滑出改为居中悬浮对话框（540px，缩放淡入动画）
+  *Game detail panel: centered floating dialog (540px, scale-in) replacing right slide-out*
+- 详情面板同步右键菜单全部操作：星标、启动、重刮、优先数据源、打开平台页、标签、浏览目录/元数据
+  *Detail panel now mirrors all context menu actions (star, launch, re-scrape, preferred source, tags, browse)*
+
+### Fixed
+
+- 最终消除 `local` 平台残留：`GameCard` 兜底值、`migratePlatform` 默认值改为空字符串
+  *Final removal of 'local' platform fallbacks in GameCard and migratePlatform*
+
+---
+
 ## v0.5.2-alpha (2026-05-31)
 
 ### Added

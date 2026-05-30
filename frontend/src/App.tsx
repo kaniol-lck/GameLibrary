@@ -31,12 +31,13 @@ function App() {
   const [scanResults, setScanResults] = useState<scanner.ScanResult[] | null>(null);
   const [error, setError] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ game: game.GameInfo; x: number; y: number } | null>(null);
+  const [coverRefresh, setCoverRefresh] = useState(0);
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
     scrapeDone, scrapeTotal, isScraping, pct,
     scrapeSingle, scrapeBatch,
-  } = useScrape(setGames);
+  } = useScrape(setGames, () => setCoverRefresh((k) => k + 1));
 
   const loadGames = useCallback(async () => {
     try {
@@ -195,7 +196,8 @@ function App() {
                     onContextMenu={handleGameContextMenu}
                     isScraping={scrapingIds.has(g.id)}
                     scrapedOk={scrapedOkIds.has(g.id)}
-                    scrapedErr={scrapedErrIds.has(g.id)} />
+                    scrapedErr={scrapedErrIds.has(g.id)}
+                    refreshKey={coverRefresh} />
                 ))}
               </div>
             </>
@@ -216,6 +218,7 @@ function App() {
       {ctxMenu && (
         <ContextMenu game={ctxMenu.game} x={ctxMenu.x} y={ctxMenu.y}
           onClose={() => setCtxMenu(null)}
+          onScrape={scrapeSingle}
           onUpdated={() => { loadGames(); setCtxMenu(null); }} />
       )}
     </div>

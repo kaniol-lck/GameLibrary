@@ -19,6 +19,7 @@ export interface UseScrapeReturn {
 
 export function useScrape(
   setGames: React.Dispatch<React.SetStateAction<game.GameInfo[]>>,
+  onScraped?: () => void,
 ): UseScrapeReturn {
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
   const [scrapedOkIds, setScrapedOkIds] = useState<Set<string>>(new Set());
@@ -52,6 +53,7 @@ export function useScrape(
     setScrapingIds(new Set());
 
     await loadGames();
+    if (onScraped) onScraped();
 
     setTimeout(() => {
       setScrapedOkIds(new Set());
@@ -106,6 +108,7 @@ export function useScrape(
     await Promise.all(workers);
 
     await loadGames();
+    if (onScraped) onScraped();
     setScrapingIds(new Set());
     setScrapeDone(0);
     setScrapeTotal(0);

@@ -10,6 +10,7 @@ interface GameCardProps {
   isScraping?: boolean;
   scrapedOk?: boolean;
   scrapedErr?: boolean;
+  refreshKey?: number;
 }
 
 function formatPlaytime(seconds: number): string {
@@ -41,7 +42,7 @@ function platformUrl(platform: string, id: string): string {
   }
 }
 
-export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr }: GameCardProps) {
+export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr, refreshKey }: GameCardProps) {
   const [coverData, setCoverData] = useState('');
 
   const primaryPlatform = (game as any).preferredSource || (game as any).platforms?.[0]?.platform || (game as any).platform || 'local';
@@ -49,7 +50,7 @@ export default function GameCard({ game, onClick, onContextMenu, onUpdated, isSc
   useEffect(() => {
     if (!game.metadata?.coverUrl) return;
     GetGameCover(game.id).then(setCoverData).catch(() => {});
-  }, [game.id, game.metadata?.coverUrl]);
+  }, [game.id, game.metadata?.coverUrl, refreshKey]);
 
   const badge = getPlatformBadge(primaryPlatform);
   const playtime = formatPlaytime(game.totalPlaytime);

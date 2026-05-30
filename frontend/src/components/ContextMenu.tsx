@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame, SetPreferredSource, OpenBrowser } from '../../wailsjs/go/main/App';
+import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, SetPreferredSource, OpenBrowser } from '../../wailsjs/go/main/App';
 
 interface ContextMenuProps {
   game: game.GameInfo;
@@ -8,9 +8,10 @@ interface ContextMenuProps {
   y: number;
   onClose: () => void;
   onUpdated: () => void;
+  onScrape?: (id: string) => Promise<void>;
 }
 
-export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextMenuProps) {
+export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -41,7 +42,7 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
   const handleOpenDir = async () => { try { await OpenGameDirectory(game.id); } catch {} onClose(); };
   const handleOpenMeta = async () => { try { await OpenGameMetadata(game.id); } catch {} onClose(); };
   const handleLaunch = async () => { try { await LaunchGame(game.id); } catch {} onClose(); };
-  const handleReScrape = async () => { try { await ScrapeGame(game.id); onUpdated(); } catch {} onClose(); };
+  const handleReScrape = async () => { if (onScrape) { try { await onScrape(game.id); onUpdated(); } catch {} } onClose(); };
   const handleSetPreferred = async (source: string) => { try { await SetPreferredSource(game.id, source); onUpdated(); } catch {} setHoverSubMenu(''); };
   const handleOpenPage = (url: string) => { if (url) OpenBrowser(url).catch(() => {}); };
 

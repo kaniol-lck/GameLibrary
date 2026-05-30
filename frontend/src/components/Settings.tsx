@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GetConfig, SaveConfig, PickGameDirectory, GetMachineName } from '../../wailsjs/go/main/App';
+import { GetConfig, SaveConfig, PickGameDirectory, GetMachineName, OpenDirectory } from '../../wailsjs/go/main/App';
 import { config } from '../../wailsjs/go/models';
 
 interface SourceMeta {
@@ -92,7 +92,15 @@ export default function Settings() {
     if (!cfg) return;
     const dirs = [...cfg.gameDirectories];
     dirs.splice(index, 1);
-    updateCfg({ gameDirectories: dirs });
+    const labels = { ...(cfg.gameDirectoryLabels || {}) };
+    updateCfg({ gameDirectories: dirs, gameDirectoryLabels: labels });
+  };
+
+  const updateDirLabel = (dir: string, label: string) => {
+    if (!cfg) return;
+    const labels = { ...(cfg.gameDirectoryLabels || {}) };
+    if (label) { labels[dir] = label; } else { delete labels[dir]; }
+    updateCfg({ gameDirectoryLabels: labels });
   };
 
   const toggleSource = (index: number) => {
@@ -169,11 +177,21 @@ export default function Settings() {
                   <p className="empty-hint">No directories configured.</p>
                 )}
                 {cfg.gameDirectories.map((dir: string, i: number) => (
-                  <div key={i} className="dir-item">
-                    <span className="dir-path">{dir}</span>
-                    <button className="btn-icon-sm" onClick={() => removeGameDir(i)} title="Remove">&times;</button>
-                  </div>
-                ))}
+                   <div key={i} className="dir-item">
+                     <button className="btn-icon-sm dir-open-btn" onClick={() => OpenDirectory(dir)} title="Open in Explorer">{'\uD83D\uDCC1'}</button>
+                     <div className="dir-info">
+                       <span className="dir-path" onClick={() => OpenDirectory(dir)} title="Click to open">{dir}</span>
+                       <input
+                         className="dir-label-input"
+                         type="text"
+                         placeholder="Label..."
+                         value={(cfg.gameDirectoryLabels || {})[dir] || ''}
+                         onChange={(e) => updateDirLabel(dir, e.target.value)}
+                       />
+                     </div>
+                     <button className="btn-icon-sm" onClick={() => removeGameDir(i)} title="Remove">&times;</button>
+                   </div>
+                 ))}
               </div>
               <div className="dir-add">
                 <button className="btn btn-secondary" onClick={browseDirectory}>Browse...</button>

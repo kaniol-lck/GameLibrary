@@ -16,11 +16,12 @@ type MetadataSource struct {
 }
 
 type Config struct {
-	MachineID       string           `json:"machineId"`
-	GameDirectories []string         `json:"gameDirectories"`
-	MaxScanDepth    int              `json:"maxScanDepth"`
-	Language        string           `json:"language"`
-	Sources         []MetadataSource `json:"metadataSources"`
+	MachineID           string            `json:"machineId"`
+	GameDirectories     []string          `json:"gameDirectories"`
+	GameDirectoryLabels map[string]string `json:"gameDirectoryLabels,omitempty"`
+	MaxScanDepth        int               `json:"maxScanDepth"`
+	Language            string            `json:"language"`
+	Sources             []MetadataSource  `json:"metadataSources"`
 }
 
 func Default() *Config {

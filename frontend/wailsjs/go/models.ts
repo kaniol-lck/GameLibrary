@@ -21,6 +21,7 @@ export namespace config {
 	export class Config {
 	    machineId: string;
 	    gameDirectories: string[];
+	    gameDirectoryLabels?: Record<string, string>;
 	    maxScanDepth: number;
 	    language: string;
 	    metadataSources: MetadataSource[];
@@ -33,6 +34,7 @@ export namespace config {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.machineId = source["machineId"];
 	        this.gameDirectories = source["gameDirectories"];
+	        this.gameDirectoryLabels = source["gameDirectoryLabels"];
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];
 	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);

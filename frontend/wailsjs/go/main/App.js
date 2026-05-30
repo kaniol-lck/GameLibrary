@@ -46,6 +46,10 @@ export function OpenBrowser(arg1) {
   return window['go']['main']['App']['OpenBrowser'](arg1);
 }
 
+export function OpenDirectory(arg1) {
+  return window['go']['main']['App']['OpenDirectory'](arg1);
+}
+
 export function OpenGameDirectory(arg1) {
   return window['go']['main']['App']['OpenGameDirectory'](arg1);
 }

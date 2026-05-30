@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.5.4-alpha** | Last updated: 2026-05-31
+> AI-assisted project. Current version: **0.5.6-alpha** | Last updated: 2026-05-31
 
 ## 版本路线图
 
@@ -22,7 +22,9 @@
 | 0.5.1-alpha | Phase 2 — 修复 | 多源刮削、Steam 跳 RJ 码、强制重扫 | ✅ |
 | 0.5.2-alpha | Phase 2 — 优先源 | 侧滑子菜单、Unmatched 标签、刮削模块化 | ✅ |
 | 0.5.3-alpha | Phase 2 — 详情面板 | 居中弹窗、全操作同步、移除 local | ✅ |
-| 0.5.4-alpha | Phase 2 — 启动按钮 | 右键+详情页启动按钮绿色强调置顶 | ✅ |
+| 0.5.4-alpha | Phase 2 — 启动按钮 | 右键绿色启动置顶 | ✅ |
+| 0.5.5-alpha | Phase 2 — 按钮调整 | 详情页启动左对齐、重刮文字标注 | ✅ |
+| 0.5.6-alpha | Phase 2 — 布局标签 | 统一 Tags 区、平台可点击、底部重刮 | ✅ |
 | 0.6.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.7.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.8.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |

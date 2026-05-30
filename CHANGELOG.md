@@ -1,13 +1,19 @@
 # Changelog
 
-## v0.5.4-alpha (2026-05-31)
+## v0.5.6-alpha (2026-05-31)
 
 ### Changed
 
-- 右键菜单启动游戏置于菜单顶部，绿色强调色
+- 右键菜单启动游戏置于菜单顶部，绿色强调色（`context-launch`）
   *Context menu: Launch Game at top with green accent color*
-- 详情弹窗启动按钮改为绿色圆形大按钮（52px），与标题/封面并排位于顶部
-  *Detail: large green circular launch button (52px) at top, aligned with title and cover*
+- 详情弹窗启动按钮左对齐方形全宽绿色，布局重新整理对齐、统一留白
+  *Detail: left-aligned full-width green square launch button, cleaned up layout and spacing*
+- 重新刮削按钮移到底部，与 Open Folder / Metadata 同排，标注完整文字 `↻ Re-scrape Metadata`
+  *Re-scrape moved to bottom bar with full label*
+- 平台标签改为可点击链接（`↗` 箭头），点击在浏览器打开对应网页
+  *Platform tags now clickable links to open web pages*
+- 统一 Tags 区域：刮削分类标签（紫色）→ 用户自定义标签（橙色）→ [+] 内联添加
+  *Unified Tags section: genre (purple) → user (amber) → [+] inline add*
 
 ---
 

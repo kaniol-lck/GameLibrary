@@ -1245,24 +1245,6 @@
   font-family: inherit;
 }
 
-.detail-actions {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  gap: 8px;
-}
-
-.detail-actions .btn-launch {
-  background: #22c55e;
-  color: #000;
-  font-weight: 600;
-}
-
-.detail-actions .btn-launch:hover {
-  background: #16a34a;
-}
-
 .detail-actions .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
   color: #ccc;
@@ -1315,47 +1297,25 @@
 .detail-header-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
 }
 
-.detail-header-left {
-  flex: 1;
-  min-width: 0;
+.detail-actions {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  gap: 8px;
 }
 
-.detail-launch-btn {
-  width: 52px;
-  height: 52px;
-  border: none;
-  border-radius: 50%;
+.detail-actions .btn-launch {
   background: #22c55e;
   color: #000;
-  font-size: 22px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  font-weight: 600;
 }
 
-.detail-launch-btn:hover {
+.detail-actions .btn-launch:hover {
   background: #16a34a;
-  transform: scale(1.05);
-}
-
-.detail-launch-btn:disabled {
-  background: #333;
-  color: #666;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.detail-header-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
 }
 
 .detail-star-btn {

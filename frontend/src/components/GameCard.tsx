@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { GetGameCover } from '../../wailsjs/go/main/App';
+import { GetGameCover, LaunchGame, ScrapeGame } from '../../wailsjs/go/main/App';
 
 interface GameCardProps {
   game: game.GameInfo;
   onClick?: (game: game.GameInfo) => void;
   onContextMenu?: (game: game.GameInfo, x: number, y: number) => void;
+  onUpdated?: () => void;
   isScraping?: boolean;
   scrapedOk?: boolean;
   scrapedErr?: boolean;
@@ -30,22 +31,40 @@ function getPlatformBadge(platform: string): { label: string; color: string } {
   }
 }
 
-export default function GameCard({ game, onClick, onContextMenu, isScraping, scrapedOk, scrapedErr }: GameCardProps) {
+function platformUrl(platform: string, id: string): string {
+  switch (platform) {
+    case 'steam': return id ? `https://store.steampowered.com/app/${id}/` : '';
+    case 'dlsite': return id ? `https://www.dlsite.com/maniax/work/=/product_id/${id}.html` : '';
+    case 'vndb': return id ? `https://vndb.org/v${id}` : '';
+    case 'bangumi': return id ? `https://bgm.tv/subject/${id}` : '';
+    default: return '';
+  }
+}
+
+export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr }: GameCardProps) {
   const [coverData, setCoverData] = useState('');
+
+  const primaryPlatform = (game as any).platforms?.[0]?.platform || (game as any).platform || 'local';
 
   useEffect(() => {
     if (!game.metadata?.coverUrl) return;
     GetGameCover(game.id).then(setCoverData).catch(() => {});
   }, [game.id, game.metadata?.coverUrl]);
 
-  const badge = getPlatformBadge(game.platform);
+  const badge = getPlatformBadge(primaryPlatform);
   const playtime = formatPlaytime(game.totalPlaytime);
   const genreTags = (game.metadata?.tags || []).slice(0, 3);
   const userTags = (game.tags || []).slice(0, 2);
+  const allPlatforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     onContextMenu?.(game, e.clientX, e.clientY);
+  };
+
+  const handleLaunch = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { await LaunchGame(game.id); } catch { /* ignore */ }
   };
 
   const showBadge = scrapedOk || scrapedErr || isScraping;
@@ -73,6 +92,9 @@ export default function GameCard({ game, onClick, onContextMenu, isScraping, scr
         {game.starred && (
           <span className="game-card-star" title="Starred">{'\u2605'}</span>
         )}
+        <button className="game-card-launch" onClick={handleLaunch} title="Launch">
+          {'\u25B6'}
+        </button>
         {showBadge && isScraping && (
           <span className="game-card-scraping" title="Scraping..." />
         )}
@@ -101,6 +123,13 @@ export default function GameCard({ game, onClick, onContextMenu, isScraping, scr
         <h3 className="game-card-title">{game.title}</h3>
         {game.titleNative && <p className="game-card-title-native">{game.titleNative}</p>}
         {playtime && <span className="game-card-playtime">{playtime}</span>}
+        {allPlatforms.length > 1 && (
+          <div className="game-card-platform-dots">
+            {allPlatforms.map((p) => (
+              <span key={p.platform} className="game-card-plat-dot" style={{ backgroundColor: getPlatformBadge(p.platform).color }} title={p.platform} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

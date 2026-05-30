@@ -74,11 +74,11 @@ func TestScanSimpleSteamGame(t *testing.T) {
 	if info.ID != "steam_123456" {
 		t.Errorf("expected ID steam_123456, got %s", info.ID)
 	}
-	if info.Platform != "steam" {
-		t.Errorf("expected platform steam, got %s", info.Platform)
+	if info.PrimaryPlatform() != "steam" {
+		t.Errorf("expected platform steam, got %s", info.PrimaryPlatform())
 	}
-	if info.PlatformID != "123456" {
-		t.Errorf("expected platformId 123456, got %s", info.PlatformID)
+	if info.PrimaryPlatformID() != "123456" {
+		t.Errorf("expected platformId 123456, got %s", info.PrimaryPlatformID())
 	}
 	if len(info.Executables) != 1 {
 		t.Errorf("expected 1 executable, got %d", len(info.Executables))
@@ -165,8 +165,8 @@ func TestScanLocalGame(t *testing.T) {
 	if info.ID != "local_game" {
 		t.Errorf("expected ID local_game, got %s", info.ID)
 	}
-	if info.Platform != "local" {
-		t.Errorf("expected platform local, got %s", info.Platform)
+	if info.PrimaryPlatform() != "local" {
+		t.Errorf("expected platform local, got %s", info.PrimaryPlatform())
 	}
 }
 

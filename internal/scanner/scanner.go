@@ -148,7 +148,7 @@ func (s *Scanner) identifyGame(gameDir string) ScanResult {
 	info := game.New(gameDir, executables, steamAppID)
 	isNew := true
 
-	logger.ScanGameDiscovered(gameDir, info.ID, info.Title, info.Platform, len(executables))
+	logger.ScanGameDiscovered(gameDir, info.ID, info.Title, info.PrimaryPlatform(), len(executables))
 
 	if saveErr := info.Save(); saveErr != nil {
 		logger.ScanGameSaveFailed(gameDir, saveErr)

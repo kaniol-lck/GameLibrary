@@ -106,8 +106,8 @@ func TestApplyResult(t *testing.T) {
 	if info.Title != "Test Game" {
 		t.Errorf("Title: expected 'Test Game', got '%s'", info.Title)
 	}
-	if info.Platform != "steam" {
-		t.Errorf("Platform: expected 'steam', got '%s'", info.Platform)
+	if info.PrimaryPlatform() != "steam" {
+		t.Errorf("Platform: expected 'steam', got '%s'", info.PrimaryPlatform())
 	}
 	if info.Metadata == nil {
 		t.Fatal("Metadata is nil")

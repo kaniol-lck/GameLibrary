@@ -24,7 +24,7 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
   const userCounts = new Map<string, number>();
 
   for (const g of games) {
-    const plat = g.platform || 'local';
+    const plat = (g as any).platforms?.[0]?.platform || (g as any).platform || 'local';
     platformCounts.set(plat, (platformCounts.get(plat) || 0) + 1);
 
     for (const tag of g.metadata?.tags || []) {

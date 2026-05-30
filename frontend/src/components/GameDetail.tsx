@@ -67,7 +67,7 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated }: Ga
           {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
 
           <div className="detail-meta-row">
-            <span className="detail-badge">{g.platform}</span>
+            <span className="detail-badge">{(g as any).platforms?.[0]?.platform || (g as any).platform || 'local'}</span>
             <span className="detail-meta-text">{formatPlaytime(g.totalPlaytime)}</span>
           </div>
 

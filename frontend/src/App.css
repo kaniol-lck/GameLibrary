@@ -568,6 +568,48 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
 }
 
+.game-card-launch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+
+.game-card:hover .game-card-launch {
+  opacity: 1;
+}
+
+.game-card-launch:hover {
+  background: #22c55e;
+}
+
+.game-card-platform-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.game-card-plat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 .game-card-body {
   padding: 10px 12px;
 }

@@ -119,12 +119,28 @@ export namespace game {
 	        this.source = source["source"];
 	    }
 	}
+	export class PlatformInfo {
+	    platform: string;
+	    id?: string;
+	    name?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlatformInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.platform = source["platform"];
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
 	export class GameInfo {
 	    id: string;
 	    title: string;
 	    titleNative?: string;
-	    platform: string;
-	    platformId?: string;
+	    platforms?: PlatformInfo[];
+	    aliases?: string[];
 	    type: string;
 	    executables: Executable[];
 	    savePaths?: SavePath[];
@@ -144,8 +160,8 @@ export namespace game {
 	        this.id = source["id"];
 	        this.title = source["title"];
 	        this.titleNative = source["titleNative"];
-	        this.platform = source["platform"];
-	        this.platformId = source["platformId"];
+	        this.platforms = this.convertValues(source["platforms"], PlatformInfo);
+	        this.aliases = source["aliases"];
 	        this.type = source["type"];
 	        this.executables = this.convertValues(source["executables"], Executable);
 	        this.savePaths = this.convertValues(source["savePaths"], SavePath);
@@ -175,6 +191,7 @@ export namespace game {
 		    return a;
 		}
 	}
+	
 	
 
 }

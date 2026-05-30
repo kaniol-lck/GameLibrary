@@ -4,6 +4,29 @@
 
 ### Added
 
+- **多平台支持**：游戏可关联多个数据源（steam + dlsite 等），每个平台记录独立 ID 和名称
+  *Multi-platform: games can link multiple sources (steam + dlsite), each with ID and name*
+- **别名系统**：记录不同平台返回的游戏名差异（`Aliases []string`）
+  *Alias system: records name variations from different platforms*
+- 右键菜单新增「启动游戏」、各平台「打开网页」、数据源「重新刮削」按钮
+  *Context menu: Launch Game, Open platform page, Re-scrape Metadata*
+- 卡片悬浮显示播放按钮（▶），单击直接启动游戏
+  *Hover-to-launch button (▶) on game cards*
+- 旧版 `platform/platformId` 字段自动迁移至 `platforms []PlatformInfo`
+  *Auto-migration from legacy platform/platformId to platforms array*
+
+### Changed
+
+- `GameInfo.Platform` / `PlatformID` → `Platforms []PlatformInfo` + `Aliases []string`
+- 卡面新增多平台标识点（steam 蓝 / dlsite 粉），平台角标显示主平台
+  *Card shows multi-platform dots, main badge shows primary platform*
+
+---
+
+## v0.3.3-alpha (2026-05-30)
+
+### Added
+
 - 三级标签系统：平台标签（自动，steam/dlsite/vndb 等）、分类标签（刮削器返回的 genres/tags）、用户标签（手动添加），卡片覆盖层分色显示
   *Three-tier tag system: platform (auto), genre (from scraper), user (manual) — color-coded card overlay*
 - 侧边栏分段筛选：Platforms / Genres / My Tags 三个独立区块，按类型过滤游戏

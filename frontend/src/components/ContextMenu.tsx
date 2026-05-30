@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata } from '../../wailsjs/go/main/App';
+import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, ScrapeGame } from '../../wailsjs/go/main/App';
 
 interface ContextMenuProps {
   game: game.GameInfo;
@@ -16,7 +16,7 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
   const [tagInput, setTagInput] = useState('');
 
   const adjustedX = Math.min(x, window.innerWidth - 220);
-  const adjustedY = Math.min(y, window.innerHeight - 360);
+  const adjustedY = Math.min(y, window.innerHeight - 420);
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -52,6 +52,16 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
     onClose();
   };
 
+  const handleLaunch = async () => {
+    try { await LaunchGame(game.id); } catch { /* ignore */ }
+    onClose();
+  };
+
+  const handleReScrape = async () => {
+    try { await ScrapeGame(game.id); onUpdated(); } catch { /* ignore */ }
+    onClose();
+  };
+
   const handleAddTag = async () => {
     const tag = tagInput.trim();
     if (!tag) { setShowTagInput(false); return; }
@@ -63,6 +73,16 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
   const handleRemoveTag = async (tag: string) => {
     try { await RemoveGameTag(game.id, tag); onUpdated(); } catch { /* ignore */ }
   };
+
+  const openPage = (url: string) => {
+    if (url) {
+      try { (window as any).wails?.Browser?.OpenURL?.(url); } catch { /* fallback */ }
+      window.open(url, '_blank');
+    }
+  };
+
+  const platforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
+  const hasExe = (game.executables || []).length > 0;
 
   return (
     <div
@@ -78,6 +98,35 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated }: ContextM
         <span className="context-item-icon">{game.starred ? '\u2605' : '\u2606'}</span>
         <span>{game.starred ? 'Unstar' : 'Star'}</span>
       </button>
+
+      <div className="context-divider" />
+
+      {hasExe && (
+        <button className="context-item" onClick={handleLaunch}>
+          <span className="context-item-icon">{'\u25B6'}</span>
+          <span>Launch Game</span>
+        </button>
+      )}
+
+      <button className="context-item" onClick={handleReScrape}>
+        <span className="context-item-icon">{'\u21BB'}</span>
+        <span>Re-scrape Metadata</span>
+      </button>
+
+      {platforms.length > 0 && <div className="context-divider" />}
+
+      {platforms.map((p) => {
+        let url = '';
+        if (p.platform === 'steam') url = `https://store.steampowered.com/app/${p.id}/`;
+        else if (p.platform === 'dlsite') url = `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
+        else if (p.platform === 'bangumi') url = `https://bgm.tv/subject/${p.id}`;
+        return url ? (
+          <button key={p.platform} className="context-item" onClick={() => openPage(url)}>
+            <span className="context-item-icon">{'\uD83D\uDD17'}</span>
+            <span>Open {p.platform.charAt(0).toUpperCase() + p.platform.slice(1)} Page</span>
+          </button>
+        ) : null;
+      })}
 
       <div className="context-divider" />
 

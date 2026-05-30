@@ -160,7 +160,10 @@ function App() {
     if (selectedNav === 'starred') return games.filter((g) => g.starred);
     if (selectedNav.startsWith('platform:')) {
       const plat = selectedNav.slice(9);
-      return games.filter((g) => g.platform === plat);
+      return games.filter((g) => {
+        const platforms: any[] = (g as any).platforms || [];
+        return platforms.some((p: any) => p.platform === plat) || (g as any).platform === plat;
+      });
     }
     if (selectedNav.startsWith('type:')) {
       return games.filter((g) => g.type === selectedNav.slice(5));

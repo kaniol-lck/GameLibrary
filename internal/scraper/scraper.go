@@ -56,7 +56,7 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 
 		logger.ScrapeSourceAttempt(gameInfo.ID, srcCfg.Key, gameInfo.Title)
 
-		result, err := scraper.Search(gameDir, gameInfo.PlatformID)
+		result, err := scraper.Search(gameDir, gameInfo.PrimaryPlatformID())
 		if err != nil {
 			logger.ScrapeSourceFailed(gameInfo.ID, gameInfo.Title, srcCfg.Key, err)
 			continue
@@ -66,7 +66,7 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 			continue
 		}
 
-		logger.ScrapeSuccess(gameInfo.ID, gameInfo.Title, srcCfg.Key, result.Title, gameInfo.PlatformID)
+		logger.ScrapeSuccess(gameInfo.ID, gameInfo.Title, srcCfg.Key, result.Title, gameInfo.PrimaryPlatformID())
 
 		return result, srcCfg.Key, nil
 	}
@@ -78,13 +78,16 @@ func (p *Pipeline) Scrape(gameDir string, gameInfo *game.GameInfo) (*Result, str
 
 func ApplyResult(info *game.GameInfo, result *Result, sourceKey string) {
 	info.Title = result.Title
-	info.TitleNative = result.TitleNative
-	info.Platform = sourceKey
+	info.AddAlias(result.TitleNative)
+
+	platformID := ""
 	if result.Links != nil {
 		if id, ok := result.Links["platformId"]; ok {
-			info.PlatformID = id
+			platformID = id
 		}
 	}
+	info.SetPlatform(sourceKey, platformID, result.Title)
+
 	info.Metadata = &game.Metadata{
 		CoverURL:       "cover",
 		CoverLandscape: "cover_landscape",

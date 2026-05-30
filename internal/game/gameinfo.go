@@ -42,8 +42,10 @@ type GameInfo struct {
 	Metadata     *Metadata    `json:"metadata,omitempty"`
 	ScannedAt    string       `json:"scannedAt"`
 
-	TotalPlaytime int64  `json:"totalPlaytime"`
-	LastPlayedAt  string `json:"lastPlayedAt,omitempty"`
+	TotalPlaytime int64    `json:"totalPlaytime"`
+	LastPlayedAt  string   `json:"lastPlayedAt,omitempty"`
+	Starred       bool     `json:"starred,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
 
 	GameDir     string `json:"-"`
 	InfoRelPath string `json:"-"`

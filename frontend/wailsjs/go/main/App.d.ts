@@ -5,6 +5,8 @@ import {game} from '../models';
 import {scanner} from '../models';
 import {main} from '../models';
 
+export function AddGameTag(arg1:string,arg2:string):Promise<void>;
+
 export function GetAppInfo():Promise<Record<string, string>>;
 
 export function GetConfig():Promise<config.Config>;
@@ -21,7 +23,13 @@ export function GetMachineName():Promise<string>;
 
 export function LaunchGame(arg1:string):Promise<void>;
 
+export function OpenGameDirectory(arg1:string):Promise<void>;
+
+export function OpenGameMetadata(arg1:string):Promise<void>;
+
 export function PickGameDirectory():Promise<string>;
+
+export function RemoveGameTag(arg1:string,arg2:string):Promise<void>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;
 
@@ -30,5 +38,7 @@ export function ScanGames():Promise<Array<scanner.ScanResult>>;
 export function ScrapeAllGames():Promise<Array<main.ScrapeReport>>;
 
 export function ScrapeGame(arg1:string):Promise<main.ScrapeReport>;
+
+export function ToggleGameStar(arg1:string):Promise<void>;
 
 export function UpdateGameInfo(arg1:game.GameInfo):Promise<void>;

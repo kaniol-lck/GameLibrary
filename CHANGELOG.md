@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.0-alpha (2026-05-30)
+
+### Added
+
+- 游戏卡片右键菜单：星标、标签系统、浏览游戏路径、浏览元数据文件
+  *Game card context menu: star, tag system, open game folder, open metadata file*
+- 星标功能（`Starred`）：侧边栏星标分类过滤，卡片右上角星标图标
+  *Star toggle with sidebar filter and card badge*
+- 自定义标签系统（`Tags`）：右键菜单添加/删除标签，卡片底部标签展示，侧边栏标签分类
+  *Custom tag system: add/remove tags via context menu, card overlay, sidebar tag filter*
+- `OpenGameDirectory` / `OpenGameMetadata` 后端接口
+  *Backend APIs for opening game folder in Explorer and metadata in Notepad*
+
+---
+
 ## v0.2.5-alpha (2026-05-30)
 
 ### Fixed

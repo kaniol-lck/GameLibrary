@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.2.5-alpha"
+var version = "0.3.0-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -400,4 +400,66 @@ func (a *App) GetAppInfo() map[string]string {
 		"version":     version,
 		"buildTime":   time.Now().Format(time.RFC3339),
 	}
+}
+
+func (a *App) ToggleGameStar(id string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	info.Starred = !info.Starred
+	return info.Save()
+}
+
+func (a *App) AddGameTag(id string, tag string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return nil
+	}
+	for _, t := range info.Tags {
+		if strings.EqualFold(t, tag) {
+			return nil
+		}
+	}
+	info.Tags = append(info.Tags, tag)
+	return info.Save()
+}
+
+func (a *App) RemoveGameTag(id string, tag string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	idx := -1
+	for i, t := range info.Tags {
+		if strings.EqualFold(t, tag) {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return nil
+	}
+	info.Tags = append(info.Tags[:idx], info.Tags[idx+1:]...)
+	return info.Save()
+}
+
+func (a *App) OpenGameDirectory(id string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	return exec.Command("explorer", info.GameDir).Start()
+}
+
+func (a *App) OpenGameMetadata(id string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	return exec.Command("notepad", info.InfoFilePath()).Start()
 }

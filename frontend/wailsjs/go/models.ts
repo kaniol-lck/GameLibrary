@@ -132,6 +132,8 @@ export namespace game {
 	    scannedAt: string;
 	    totalPlaytime: number;
 	    lastPlayedAt?: string;
+	    starred?: boolean;
+	    tags?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new GameInfo(source);
@@ -151,6 +153,8 @@ export namespace game {
 	        this.scannedAt = source["scannedAt"];
 	        this.totalPlaytime = source["totalPlaytime"];
 	        this.lastPlayedAt = source["lastPlayedAt"];
+	        this.starred = source["starred"];
+	        this.tags = source["tags"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

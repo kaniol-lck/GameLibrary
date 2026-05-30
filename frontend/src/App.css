@@ -1222,3 +1222,176 @@
   color: #ccc;
   font-family: "Consolas", "Monaco", monospace;
 }
+
+/* ===== Context Menu ===== */
+.context-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 200px;
+  max-width: 220px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  animation: ctxFadeIn 0.1s ease;
+}
+
+@keyframes ctxFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.context-menu-section {
+  padding: 6px 10px 4px;
+}
+
+.context-menu-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: #ccc;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.1s;
+  font-family: inherit;
+}
+
+.context-item:hover:not(.disabled) {
+  background: rgba(79, 110, 247, 0.15);
+  color: #fff;
+}
+
+.context-item.disabled {
+  color: #444;
+  cursor: not-allowed;
+}
+
+.context-item-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.context-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 3px 6px;
+}
+
+.context-tag-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.context-tag-input input {
+  flex: 1;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+}
+
+.context-tag-input input:focus {
+  border-color: #4f6ef7;
+}
+
+.context-tag-input button {
+  padding: 5px 10px;
+  background: #4f6ef7;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.context-tag-input button:hover {
+  background: #3d5ce5;
+}
+
+.context-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+}
+
+.context-tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: rgba(79, 110, 247, 0.12);
+  color: #a5b4fc;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.context-tag-remove {
+  background: none;
+  border: none;
+  color: #a5b4fc;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 1px;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.context-tag-remove:hover {
+  color: #f87171;
+}
+
+/* ===== Game Card Tags & Star ===== */
+.game-card-star {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 14px;
+  color: #f5c518;
+  text-shadow: 0 0 4px rgba(245, 197, 24, 0.5);
+  line-height: 1;
+}
+
+.game-card-tags {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 30px);
+}
+
+.game-card-tag {
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #aaa;
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 1.4;
+}

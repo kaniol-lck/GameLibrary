@@ -6,6 +6,7 @@ import GameCard from './components/GameCard';
 import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import GameDetail from './components/GameDetail';
+import ContextMenu from './components/ContextMenu';
 
 const SCRAPE_PARALLEL = 3;
 
@@ -33,6 +34,7 @@ function App() {
   const [scrapeDone, setScrapeDone] = useState(0);
   const [scrapeTotal, setScrapeTotal] = useState(0);
   const [error, setError] = useState('');
+  const [ctxMenu, setCtxMenu] = useState<{ game: game.GameInfo; x: number; y: number } | null>(null);
 
   const loadGames = useCallback(async () => {
     try {
@@ -126,6 +128,10 @@ function App() {
     setSelectedGame(g);
   };
 
+  const handleGameContextMenu = (g: game.GameInfo, x: number, y: number) => {
+    setCtxMenu({ game: g, x, y });
+  };
+
   const handleDetailClose = () => {
     setSelectedGame(null);
   };
@@ -136,11 +142,15 @@ function App() {
 
   const filteredGames = (() => {
     if (selectedNav === 'all') return games;
+    if (selectedNav.startsWith('starred')) return games.filter((g) => g.starred);
     if (selectedNav.startsWith('type:')) {
       return games.filter((g) => g.type === selectedNav.slice(5));
     }
     if (selectedNav.startsWith('tag:')) {
       return games.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
+    }
+    if (selectedNav.startsWith('usertag:')) {
+      return games.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
     }
     return games;
   })();
@@ -150,6 +160,15 @@ function App() {
   const errorGames = scanResults?.filter((r) => r.error).length ?? 0;
   const isScraping = scrapingIds.size > 0;
   const pct = scrapeTotal > 0 ? Math.round((scrapeDone / scrapeTotal) * 100) : 0;
+
+  const getContentTitle = () => {
+    if (selectedNav === 'all') return 'All Games';
+    if (selectedNav === 'starred') return 'Starred';
+    if (selectedNav.startsWith('type:')) return selectedNav.slice(5);
+    if (selectedNav.startsWith('tag:')) return selectedNav.slice(4);
+    if (selectedNav.startsWith('usertag:')) return '#' + selectedNav.slice(8);
+    return 'Games';
+  };
 
   return (
     <div id="App">
@@ -219,13 +238,7 @@ function App() {
           ) : (
             <>
               <div className="content-header">
-                <h2 className="content-title">
-                  {selectedNav === 'all'
-                    ? 'All Games'
-                    : selectedNav.startsWith('tag:')
-                      ? selectedNav.slice(4)
-                      : selectedNav.slice(5)}
-                </h2>
+                <h2 className="content-title">{getContentTitle()}</h2>
                 <span className="content-count">
                   {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
                 </span>
@@ -243,6 +256,7 @@ function App() {
                     key={g.id}
                     game={g}
                     onClick={handleGameClick}
+                    onContextMenu={handleGameContextMenu}
                     isScraping={scrapingIds.has(g.id)}
                   />
                 ))}
@@ -262,6 +276,16 @@ function App() {
           game={selectedGame}
           onClose={handleDetailClose}
           onUpdated={handleDetailUpdated}
+        />
+      )}
+
+      {ctxMenu && (
+        <ContextMenu
+          game={ctxMenu.game}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          onUpdated={() => { loadGames(); setCtxMenu(null); }}
         />
       )}
     </div>

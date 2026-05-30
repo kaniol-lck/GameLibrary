@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.2.5-alpha** | Last updated: 2026-05-30
+> AI-assisted project. Current version: **0.3.0-alpha** | Last updated: 2026-05-30
 
 ## 版本路线图
 
@@ -13,6 +13,7 @@
 | 0.2.3-alpha | Phase 2 — 修复 | 配置迁移、缺失源自动补齐 | ✅ |
 | 0.2.4-alpha | Phase 2 — 日志 | 结构化日志系统、按天归档 | ✅ |
 | 0.2.5-alpha | Phase 2 — 修复 | 跨盘符绝对路径扫描修复 | ✅ |
+| 0.3.0-alpha | Phase 2 — 交互 | 右键菜单、星标、标签系统 | ✅ |
 | 0.3.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.4.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.5.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
@@ -113,9 +114,11 @@ GameLibrary/
 │       ├── App.tsx             # 主布局 (侧边栏 + 内容区)
 │       ├── App.css             # 全局样式
 │       ├── main.tsx            # ReactDOM 入口
-│       └── components/
+│   └── components/
 │           ├── Sidebar.tsx      # 可折叠侧边栏导航
-│           ├── GameCard.tsx     # 游戏封面卡片
+│           ├── GameCard.tsx     # 游戏封面卡片（含星标/标签覆盖层）
+│           ├── GameDetail.tsx   # 游戏详情面板
+│           ├── ContextMenu.tsx  # 右键上下文菜单（星标/标签/浏览路径/元数据）
 │           └── Settings.tsx     # 设置页面
 ├── testdata/                   # 测试用模拟游戏目录
 │   ├── simple_steam_game/
@@ -215,6 +218,8 @@ type ScanResult = scanner.ScanResult // 实际在 internal/scanner/
 | `executables` | 可执行文件列表，含 Primary 标记 |
 | `savePaths` | 存档路径配置 (规划中) |
 | `metadata` | 刮削元数据 (封面/开发商/标签等) |
+| `starred` | 用户星标标记 |
+| `tags` | 用户自定义标签列表 |
 | `totalPlaytime` | 累计游玩时长 (规划中，需多端聚合) |
 
 ### 3.3 Scanner (`internal/scanner/`)
@@ -321,6 +326,32 @@ App
 3. **Language** — 下拉选择
 4. **Metadata Sources** — 可排序列表，toggle 开关，▲▼ 排序
 5. **About** — 展示自动获取的机器名
+
+### 4.4 右键菜单 (Phase 2 — 交互)
+
+游戏卡片右键唤出上下文菜单，支持以下操作：
+
+| 功能 | 实现 | 说明 |
+|------|------|------|
+| 星标 | `ToggleGameStar` | 切换 Starred 布尔值，侧边栏 Starred 分类过滤 |
+| 添加标签 | `AddGameTag` / `RemoveGameTag` | 自定义标签系统，卡片底部覆盖层 + 侧边栏 # 分类 |
+| 浏览游戏路径 | `OpenGameDirectory` | 调用 `explorer <path>` 打开游戏目录 |
+| 浏览元数据 | `OpenGameMetadata` | 调用 `notepad <.gameinfo.json>` 查看元数据 |
+| 浏览存档 | (灰显，待云存档功能) | 预留接口 |
+
+```
+ContextMenu 组件
+├── 游戏标题标题栏
+├── 星标 ★/☆ (切换按钮)
+├── ── 分隔 ──
+├── 添加标签 (内联输入框)
+│   └── 已有标签列表 (× 删除)
+├── ── 分隔 ──
+├── 打开游戏目录 📁
+├── 打开存档目录 💾 (禁用)
+├── ── 分隔 ──
+└── 打开元数据文件 📄
+```
 
 ---
 

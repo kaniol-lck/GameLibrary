@@ -30,11 +30,22 @@ function deriveCategories(games: game.GameInfo[]): Category[] {
     map.set(typeKey, (map.get(typeKey) || 0) + 1);
   }
 
+  for (const g of games) {
+    for (const tag of g.tags || []) {
+      const key = `usertag:${tag}`;
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+  }
+
   return Array.from(map.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([key, count]) => ({
       key,
-      label: key.startsWith('tag:') ? key.slice(4) : key.slice(5),
+      label: key.startsWith('tag:')
+        ? key.slice(4)
+        : key.startsWith('usertag:')
+          ? `#${key.slice(8)}`
+          : key.slice(5),
       count,
     }));
 }
@@ -49,6 +60,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const categories = deriveCategories(games);
   const allCount = games.length;
+  const starredCount = games.filter((g) => g.starred).length;
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -80,6 +92,21 @@ export default function Sidebar({
           )}
         </button>
 
+        {starredCount > 0 && (
+          <button
+            className={`sidebar-item ${selectedNav === 'starred' ? 'active' : ''}`}
+            onClick={() => onSelectNav('starred')}
+          >
+            <span className="sidebar-item-icon">{'\u2605'}</span>
+            {!collapsed && (
+              <>
+                <span className="sidebar-item-label">Starred</span>
+                <span className="sidebar-item-badge">{starredCount}</span>
+              </>
+            )}
+          </button>
+        )}
+
         {categories.length > 0 && !collapsed && (
           <div className="sidebar-divider" />
         )}
@@ -95,7 +122,9 @@ export default function Sidebar({
             onClick={() => onSelectNav(cat.key)}
           >
             <span className="sidebar-item-icon">
-              {cat.key.startsWith('type:') ? '\u25A0' : '\u25C9'}
+              {cat.key.startsWith('tag:') ? '\u25C9' :
+               cat.key.startsWith('usertag:') ? '#' :
+               '\u25A0'}
             </span>
             {!collapsed && (
               <>

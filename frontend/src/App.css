@@ -240,6 +240,14 @@
   padding: 2px 0;
 }
 
+.queue-info-title {
+  color: #a5b4fc;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .queue-info-actions {
   display: flex;
   gap: 4px;

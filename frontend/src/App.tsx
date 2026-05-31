@@ -35,7 +35,7 @@ function App() {
   const [coverRefresh, setCoverRefresh] = useState(0);
   const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
   const [showUnmatched, setShowUnmatched] = useState(true);
-  const [queueStatus, setQueueStatus] = useState<{pending: number; running: number}>({pending: 0, running: 0});
+  const [queueStatus, setQueueStatus] = useState<{pending: number; running: number; currentTitle?: string; total?: number}>({pending: 0, running: 0});
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,

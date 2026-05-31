@@ -20,7 +20,7 @@ interface SidebarProps {
   exeDir?: string;
   showUnmatched?: boolean;
   onToggleUnmatched?: () => void;
-  queueStatus?: {pending: number; running: number};
+  queueStatus?: {pending: number; running: number; currentTitle?: string; total?: number};
 }
 
 function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
@@ -286,13 +286,19 @@ export default function Sidebar({
           <div className="sidebar-queue">
             <div className="sidebar-queue-title" onClick={() => setShowQueueInfo(!showQueueInfo)}>
               <span className="sidebar-queue-icon">{'\u25C9'}</span>
-              <span>{(queueStatus?.running ?? 0) > 0 ? 'Scraping' : 'Queued'} ({queueStatus?.pending ?? 0})</span>
+              <span>{(queueStatus?.running ?? 0) > 0 ? 'Processing' : 'Queued'} ({queueStatus?.pending ?? 0})</span>
               <span className="sidebar-queue-arrow">{showQueueInfo ? '\u25BC' : '\u25B6'}</span>
             </div>
             {showQueueInfo && (
               <div className="sidebar-queue-info">
-                <div className="queue-info-row">{(queueStatus?.running ?? 0) > 0 ? '1 task running' : 'No running tasks'}</div>
-                <div className="queue-info-row">{queueStatus?.pending ?? 0} pending</div>
+                {(queueStatus?.running ?? 0) > 0 && (
+                  <div className="queue-info-row queue-info-title">
+                    Scraping: {queueStatus?.currentTitle || '...'}
+                  </div>
+                )}
+                <div className="queue-info-row">
+                  {(queueStatus?.running ?? 0) > 0 ? 'Running' : 'Idle'} | {queueStatus?.pending ?? 0} pending
+                </div>
                 <div className="queue-info-actions">
                   <button onClick={() => QueuePause()} title="Pause">||</button>
                   <button onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>

@@ -22,7 +22,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.7.4-alpha"
+var version = "0.7.5-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -117,9 +117,15 @@ func (a *App) startup(ctx context.Context) {
 			})
 		}
 		p, r := a.queue.Status()
+		currentTitle := ""
+		if task != nil && task.Status == taskqueue.StatusRunning {
+			currentTitle = task.Title
+		}
 		runtime.EventsEmit(a.ctx, "queue:status", map[string]interface{}{
-			"pending": p,
-			"running": r,
+			"pending":      p,
+			"running":      r,
+			"currentTitle": currentTitle,
+			"total":        total,
 		})
 	})
 

@@ -152,6 +152,10 @@ func (q *Queue) processNext() {
 	total := len(q.tasks)
 	q.mu.Unlock()
 
+	if q.callback != nil {
+		q.callback(total, total, task)
+	}
+
 	logger.Info("queue: task started", "gameId", task.GameID, "type", task.Type)
 
 	start := time.Now()

@@ -23,14 +23,18 @@ type Config struct {
 	MaxScanDepth        int               `json:"maxScanDepth"`
 	Language            string            `json:"language"`
 	SteamUserID         string            `json:"steamUserId,omitempty"`
+	WatcherEnabled      bool              `json:"watcherEnabled"`
+	WatcherDebounceMs   int               `json:"watcherDebounceMs"`
 	Sources             []MetadataSource  `json:"metadataSources"`
 }
 
 func Default() *Config {
 	return &Config{
-		GameDirectories: []string{".\\Games"},
-		MaxScanDepth:    3,
-		Language:        "zh-CN",
+		GameDirectories:   []string{".\\Games"},
+		MaxScanDepth:      3,
+		Language:          "zh-CN",
+		WatcherEnabled:    true,
+		WatcherDebounceMs: 100,
 		Sources: []MetadataSource{
 			{Key: "steam", Name: "Steam", Enabled: true},
 			{Key: "vndb", Name: "VNDB (Visual Novel Database)", Enabled: true},

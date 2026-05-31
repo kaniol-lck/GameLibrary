@@ -64,6 +64,7 @@ function App() {
     });
     EventsOn('queue:done', () => { loadGames(); });
     EventsOn('watcher:newgame', () => { loadGames(); });
+    EventsOn('watcher:gamegone', () => { loadGames(); });
     EventsOn('scan:complete', () => { loadGames(); });
   }, [loadGames]);
 

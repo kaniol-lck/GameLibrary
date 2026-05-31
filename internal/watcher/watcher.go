@@ -14,23 +14,32 @@ import (
 
 type Callback func(newDirs []string)
 
+type RemoveCallback func(removedDirs []string)
+
 type Watcher struct {
-	mu       sync.Mutex
-	w        *fsnotify.Watcher
-	dirs     map[string]bool
-	events   map[string]time.Time
-	callback Callback
-	done     chan struct{}
-	debounce time.Duration
+	mu         sync.Mutex
+	w          *fsnotify.Watcher
+	dirs       map[string]bool
+	events     map[string]time.Time
+	removes    map[string]time.Time
+	callback   Callback
+	rmCallback RemoveCallback
+	done       chan struct{}
+	debounce   time.Duration
 }
 
-func New(callback Callback) *Watcher {
+func New(callback Callback, rmCallback RemoveCallback, debounceMs int) *Watcher {
+	if debounceMs <= 0 {
+		debounceMs = 100
+	}
 	return &Watcher{
-		dirs:     make(map[string]bool),
-		events:   make(map[string]time.Time),
-		callback: callback,
-		done:     make(chan struct{}),
-		debounce: 500 * time.Millisecond,
+		dirs:       make(map[string]bool),
+		events:     make(map[string]time.Time),
+		removes:    make(map[string]time.Time),
+		callback:   callback,
+		rmCallback: rmCallback,
+		done:       make(chan struct{}),
+		debounce:   time.Duration(debounceMs) * time.Millisecond,
 	}
 }
 
@@ -92,16 +101,24 @@ func (w *Watcher) loop() {
 			if !ok {
 				return
 			}
-			if evt.Op&fsnotify.Create == 0 {
+			dir := evt.Name
+			if evt.Op&fsnotify.Remove != 0 {
+				if info, _ := os.Stat(dir); info == nil {
+					w.mu.Lock()
+					w.removes[dir] = time.Now()
+					w.mu.Unlock()
+					timer.Reset(100 * time.Millisecond)
+				}
 				continue
 			}
-			dir := evt.Name
-			if info, err := os.Stat(dir); err == nil && info.IsDir() {
-				if !strings.HasPrefix(filepath.Base(dir), ".") {
-					w.mu.Lock()
-					w.events[dir] = time.Now()
-					w.mu.Unlock()
-					timer.Reset(w.debounce)
+			if evt.Op&fsnotify.Create != 0 {
+				if info, err := os.Stat(dir); err == nil && info.IsDir() {
+					if !strings.HasPrefix(filepath.Base(dir), ".") {
+						w.mu.Lock()
+						w.events[dir] = time.Now()
+						w.mu.Unlock()
+						timer.Reset(w.debounce)
+					}
 				}
 			}
 		case <-timer.C:
@@ -112,23 +129,37 @@ func (w *Watcher) loop() {
 
 func (w *Watcher) flush() {
 	w.mu.Lock()
-	if len(w.events) == 0 {
-		w.mu.Unlock()
-		return
-	}
+	hasEvents := len(w.events) > 0
+	hasRemoves := len(w.removes) > 0
 
-	var newDirs []string
-	for dir := range w.events {
-		if hasExe(dir) {
-			newDirs = append(newDirs, dir)
+	if hasRemoves && w.rmCallback != nil {
+		removed := make([]string, 0, len(w.removes))
+		for dir := range w.removes {
+			removed = append(removed, dir)
 		}
+		w.removes = make(map[string]time.Time)
+		w.mu.Unlock()
+		logger.Info("watcher: game dirs removed", "count", len(removed))
+		w.rmCallback(removed)
+		w.mu.Lock()
 	}
-	w.events = make(map[string]time.Time)
-	w.mu.Unlock()
 
-	if len(newDirs) > 0 && w.callback != nil {
-		logger.Info("watcher: new game dirs detected", "count", len(newDirs))
-		w.callback(newDirs)
+	if hasEvents {
+		var newDirs []string
+		for dir := range w.events {
+			if hasExe(dir) {
+				newDirs = append(newDirs, dir)
+			}
+		}
+		w.events = make(map[string]time.Time)
+		w.mu.Unlock()
+
+		if len(newDirs) > 0 && w.callback != nil {
+			logger.Info("watcher: new game dirs detected", "count", len(newDirs))
+			w.callback(newDirs)
+		}
+	} else {
+		w.mu.Unlock()
 	}
 }
 

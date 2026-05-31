@@ -123,17 +123,33 @@ func (a *App) startup(ctx context.Context) {
 		})
 	})
 
-	a.watcher = watcher.New(func(newDirs []string) {
-		runtime.EventsEmit(a.ctx, "watcher:newgame", map[string]interface{}{
-			"count": len(newDirs),
-		})
-		for _, dir := range newDirs {
-			scanResults := a.scanner.ScanDir(dir)
-			a.refreshGameCache()
-			a.autoScrapeNew(scanResults)
-		}
-	})
-	a.watcher.WatchDirs(a.config.GameDirectories, a.exeDir)
+	if a.config.WatcherEnabled {
+		a.watcher = watcher.New(func(newDirs []string) {
+			runtime.EventsEmit(a.ctx, "watcher:newgame", map[string]interface{}{
+				"count": len(newDirs),
+			})
+			for _, dir := range newDirs {
+				scanResults := a.scanner.ScanDir(dir)
+				a.refreshGameCache()
+				a.autoScrapeNew(scanResults)
+			}
+		}, func(removedDirs []string) {
+			for _, dir := range removedDirs {
+				for id, info := range a.games {
+					gameDir := filepath.Clean(info.GameDir)
+					rmDir := filepath.Clean(dir)
+					if gameDir == rmDir || strings.HasPrefix(gameDir, rmDir+string(filepath.Separator)) {
+						delete(a.games, id)
+						logger.Info("watcher: removed game from library", "gameId", id)
+					}
+				}
+			}
+			runtime.EventsEmit(a.ctx, "watcher:gamegone", map[string]interface{}{
+				"count": len(removedDirs),
+			})
+		}, a.config.WatcherDebounceMs)
+		a.watcher.WatchDirs(a.config.GameDirectories, a.exeDir)
+	}
 }
 
 func (a *App) refreshGameCache() {

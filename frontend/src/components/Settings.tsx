@@ -359,6 +359,37 @@ export default function Settings() {
 
           <section className="settings-card">
             <div className="settings-card-header">
+              <span className="settings-card-icon">{'\uD83D\uDC41'}</span>
+              <div>
+                <h3>File Watcher</h3>
+                <p className="form-hint">Auto-detect new and removed games in real-time.</p>
+              </div>
+            </div>
+            <div className="settings-card-body">
+              <div className="source-item">
+                <button className={`toggle-switch ${cfg.watcherEnabled ? 'toggle-on' : ''}`}
+                  onClick={() => updateCfg({ watcherEnabled: !cfg.watcherEnabled })}>
+                  <span className="toggle-knob" />
+                </button>
+                <div className="source-info">
+                  <span className="source-name">Enable File Watcher</span>
+                  <span className="source-desc">Watches game directories for new/deleted games</span>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginTop: 10 }}>
+                <label>Debounce: {cfg.watcherDebounceMs || 100}ms</label>
+                <div className="form-row">
+                  <span className="form-label-sm">Fast (50)</span>
+                  <input type="range" min={50} max={2000} step={50} value={cfg.watcherDebounceMs || 100}
+                    onChange={(e) => updateCfg({ watcherDebounceMs: parseInt(e.target.value) })} />
+                  <span className="form-label-sm">Slow (2000)</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
               <span className="settings-card-icon">&#128187;</span>
               <div>
                 <h3>About</h3>

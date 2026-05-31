@@ -25,6 +25,8 @@ export namespace config {
 	    maxScanDepth: number;
 	    language: string;
 	    steamUserId?: string;
+	    watcherEnabled: boolean;
+	    watcherDebounceMs: number;
 	    metadataSources: MetadataSource[];
 	
 	    static createFrom(source: any = {}) {
@@ -39,6 +41,8 @@ export namespace config {
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];
 	        this.steamUserId = source["steamUserId"];
+	        this.watcherEnabled = source["watcherEnabled"];
+	        this.watcherDebounceMs = source["watcherDebounceMs"];
 	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);
 	    }
 	

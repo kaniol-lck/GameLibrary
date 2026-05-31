@@ -181,6 +181,21 @@
   text-overflow: ellipsis;
 }
 
+.sidebar-unmatched-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 8px;
+  font-size: 11px;
+  color: #777;
+  cursor: pointer;
+}
+
+.sidebar-unmatched-toggle input {
+  accent-color: #4f6ef7;
+  cursor: pointer;
+}
+
 /* ===== Top Bar ===== */
 .top-bar {
   display: flex;

@@ -16,6 +16,8 @@ interface SidebarProps {
   machineName: string;
   pathLabels?: Record<string, string[]>;
   exeDir?: string;
+  showUnmatched?: boolean;
+  onToggleUnmatched?: () => void;
 }
 
 function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
@@ -121,6 +123,8 @@ export default function Sidebar({
   machineName,
   pathLabels,
   exeDir,
+  showUnmatched,
+  onToggleUnmatched,
 }: SidebarProps) {
   const categories = deriveCategories(games, pathLabels, exeDir);
   const allCount = games.length;
@@ -272,6 +276,12 @@ export default function Sidebar({
       <div className="sidebar-bottom">
         {!collapsed && (
           <span className="sidebar-machine">{machineName}</span>
+        )}
+        {!collapsed && (
+          <label className="sidebar-unmatched-toggle">
+            <input type="checkbox" checked={showUnmatched} onChange={onToggleUnmatched} />
+            <span>Show Unmatched</span>
+          </label>
         )}
         <button
           className={`sidebar-item sidebar-item-settings ${selectedNav === 'settings' ? 'active' : ''}`}

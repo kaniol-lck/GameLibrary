@@ -33,6 +33,7 @@ function App() {
   const [ctxMenu, setCtxMenu] = useState<{ game: game.GameInfo; x: number; y: number } | null>(null);
   const [coverRefresh, setCoverRefresh] = useState(0);
   const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
+  const [showUnmatched, setShowUnmatched] = useState(true);
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
@@ -100,25 +101,29 @@ function App() {
   const handleDetailUpdated = () => { loadGames(); };
 
   const filteredGames = (() => {
-    if (selectedNav === 'all') return games.filter((g) => ((g as any).platforms || []).length > 0);
-    if (selectedNav === 'starred') return games.filter((g) => g.starred);
+    let result = games;
+    if (!showUnmatched && selectedNav !== 'platform:unmatched') {
+      result = result.filter((g) => ((g as any).platforms || []).length > 0);
+    }
+    if (selectedNav === 'all') return result.filter((g) => ((g as any).platforms || []).length > 0);
+    if (selectedNav === 'starred') return result.filter((g) => g.starred);
     if (selectedNav.startsWith('platform:')) {
       const plat = selectedNav.slice(9);
       if (plat === 'unmatched') {
-        return games.filter((g) => ((g as any).platforms || []).length === 0);
+        return result.filter((g) => ((g as any).platforms || []).length === 0);
       }
-      return games.filter((g) => {
+      return result.filter((g) => {
         const plats: any[] = (g as any).platforms || [];
         return plats.some((p: any) => p.platform === plat);
       });
     }
-    if (selectedNav.startsWith('type:')) return games.filter((g) => g.type === selectedNav.slice(5));
-    if (selectedNav.startsWith('tag:')) return games.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
-    if (selectedNav.startsWith('usertag:')) return games.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
+    if (selectedNav.startsWith('type:')) return result.filter((g) => g.type === selectedNav.slice(5));
+    if (selectedNav.startsWith('tag:')) return result.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
+    if (selectedNav.startsWith('usertag:')) return result.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
     if (selectedNav.startsWith('pathlabel:')) {
       const label = selectedNav.slice(10);
       const exeDir = (appInfo?.['exeDir'] || '').replace(/\\/g, '/');
-      return games.filter((g: any) => {
+      return result.filter((g: any) => {
         const gd = (g.gameDir || '').replace(/\\/g, '/');
         for (const [dirPath, labels] of Object.entries(pathLabels)) {
           let absPath = dirPath.replace(/\\/g, '/');
@@ -136,7 +141,7 @@ function App() {
         return false;
       });
     }
-    return games;
+    return result;
   })();
 
   const newGames = scanResults?.filter((r) => r.isNew).length ?? 0;
@@ -166,6 +171,8 @@ function App() {
         machineName={appInfo?.['machineName'] ?? ''}
         pathLabels={pathLabels}
         exeDir={appInfo?.['exeDir'] || ''}
+        showUnmatched={showUnmatched}
+        onToggleUnmatched={() => setShowUnmatched(!showUnmatched)}
       />
 
       <div className="main-area">

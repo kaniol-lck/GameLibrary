@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
-import { GetGameList, ScanGames, GetAppInfo, GetConfig, QueuePause, QueueResume, QueueClear } from '../wailsjs/go/main/App';
+import { GetGameList, ScanGames, GetAppInfo, GetConfig } from '../wailsjs/go/main/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { game, scanner, config, main } from '../wailsjs/go/models';
+import { game, scanner, config } from '../wailsjs/go/models';
 import { useScrape } from './hooks/useScrape';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
@@ -44,108 +44,53 @@ function App() {
   } = useScrape(setGames, () => setCoverRefresh((k) => k + 1));
 
   const loadGames = useCallback(async () => {
-    try {
-      const list = await GetGameList();
-      setGames(list || []);
-    } catch (err) {
-      setError(String(err));
-    }
+    try { const list = await GetGameList(); setGames(list || []); } catch (err) { setError(String(err)); }
   }, []);
 
   useEffect(() => {
     (async () => {
-      try { const info = await GetAppInfo(); setAppInfo(info); } catch { /* ignore */ }
-      try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch { /* ignore */ }
+      try { const info = await GetAppInfo(); setAppInfo(info); } catch {}
+      try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch {}
       await loadGames();
     })();
-
-    EventsOn('queue:status', (data: any) => {
-      setQueueStatus({ pending: data.pending || 0, running: data.running || 0 });
-    });
+    EventsOn('queue:status', (data: any) => setQueueStatus({ pending: data.pending || 0, running: data.running || 0 }));
     EventsOn('queue:done', () => { loadGames(); });
     EventsOn('watcher:newgame', () => { loadGames(); });
     EventsOn('watcher:gamegone', () => { loadGames(); });
     EventsOn('scan:complete', () => { loadGames(); });
   }, [loadGames]);
 
-  const handleScan = async () => {
-    setIsScanning(true);
-    setScanResults(null);
-    setError('');
-    try {
-      const results = await ScanGames();
-      setScanResults(results || []);
-      await loadGames();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setIsScanning(false);
-    }
+  const handleForceScan = async () => {
+    setIsScanning(true); setScanResults(null); setError('');
+    try { const results = await ScanGames(); setScanResults(results || []); await loadGames(); } catch (err) { setError(String(err)); } finally { setIsScanning(false); }
   };
 
-  const handleScrapeAll = async () => {
-    setError('');
-    const targets = games.filter(isIncomplete);
-    if (targets.length === 0) {
-      setError('All games have complete metadata. Use Force Scrape All to re-scrape.');
-      return;
-    }
-    await scrapeBatch(targets);
-  };
-
-  const handleForceScrapeAll = async () => {
-    setError('');
-    if (games.length === 0) return;
-    await scrapeBatch([...games]);
-  };
-
-  const handleGameClick = (g: game.GameInfo) => {
-    setSelectedGame(g);
-  };
-
-  const handleGameContextMenu = (g: game.GameInfo, x: number, y: number) => {
-    setCtxMenu({ game: g, x, y });
-  };
-
+  const handleGameClick = (g: game.GameInfo) => { setSelectedGame(g); };
+  const handleGameContextMenu = (g: game.GameInfo, x: number, y: number) => { setCtxMenu({ game: g, x, y }); };
   const handleDetailClose = () => { setSelectedGame(null); };
   const handleDetailUpdated = () => { loadGames(); };
 
   const filteredGames = (() => {
     let result = games;
-    if (!showUnmatched && selectedNav !== 'platform:unmatched') {
-      result = result.filter((g) => ((g as any).platforms || []).length > 0);
-    }
+    if (!showUnmatched && selectedNav !== 'platform:unmatched') result = result.filter((g) => ((g as any).platforms || []).length > 0);
     if (selectedNav === 'all') return result.filter((g) => ((g as any).platforms || []).length > 0);
     if (selectedNav === 'starred') return result.filter((g) => g.starred);
     if (selectedNav.startsWith('platform:')) {
       const plat = selectedNav.slice(9);
-      if (plat === 'unmatched') {
-        return result.filter((g) => ((g as any).platforms || []).length === 0);
-      }
-      return result.filter((g) => {
-        const plats: any[] = (g as any).platforms || [];
-        return plats.some((p: any) => p.platform === plat);
-      });
+      if (plat === 'unmatched') return result.filter((g) => ((g as any).platforms || []).length === 0);
+      return result.filter((g) => { const plats: any[] = (g as any).platforms || []; return plats.some((p: any) => p.platform === plat); });
     }
     if (selectedNav.startsWith('type:')) return result.filter((g) => g.type === selectedNav.slice(5));
     if (selectedNav.startsWith('tag:')) return result.filter((g) => (g.metadata?.tags || []).includes(selectedNav.slice(4)));
     if (selectedNav.startsWith('usertag:')) return result.filter((g) => (g.tags || []).includes(selectedNav.slice(8)));
     if (selectedNav.startsWith('pathlabel:')) {
-      const label = selectedNav.slice(10);
-      const exeDir = (appInfo?.['exeDir'] || '').replace(/\\/g, '/');
+      const label = selectedNav.slice(10); const exeDir = (appInfo?.['exeDir'] || '').replace(/\\/g, '/');
       return result.filter((g: any) => {
         const gd = (g.gameDir || '').replace(/\\/g, '/');
         for (const [dirPath, labels] of Object.entries(pathLabels)) {
-          let absPath = dirPath.replace(/\\/g, '/');
-          if (absPath.startsWith('.')) {
-            absPath = exeDir + '/' + absPath;
-          }
+          let absPath = dirPath.replace(/\\/g, '/'); if (absPath.startsWith('.')) absPath = exeDir + '/' + absPath;
           while (absPath.includes('/./')) absPath = absPath.replace('/./', '/');
-          while (absPath.includes('/../')) {
-            const parts = absPath.split('/');
-            const idx = parts.indexOf('..');
-            if (idx > 1) { parts.splice(idx - 1, 2); absPath = parts.join('/'); } else break;
-          }
+          while (absPath.includes('/../')) { const parts = absPath.split('/'); const idx = parts.indexOf('..'); if (idx > 1) { parts.splice(idx - 1, 2); absPath = parts.join('/'); } else break; }
           if (gd.startsWith(absPath) && (labels as string[]).includes(label)) return true;
         }
         return false;
@@ -159,8 +104,7 @@ function App() {
   const errorGames = scanResults?.filter((r) => r.error).length ?? 0;
 
   const getContentTitle = () => {
-    if (selectedNav === 'all') return 'All Games';
-    if (selectedNav === 'starred') return 'Starred';
+    if (selectedNav === 'all') return 'All Games'; if (selectedNav === 'starred') return 'Starred';
     if (selectedNav === 'platform:unmatched') return 'Unmatched';
     if (selectedNav.startsWith('platform:')) return selectedNav.slice(9);
     if (selectedNav.startsWith('type:')) return selectedNav.slice(5);
@@ -173,53 +117,26 @@ function App() {
   return (
     <div id="App">
       <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
-        games={games}
-        selectedNav={selectedNav}
+        collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}
+        games={games} selectedNav={selectedNav}
         onSelectNav={(key) => { setSelectedNav(key); setSelectedGame(null); }}
-        machineName={appInfo?.['machineName'] ?? ''}
-        pathLabels={pathLabels}
-        exeDir={appInfo?.['exeDir'] || ''}
-        showUnmatched={showUnmatched}
+        machineName={appInfo?.['machineName'] ?? ''} pathLabels={pathLabels}
+        exeDir={appInfo?.['exeDir'] || ''} showUnmatched={showUnmatched}
         onToggleUnmatched={() => setShowUnmatched(!showUnmatched)}
+        queueStatus={queueStatus}
       />
 
       <div className="main-area">
         <header className="top-bar">
-          <div className="top-bar-left">
-            <span className="app-machine">{appInfo?.['machineName'] ?? ''}</span>
-            {isScraping && <span className="scrape-progress-text">{scrapeDone} / {scrapeTotal}</span>}
-            {(queueStatus.pending > 0 || queueStatus.running > 0) && (
-              <span className="queue-status">
-                {'\u25C9'} {queueStatus.running > 0 ? 'Scraping...' : ''} {queueStatus.pending > 0 ? `${queueStatus.pending} queued` : ''}
-                <button className="queue-btn" onClick={() => QueuePause()} title="Pause">||</button>
-                <button className="queue-btn" onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>
-                <button className="queue-btn" onClick={() => QueueClear()} title="Clear">{'\u2715'}</button>
-              </span>
-            )}
-          </div>
           <div className="top-bar-right">
-            {games.length > 0 && (
-              <>
-                <button className="btn btn-secondary" onClick={handleScrapeAll} disabled={isScraping}>
-                  {isScraping ? `Scraping... ${scrapeDone}/${scrapeTotal}` : 'Scrape All'}
-                </button>
-                <button className="btn btn-ghost-sm" onClick={handleForceScrapeAll} disabled={isScraping} title="Force re-scrape all games">Force</button>
-              </>
-            )}
-            <button className="btn btn-primary" onClick={handleScan} disabled={isScanning}>
-              {isScanning ? 'Scanning...' : 'Scan Games'}
+            <button className="btn btn-secondary btn-sm" onClick={handleForceScan} disabled={isScanning}>
+              {isScanning ? 'Scanning...' : 'Force Scan'}
             </button>
           </div>
         </header>
 
         {isScraping && <div className="progress-bar-wrapper"><div className="progress-bar" style={{ width: `${pct}%` }} /></div>}
-
-        {error && (
-          <div className="alert alert-error">{error}<button onClick={() => setError('')} className="alert-close">&times;</button></div>
-        )}
-
+        {error && <div className="alert alert-error">{error}<button onClick={() => setError('')} className="alert-close">&times;</button></div>}
         {scanResults && (
           <div className="scan-summary">
             <span className="scan-stat scan-new">+{newGames} new</span>
@@ -230,9 +147,7 @@ function App() {
         )}
 
         <main className="main-content">
-          {selectedNav === 'settings' ? (
-            <Settings />
-          ) : (
+          {selectedNav === 'settings' ? <Settings /> : (
             <>
               <div className="content-header">
                 <h2 className="content-title">{getContentTitle()}</h2>
@@ -240,19 +155,11 @@ function App() {
               </div>
               <div className="game-grid">
                 {filteredGames.length === 0 && !isScanning && (
-                  <div className="empty-state">
-                    <div className="empty-icon">&#127918;</div>
-                    <h2>No games found</h2>
-                    <p>Click "Scan Games" to search for games in your configured directories.</p>
-                  </div>
+                  <div className="empty-state"><div className="empty-icon">&#127918;</div><h2>No games found</h2><p>Add game directories in Settings and save to auto-scan.</p></div>
                 )}
                 {filteredGames.map((g) => (
-                  <GameCard key={g.id} game={g} onClick={handleGameClick}
-                    onContextMenu={handleGameContextMenu}
-                    isScraping={scrapingIds.has(g.id)}
-                    scrapedOk={scrapedOkIds.has(g.id)}
-                    scrapedErr={scrapedErrIds.has(g.id)}
-                    refreshKey={coverRefresh} />
+                  <GameCard key={g.id} game={g} onClick={handleGameClick} onContextMenu={handleGameContextMenu}
+                    isScraping={scrapingIds.has(g.id)} scrapedOk={scrapedOkIds.has(g.id)} scrapedErr={scrapedErrIds.has(g.id)} refreshKey={coverRefresh} />
                 ))}
               </div>
             </>
@@ -260,22 +167,13 @@ function App() {
         </main>
 
         <footer className="app-footer">
-          <span>GameLibrary v{appInfo?.['version'] ?? '0.1.0'}</span>
+          <span>GameLibrary v{appInfo?.['version'] ?? ''}</span>
           <span>{games.length} games</span>
         </footer>
       </div>
 
-      {selectedGame && (
-        <GameDetail game={selectedGame} onClose={handleDetailClose} onUpdated={handleDetailUpdated}
-          onScrape={scrapeSingle} isScraping={isScraping} />
-      )}
-
-      {ctxMenu && (
-        <ContextMenu game={ctxMenu.game} x={ctxMenu.x} y={ctxMenu.y}
-          onClose={() => setCtxMenu(null)}
-          onScrape={scrapeSingle}
-          onUpdated={() => { loadGames(); setCtxMenu(null); }} />
-      )}
+      {selectedGame && <GameDetail game={selectedGame} onClose={handleDetailClose} onUpdated={handleDetailUpdated} onScrape={scrapeSingle} isScraping={isScraping} />}
+      {ctxMenu && <ContextMenu game={ctxMenu.game} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} onScrape={scrapeSingle} onUpdated={() => { loadGames(); setCtxMenu(null); }} />}
     </div>
   );
 }

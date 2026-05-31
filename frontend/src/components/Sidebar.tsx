@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { game } from '../../wailsjs/go/models';
+import { QueuePause, QueueResume, QueueClear } from '../../wailsjs/go/main/App';
 
 interface Category {
   key: string;
@@ -18,6 +20,7 @@ interface SidebarProps {
   exeDir?: string;
   showUnmatched?: boolean;
   onToggleUnmatched?: () => void;
+  queueStatus?: {pending: number; running: number};
 }
 
 function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
@@ -125,10 +128,12 @@ export default function Sidebar({
   exeDir,
   showUnmatched,
   onToggleUnmatched,
+  queueStatus,
 }: SidebarProps) {
   const categories = deriveCategories(games, pathLabels, exeDir);
   const allCount = games.length;
   const starredCount = games.filter((g) => g.starred).length;
+  const [showQueueInfo, setShowQueueInfo] = useState(false);
 
   const platforms = categories.filter((c) => c.section === 'platform');
   const genres = categories.filter((c) => c.section === 'genre');
@@ -276,6 +281,26 @@ export default function Sidebar({
       <div className="sidebar-bottom">
         {!collapsed && (
           <span className="sidebar-machine">{machineName}</span>
+        )}
+        {((queueStatus?.running ?? 0) > 0 || (queueStatus?.pending ?? 0) > 0) && !collapsed && (
+          <div className="sidebar-queue">
+            <div className="sidebar-queue-title" onClick={() => setShowQueueInfo(!showQueueInfo)}>
+              <span className="sidebar-queue-icon">{'\u25C9'}</span>
+              <span>{(queueStatus?.running ?? 0) > 0 ? 'Scraping' : 'Queued'} ({queueStatus?.pending ?? 0})</span>
+              <span className="sidebar-queue-arrow">{showQueueInfo ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {showQueueInfo && (
+              <div className="sidebar-queue-info">
+                <div className="queue-info-row">{(queueStatus?.running ?? 0) > 0 ? '1 task running' : 'No running tasks'}</div>
+                <div className="queue-info-row">{queueStatus?.pending ?? 0} pending</div>
+                <div className="queue-info-actions">
+                  <button onClick={() => QueuePause()} title="Pause">||</button>
+                  <button onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>
+                  <button onClick={() => QueueClear()} title="Clear">{'\u2715'}</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {!collapsed && (
           <label className="sidebar-unmatched-toggle">

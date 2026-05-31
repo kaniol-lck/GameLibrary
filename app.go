@@ -581,36 +581,38 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 	os.MkdirAll(coversDir, 0755)
 
 	cacheDir := filepath.Join(steamPath, "appcache", "librarycache", steamAppID)
-	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
 		return
 	}
 
-	sources := map[string]string{
-		"cover":           "library_600x900",
-		"cover_landscape": "header",
-	}
-	for dest, baseName := range sources {
-		if _, err := os.Stat(filepath.Join(coversDir, dest+".jpg")); err == nil {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(coversDir, dest+".png")); err == nil {
-			continue
-		}
+	portraitNames := []string{"library_600x900_schinese", "library_600x900"}
+	landscapeNames := []string{"header_schinese", "header", "library_header_schinese", "library_header"}
+
+	copyCover := func(names []string, destName string) bool {
 		for _, ext := range []string{".jpg", ".png"} {
-			src := filepath.Join(cacheDir, baseName+ext)
-			if data, err := os.ReadFile(src); err == nil {
-				os.WriteFile(filepath.Join(coversDir, dest+ext), data, 0644)
-				logger.Info("copied Steam cache cover", "gameId", steamAppID, "type", dest)
-				break
-			}
-			srcSchinese := filepath.Join(cacheDir, baseName+"_schinese"+ext)
-			if data, err := os.ReadFile(srcSchinese); err == nil {
-				os.WriteFile(filepath.Join(coversDir, dest+ext), data, 0644)
-				logger.Info("copied Steam cache cover (schinese)", "gameId", steamAppID, "type", dest)
-				break
+			if _, err := os.Stat(filepath.Join(coversDir, destName+ext)); err == nil {
+				return true
 			}
 		}
+		for _, hashDir := range entries {
+			if !hashDir.IsDir() { continue }
+			for _, name := range names {
+				for _, ext := range []string{".jpg", ".png"} {
+					src := filepath.Join(cacheDir, hashDir.Name(), name+ext)
+					if data, err := os.ReadFile(src); err == nil {
+						os.WriteFile(filepath.Join(coversDir, destName+ext), data, 0644)
+						logger.Info("copied Steam cache cover", "gameId", steamAppID, "type", destName, "source", name+ext)
+						return true
+					}
+				}
+			}
+		}
+		return false
 	}
+
+	copyCover(portraitNames, "cover")
+	copyCover(landscapeNames, "cover_landscape")
 }
 
 func (a *App) GetSteamUsers() []SteamUserInfo {

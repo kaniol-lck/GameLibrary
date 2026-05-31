@@ -38,6 +38,10 @@ export function GetMachineName() {
   return window['go']['main']['App']['GetMachineName']();
 }
 
+export function GetQueueInfo() {
+  return window['go']['main']['App']['GetQueueInfo']();
+}
+
 export function GetSteamUsers() {
   return window['go']['main']['App']['GetSteamUsers']();
 }

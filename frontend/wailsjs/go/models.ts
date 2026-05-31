@@ -206,6 +206,20 @@ export namespace game {
 
 export namespace main {
 	
+	export class QueueInfo {
+	    pending: number;
+	    running: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueueInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pending = source["pending"];
+	        this.running = source["running"];
+	    }
+	}
 	export class ScrapeReport {
 	    gameId: string;
 	    title: string;

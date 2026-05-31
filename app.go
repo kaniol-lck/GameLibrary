@@ -16,6 +16,7 @@ import (
 	"GameLibrary/internal/logger"
 	"GameLibrary/internal/scanner"
 	"GameLibrary/internal/scraper"
+	"GameLibrary/internal/taskqueue"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -44,6 +45,7 @@ type App struct {
 	scanner  *scanner.Scanner
 	pipeline *scraper.Pipeline
 	games    map[string]*game.GameInfo
+	queue    *taskqueue.Queue
 }
 
 func NewApp() *App {
@@ -101,6 +103,10 @@ func (a *App) startup(ctx context.Context) {
 	a.refreshGameCache()
 
 	logger.Info("startup complete", "gameCount", len(a.games))
+
+	a.queue = taskqueue.New(func(t *taskqueue.Task) {
+		a.processScrapeTask(t)
+	}, nil)
 }
 
 func (a *App) refreshGameCache() {
@@ -236,11 +242,10 @@ func (a *App) autoScrapeNew(results []scanner.ScanResult) {
 				logger.Info("auto-scrape skipped (cover exists)", "gameId", r.GameInfo.ID)
 				continue
 			}
-			logger.Info("auto-scraping new game", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
-			a.ScrapeGame(r.GameInfo.ID)
+			logger.Info("auto-scrape queued", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
+			a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: r.GameInfo.ID})
 		}
 	}
-	logger.Info("auto-scrape finished for new games")
 }
 
 func (a *App) GetGameList() []*game.GameInfo {
@@ -334,15 +339,25 @@ func (a *App) GetGameCoverLandscape(id string) string {
 }
 
 func (a *App) ScrapeGame(id string) *ScrapeReport {
+	if _, ok := a.games[id]; !ok {
+		return &ScrapeReport{GameID: id, Error: "game not found"}
+	}
+	a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: id})
+	return &ScrapeReport{GameID: id, Source: "queued"}
+}
+
+func (a *App) processScrapeTask(t *taskqueue.Task) {
+	id := t.GameID
 	info, ok := a.games[id]
 	if !ok {
-		logger.ScrapeGameNotFound(id)
-		return &ScrapeReport{GameID: id, Error: "game not found"}
+		t.Error = "game not found"
+		return
 	}
 
 	sourceResults := a.pipeline.ScrapeAll(info.GameDir, info)
 	if len(sourceResults) == 0 {
-		return &ScrapeReport{GameID: id, Title: info.Title, Source: "none", Error: "no source matched"}
+		t.Error = "no source matched"
+		return
 	}
 
 	prefIdx := 0
@@ -357,14 +372,10 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 	scraper.ApplyResult(info, primary.Result, primary.Source)
 
 	for i, sr := range sourceResults {
-		if i == prefIdx {
-			continue
-		}
+		if i == prefIdx { continue }
 		pid := ""
 		if sr.Result.Links != nil {
-			if id2, ok := sr.Result.Links["platformId"]; ok {
-				pid = id2
-			}
+			if id2, ok := sr.Result.Links["platformId"]; ok { pid = id2 }
 		}
 		info.SetPlatform(sr.Source, pid, sr.Result.Title)
 		info.AddAlias(sr.Result.Title)
@@ -375,32 +386,19 @@ func (a *App) ScrapeGame(id string) *ScrapeReport {
 	scraper.DownloadCoverWithLog(info.GameDir, info.ID, primary.Result.CoverLandscapeURL, "cover_landscape")
 
 	if err := info.Save(); err != nil {
-		logger.GameInfoSaved(id, info.Title, err)
-		return &ScrapeReport{GameID: id, Title: info.Title, Source: primary.Source, Error: "save failed: " + err.Error()}
+		t.Error = err.Error()
+		return
 	}
-
-	logger.GameInfoSaved(id, info.Title, nil)
-
-	return &ScrapeReport{GameID: id, Title: info.Title, Source: primary.Source}
+	t.Title = info.Title
 }
 
 func (a *App) ScrapeAllGames() []ScrapeReport {
-	logger.Info("batch scrape started", "gameCount", len(a.games))
-
+	logger.Info("batch scrape queued", "gameCount", len(a.games))
 	var reports []ScrapeReport
 	for _, info := range a.games {
-		report := a.ScrapeGame(info.ID)
-		reports = append(reports, *report)
+		a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: info.ID})
+		reports = append(reports, ScrapeReport{GameID: info.ID, Source: "queued"})
 	}
-
-	successCount := 0
-	for _, r := range reports {
-		if r.Error == "" {
-			successCount++
-		}
-	}
-	logger.Info("batch scrape finished", "total", len(reports), "success", successCount)
-
 	return reports
 }
 
@@ -703,6 +701,19 @@ func readSteamPersonaName(userdataDir string, userID string) string {
 	valEnd := strings.Index(after[valStart:], `"`)
 	if valEnd < 0 { return "" }
 	return after[valStart : valStart+valEnd]
+}
+
+type QueueInfo struct {
+	Pending int `json:"pending"`
+	Running int `json:"running"`
+}
+
+func (a *App) GetQueueInfo() *QueueInfo {
+	if a.queue == nil {
+		return &QueueInfo{}
+	}
+	pending, running := a.queue.Status()
+	return &QueueInfo{Pending: pending, Running: running}
 }
 
 func (a *App) SetSteamUser(id string) error {

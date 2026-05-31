@@ -23,6 +23,8 @@ export function GetGameList():Promise<Array<game.GameInfo>>;
 
 export function GetMachineName():Promise<string>;
 
+export function GetQueueInfo():Promise<main.QueueInfo>;
+
 export function GetSteamUsers():Promise<Array<main.SteamUserInfo>>;
 
 export function LaunchGame(arg1:string):Promise<void>;

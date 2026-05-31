@@ -1,15 +1,43 @@
 # Changelog
 
-## v0.6.0-alpha (2026-05-31)
+## v0.6.3-alpha (2026-05-31)
 
 ### Changed
 
-- **文件结构重构**：所有管理器生成的文件移入 `.gamemanager/` 隐藏文件夹，含多平台元数据分储、封面集中管理
-  *File restructure: .gamemanager/ folder with per-platform metadata + centralized covers*
-- 旧 `.gameinfo.json` + 根目录封面自动迁移至新位置
-  *Legacy auto-migration from old .gameinfo.json + root covers*
-- `SaveMeta(source)` / `LoadMeta(source)`：每个平台独立保存/加载元数据文件
-  *Per-platform metadata save/load*
+- 侧边栏新增 ☑ Show Unmatched 复选框，可一键隐藏所有未匹配游戏
+  *Sidebar toggle to show/hide unmatched games globally*
+
+---
+
+## v0.6.2-alpha (2026-05-31)
+
+### Added
+
+- `.gamemanager/` 隐藏文件夹存储游戏元数据：`gameinfo.json` + `meta/` + `covers/`
+  *.gamemanager/ folder structure with per-platform metadata + covers*
+- Steam ACF 文件解析：提取游戏名、AppID、更新时间、磁盘大小
+  *Steam ACF parsing: extract name, AppID, LastUpdated, SizeOnDisk*
+- Steam 封面缓存读取：从 `appcache/librarycache/<appid>/` 遍历顶层+hash 子目录
+  *Steam cache cover copy from librarycache (top-level + hash subdirs)*
+- Steam 用户检测：读注册表获取客户端路径，遍历 `userdata/` 显示 PersonaName
+  *Steam user detection via registry, persona name from localconfig.vdf*
+- 路径标签多标签芯片输入，Folders 侧边栏分类筛选
+  *Multi-label path tags with inline input + Folders sidebar filter*
+- 优先数据源子菜单（🔥 侧滑展开），自动刮削跳过已有封面游戏
+  *Preferred source sub-menu, skip auto-scrape when cover exists*
+
+### Changed
+
+- `DownloadCover` 本地文件存在时跳过下载；封面缓存复制后设置 Metadata.CoverURL
+- 卸载 `local` 平台标签，用 Unmatched 标记未刮削游戏
+- 详情面板居中 540px 弹窗，全操作上下文同步
+
+### Fixed
+
+- Steam 缓存路径：`userdata/grid/` → `appcache/librarycache/<appid>/<hash>/`
+- HTML 实体解码（`&quot;` 等）统一使用 `html.UnescapeString`
+- 右键菜单刮削统一走 `useScrape` hook
+- 刮削后封面实时刷新（`refreshKey` 递增触发 re-fetch）
 
 ---
 
@@ -17,29 +45,25 @@
 
 ### Changed
 
-- 刮削中卡片整体变暗（`opacity: 0.45`），标签删除按钮绝对定位修复
-  *Scraping cards dim to 45%, tag remove button positioned cleanly*
+- 刮削中卡片 45% 变暗；标签删除按钮绝对定位
 
 ## v0.5.9-alpha (2026-05-31)
 
 ### Fixed
 
-- 详情页星标按钮样式（暗色边框 + 金色 hover）；全部刮削器 HTML 实体解码
-  *Detail star button styling; all scrapers decode HTML entities*
+- 详情页星标按钮样式；全部刮削器 HTML 实体解码
 
 ## v0.5.8-alpha (2026-05-31)
 
 ### Fixed
 
-- 优先平台按钮即时更新状态；按钮样式修复
-  *Preferred source button real-time update; restored CSS*
+- 优先平台按钮即时更新；恢复丢失的按钮 CSS
 
 ## v0.5.7-alpha (2026-05-31)
 
 ### Changed
 
-- 去重卡片平台标签；Steam 蓝色调整 `#1a4b8a`
-  *Deduplicated platform badges; Steam bluer*
+- 去重卡片平台标签；Steam 蓝色 `#1a4b8a`
 
 ---
 

@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.6.0-alpha** | Last updated: 2026-05-31
+> AI-assisted project. Current version: **0.6.3-alpha** | Last updated: 2026-05-31
 
 ## 版本路线图
 
@@ -25,9 +25,14 @@
 | 0.5.4-alpha | Phase 2 — 启动按钮 | 右键绿色启动置顶 | ✅ |
 | 0.5.5-alpha | Phase 2 — 按钮调整 | 详情页启动左对齐、重刮文字标注 | ✅ |
 | 0.5.6-alpha | Phase 2 — 布局标签 | 统一 Tags 区、平台可点击、底部重刮 | ✅ |
-| 0.6.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
-| 0.7.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
-| 0.8.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
+| 0.5.7-alpha | Phase 2 — 样式修正 | 去重平台标签、Steam 色 #1a4b8a | ✅ |
+| 0.6.0-alpha | Phase 2 — 文件结构 | .gamemanager/ 文件夹、ACF 解析、缓存封面 | ✅ |
+| 0.6.1-alpha | Phase 2 — 路径标签 | 多标签芯片、Folders 侧边栏 | ✅ |
+| 0.6.2-alpha | Phase 2 — Steam 集成 | 注册表检测、Steam 用户、缓存优先 | ✅ |
+| 0.6.3-alpha | Phase 2 — 筛选完善 | 未匹配显示切换、文档补全 | ✅ |
+| 0.7.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
+| 0.8.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
+| 0.9.0-alpha | Phase 5 — 存档 | 云存档同步、符号链接、备份 | 📋 |
 | 0.9.0-beta  | 测试完善 | 全功能测试、Bug 修复、文档 | 📋 |
 | 1.0.0       | 正式发布 | 稳定版 | 📋 |
 

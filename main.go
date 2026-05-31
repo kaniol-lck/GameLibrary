@@ -30,6 +30,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 15, G: 15, B: 25, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
+			app.queue.Stop()
 			logger.Info("application shutting down")
 			logger.Close()
 		},

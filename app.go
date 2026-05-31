@@ -339,11 +339,14 @@ func (a *App) GetGameCoverLandscape(id string) string {
 }
 
 func (a *App) ScrapeGame(id string) *ScrapeReport {
-	if _, ok := a.games[id]; !ok {
-		return &ScrapeReport{GameID: id, Error: "game not found"}
+	task := &taskqueue.Task{Type: taskqueue.TaskScrape, GameID: id}
+	a.processScrapeTask(task)
+	if task.Error != "" {
+		title := ""
+		if info, ok := a.games[id]; ok { title = info.Title }
+		return &ScrapeReport{GameID: id, Title: title, Error: task.Error}
 	}
-	a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: id})
-	return &ScrapeReport{GameID: id, Source: "queued"}
+	return &ScrapeReport{GameID: id, Title: task.Title, Source: "done"}
 }
 
 func (a *App) processScrapeTask(t *taskqueue.Task) {
@@ -393,11 +396,11 @@ func (a *App) processScrapeTask(t *taskqueue.Task) {
 }
 
 func (a *App) ScrapeAllGames() []ScrapeReport {
-	logger.Info("batch scrape queued", "gameCount", len(a.games))
+	logger.Info("batch scrape started", "gameCount", len(a.games))
 	var reports []ScrapeReport
 	for _, info := range a.games {
-		a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: info.ID})
-		reports = append(reports, ScrapeReport{GameID: info.ID, Source: "queued"})
+		report := a.ScrapeGame(info.ID)
+		reports = append(reports, *report)
 	}
 	return reports
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.7.1-alpha"
+var version = "0.7.2-alpha"
 
 type Config = config.Config
 type GameInfo = game.GameInfo
@@ -123,33 +123,7 @@ func (a *App) startup(ctx context.Context) {
 		})
 	})
 
-	if a.config.WatcherEnabled {
-		a.watcher = watcher.New(func(newDirs []string) {
-			runtime.EventsEmit(a.ctx, "watcher:newgame", map[string]interface{}{
-				"count": len(newDirs),
-			})
-			for _, dir := range newDirs {
-				scanResults := a.scanner.ScanDir(dir)
-				a.refreshGameCache()
-				a.autoScrapeNew(scanResults)
-			}
-		}, func(removedDirs []string) {
-			for _, dir := range removedDirs {
-				for id, info := range a.games {
-					gameDir := filepath.Clean(info.GameDir)
-					rmDir := filepath.Clean(dir)
-					if gameDir == rmDir || strings.HasPrefix(gameDir, rmDir+string(filepath.Separator)) {
-						delete(a.games, id)
-						logger.Info("watcher: removed game from library", "gameId", id)
-					}
-				}
-			}
-			runtime.EventsEmit(a.ctx, "watcher:gamegone", map[string]interface{}{
-				"count": len(removedDirs),
-			})
-		}, a.config.WatcherDebounceMs)
-		a.watcher.WatchDirs(a.config.GameDirectories, a.exeDir)
-	}
+	a.restartWatcher()
 }
 
 func (a *App) refreshGameCache() {
@@ -235,7 +209,65 @@ func (a *App) GetConfig() *config.Config {
 
 func (a *App) SaveConfig(cfg *config.Config) error {
 	a.config = cfg
-	return cfg.Save(a.exeDir)
+	if err := cfg.Save(a.exeDir); err != nil {
+		return err
+	}
+	a.restartWatcher()
+	return nil
+}
+
+func (a *App) restartWatcher() {
+	if a.watcher != nil {
+		a.watcher.Stop()
+		a.watcher = nil
+	}
+	if !a.config.WatcherEnabled {
+		return
+	}
+	a.watcher = watcher.New(func(newDirs []string) {
+		runtime.EventsEmit(a.ctx, "watcher:newgame", map[string]interface{}{"count": len(newDirs)})
+		for _, dir := range newDirs {
+			scanResults := a.scanner.ScanDir(dir)
+			a.refreshGameCache()
+			a.autoScrapeNew(scanResults)
+		}
+	}, func(removedDirs []string) {
+		for _, dir := range removedDirs {
+			for id, info := range a.games {
+				gameDir := filepath.Clean(info.GameDir)
+				rmDir := filepath.Clean(dir)
+				if gameDir == rmDir || strings.HasPrefix(gameDir, rmDir+string(filepath.Separator)) {
+					delete(a.games, id)
+					logger.Info("watcher: removed game from library", "gameId", id)
+				}
+			}
+		}
+		runtime.EventsEmit(a.ctx, "watcher:gamegone", map[string]interface{}{"count": len(removedDirs)})
+	}, a.config.WatcherDebounceMs)
+	a.watcher.WatchDirs(a.config.GameDirectories, a.exeDir)
+
+	go a.scanAndScrapeNewPaths()
+}
+
+func (a *App) scanAndScrapeNewPaths() {
+	for _, relDir := range a.config.GameDirectories {
+		absDir := filepath.Clean(relDir)
+		if !filepath.IsAbs(absDir) {
+			absDir = filepath.Join(a.exeDir, relDir)
+		}
+		a.scanPathInternal(absDir)
+	}
+}
+
+func (a *App) scanPathInternal(absDir string) {
+	results := a.scanner.ScanDir(absDir)
+	for _, r := range results {
+		if r.IsNew && r.GameInfo != nil && r.Error == "" {
+			a.games[r.GameInfo.ID] = r.GameInfo
+		}
+	}
+	a.autoScrapeNew(results)
+	runtime.EventsEmit(a.ctx, "scan:complete", map[string]interface{}{"total": len(results)})
 }
 
 func (a *App) ScanGames() []scanner.ScanResult {

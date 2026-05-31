@@ -22,6 +22,7 @@ type Config struct {
 	GameDirectoryLabels map[string][]string `json:"gameDirectoryLabels,omitempty"`
 	MaxScanDepth        int               `json:"maxScanDepth"`
 	Language            string            `json:"language"`
+	SteamUserID         string            `json:"steamUserId,omitempty"`
 	Sources             []MetadataSource  `json:"metadataSources"`
 }
 

@@ -38,6 +38,10 @@ export function GetMachineName() {
   return window['go']['main']['App']['GetMachineName']();
 }
 
+export function GetSteamUsers() {
+  return window['go']['main']['App']['GetSteamUsers']();
+}
+
 export function LaunchGame(arg1) {
   return window['go']['main']['App']['LaunchGame'](arg1);
 }
@@ -88,6 +92,10 @@ export function SetPreferredSource(arg1, arg2) {
 
 export function SetPrimaryExecutable(arg1, arg2) {
   return window['go']['main']['App']['SetPrimaryExecutable'](arg1, arg2);
+}
+
+export function SetSteamUser(arg1) {
+  return window['go']['main']['App']['SetSteamUser'](arg1);
 }
 
 export function ToggleGameStar(arg1) {

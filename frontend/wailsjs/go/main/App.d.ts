@@ -23,6 +23,8 @@ export function GetGameList():Promise<Array<game.GameInfo>>;
 
 export function GetMachineName():Promise<string>;
 
+export function GetSteamUsers():Promise<Array<main.SteamUserInfo>>;
+
 export function LaunchGame(arg1:string):Promise<void>;
 
 export function OpenBrowser(arg1:string):Promise<void>;
@@ -48,6 +50,8 @@ export function ScrapeGame(arg1:string):Promise<main.ScrapeReport>;
 export function SetPreferredSource(arg1:string,arg2:string):Promise<void>;
 
 export function SetPrimaryExecutable(arg1:string,arg2:string):Promise<void>;
+
+export function SetSteamUser(arg1:string):Promise<void>;
 
 export function ToggleGameStar(arg1:string):Promise<void>;
 

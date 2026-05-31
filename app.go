@@ -554,3 +554,58 @@ func (a *App) OpenDirectory(dir string) error {
 	}
 	return exec.Command("explorer", absDir).Start()
 }
+
+type SteamUserInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+func (a *App) GetSteamUsers() []SteamUserInfo {
+	var users []SteamUserInfo
+	seen := map[string]bool{}
+
+	for _, relDir := range a.config.GameDirectories {
+		absDir := filepath.Clean(relDir)
+		if !filepath.IsAbs(absDir) {
+			absDir = filepath.Join(a.exeDir, relDir)
+		}
+		for i := 0; i < 4; i++ {
+			userdataDir := filepath.Join(absDir, "userdata")
+			if entries, err := os.ReadDir(userdataDir); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() { continue }
+					id := e.Name()
+					if seen[id] { continue }
+					seen[id] = true
+					name := readSteamPersonaName(userdataDir, id)
+					users = append(users, SteamUserInfo{ID: id, Name: name})
+				}
+			}
+			parent := filepath.Dir(absDir)
+			if parent == absDir { break }
+			absDir = parent
+		}
+	}
+	return users
+}
+
+func readSteamPersonaName(userdataDir string, userID string) string {
+	configPath := filepath.Join(userdataDir, userID, "config", "localconfig.vdf")
+	data, err := os.ReadFile(configPath)
+	if err != nil { return "" }
+	content := string(data)
+	idx := strings.Index(content, `"PersonaName"`)
+	if idx < 0 { return "" }
+	after := content[idx+len(`"PersonaName"`):]
+	valStart := strings.Index(after, `"`)
+	if valStart < 0 { return "" }
+	valStart++
+	valEnd := strings.Index(after[valStart:], `"`)
+	if valEnd < 0 { return "" }
+	return after[valStart : valStart+valEnd]
+}
+
+func (a *App) SetSteamUser(id string) error {
+	a.config.SteamUserID = id
+	return a.config.Save(a.exeDir)
+}

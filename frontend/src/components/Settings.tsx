@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { GetConfig, SaveConfig, PickGameDirectory, GetMachineName, OpenDirectory } from '../../wailsjs/go/main/App';
-import { config } from '../../wailsjs/go/models';
+import { GetConfig, SaveConfig, PickGameDirectory, GetMachineName, GetSteamUsers, SetSteamUser, OpenDirectory } from '../../wailsjs/go/main/App';
+import { config, main } from '../../wailsjs/go/models';
 
 interface SourceMeta {
   description: string;
@@ -49,6 +49,7 @@ export default function Settings() {
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [newLabelDir, setNewLabelDir] = useState('');
   const [newLabelInput, setNewLabelInput] = useState('');
+  const [steamUsers, setSteamUsers] = useState<main.SteamUserInfo[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -56,6 +57,8 @@ export default function Settings() {
         const [c, h] = await Promise.all([GetConfig(), GetMachineName()]);
         setCfg(c);
         setHost(h);
+        const users = await GetSteamUsers();
+        setSteamUsers(users || []);
       } catch (err) {
         setError(String(err));
       }
@@ -363,6 +366,21 @@ export default function Settings() {
                   <span className="about-label">Machine Name</span>
                   <span className="about-value">{host}</span>
                 </div>
+                {steamUsers.length > 0 && (
+                  <div className="about-row">
+                    <span className="about-label">Steam User</span>
+                    <select className="about-select" value={cfg.steamUserId || ''} onChange={async (e) => {
+                      const id = e.target.value;
+                      updateCfg({ steamUserId: id });
+                      try { await SetSteamUser(id); } catch {}
+                    }}>
+                      <option value="">None</option>
+                      {steamUsers.map((u: main.SteamUserInfo) => (
+                        <option key={u.id} value={u.id}>{u.name || u.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           </section>

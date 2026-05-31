@@ -24,6 +24,7 @@ export namespace config {
 	    gameDirectoryLabels?: Record<string, Array<string>>;
 	    maxScanDepth: number;
 	    language: string;
+	    steamUserId?: string;
 	    metadataSources: MetadataSource[];
 	
 	    static createFrom(source: any = {}) {
@@ -37,6 +38,7 @@ export namespace config {
 	        this.gameDirectoryLabels = source["gameDirectoryLabels"];
 	        this.maxScanDepth = source["maxScanDepth"];
 	        this.language = source["language"];
+	        this.steamUserId = source["steamUserId"];
 	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);
 	    }
 	
@@ -220,6 +222,20 @@ export namespace main {
 	        this.title = source["title"];
 	        this.source = source["source"];
 	        this.error = source["error"];
+	    }
+	}
+	export class SteamUserInfo {
+	    id: string;
+	    name?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamUserInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
 	    }
 	}
 

@@ -31,6 +31,7 @@ func main() {
 		OnStartup:        app.startup,
 		OnShutdown: func(ctx context.Context) {
 			app.queue.Stop()
+			app.StopWatcher()
 			logger.Info("application shutting down")
 			logger.Close()
 		},

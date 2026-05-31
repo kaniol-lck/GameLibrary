@@ -102,6 +102,10 @@ export function SetSteamUser(arg1) {
   return window['go']['main']['App']['SetSteamUser'](arg1);
 }
 
+export function StopWatcher() {
+  return window['go']['main']['App']['StopWatcher']();
+}
+
 export function ToggleGameStar(arg1) {
   return window['go']['main']['App']['ToggleGameStar'](arg1);
 }

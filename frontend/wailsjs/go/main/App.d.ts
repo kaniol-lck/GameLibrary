@@ -55,6 +55,8 @@ export function SetPrimaryExecutable(arg1:string,arg2:string):Promise<void>;
 
 export function SetSteamUser(arg1:string):Promise<void>;
 
+export function StopWatcher():Promise<void>;
+
 export function ToggleGameStar(arg1:string):Promise<void>;
 
 export function UpdateGameInfo(arg1:game.GameInfo):Promise<void>;

@@ -17,6 +17,7 @@ import (
 	"GameLibrary/internal/scanner"
 	"GameLibrary/internal/scraper"
 	"GameLibrary/internal/taskqueue"
+	"GameLibrary/internal/watcher"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -46,6 +47,7 @@ type App struct {
 	pipeline *scraper.Pipeline
 	games    map[string]*game.GameInfo
 	queue    *taskqueue.Queue
+	watcher  *watcher.Watcher
 }
 
 func NewApp() *App {
@@ -107,6 +109,15 @@ func (a *App) startup(ctx context.Context) {
 	a.queue = taskqueue.New(func(t *taskqueue.Task) {
 		a.processScrapeTask(t)
 	}, nil)
+
+	a.watcher = watcher.New(func(newDirs []string) {
+		for _, dir := range newDirs {
+			scanResults := a.scanner.ScanDir(dir)
+			a.refreshGameCache()
+			a.autoScrapeNew(scanResults)
+		}
+	})
+	a.watcher.WatchDirs(a.config.GameDirectories, a.exeDir)
 }
 
 func (a *App) refreshGameCache() {
@@ -722,4 +733,10 @@ func (a *App) GetQueueInfo() *QueueInfo {
 func (a *App) SetSteamUser(id string) error {
 	a.config.SteamUserID = id
 	return a.config.Save(a.exeDir)
+}
+
+func (a *App) StopWatcher() {
+	if a.watcher != nil {
+		a.watcher.Stop()
+	}
 }

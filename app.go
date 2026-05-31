@@ -108,9 +108,25 @@ func (a *App) startup(ctx context.Context) {
 
 	a.queue = taskqueue.New(func(t *taskqueue.Task) {
 		a.processScrapeTask(t)
-	}, nil)
+	}, func(pending, total int, task *taskqueue.Task) {
+		if task != nil {
+			runtime.EventsEmit(a.ctx, "queue:done", map[string]interface{}{
+				"gameId": task.GameID,
+				"title":  task.Title,
+				"error":  task.Error,
+			})
+		}
+		p, r := a.queue.Status()
+		runtime.EventsEmit(a.ctx, "queue:status", map[string]interface{}{
+			"pending": p,
+			"running": r,
+		})
+	})
 
 	a.watcher = watcher.New(func(newDirs []string) {
+		runtime.EventsEmit(a.ctx, "watcher:newgame", map[string]interface{}{
+			"count": len(newDirs),
+		})
 		for _, dir := range newDirs {
 			scanResults := a.scanner.ScanDir(dir)
 			a.refreshGameCache()
@@ -242,6 +258,10 @@ func (a *App) doScan(force bool) []scanner.ScanResult {
 	}
 
 	go a.autoScrapeNew(results)
+
+	runtime.EventsEmit(a.ctx, "scan:complete", map[string]interface{}{
+		"total": len(results),
+	})
 
 	return results
 }

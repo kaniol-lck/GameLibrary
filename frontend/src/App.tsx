@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { GetGameList, ScanGames, GetAppInfo, GetConfig } from '../wailsjs/go/main/App';
-import { game, scanner, config } from '../wailsjs/go/models';
+import { EventsOn } from '../wailsjs/runtime/runtime';
+import { game, scanner, config, main } from '../wailsjs/go/models';
 import { useScrape } from './hooks/useScrape';
 import GameCard from './components/GameCard';
 import Settings from './components/Settings';
@@ -34,6 +35,7 @@ function App() {
   const [coverRefresh, setCoverRefresh] = useState(0);
   const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
   const [showUnmatched, setShowUnmatched] = useState(true);
+  const [queueStatus, setQueueStatus] = useState<{pending: number; running: number}>({pending: 0, running: 0});
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
@@ -56,6 +58,13 @@ function App() {
       try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch { /* ignore */ }
       await loadGames();
     })();
+
+    EventsOn('queue:status', (data: any) => {
+      setQueueStatus({ pending: data.pending || 0, running: data.running || 0 });
+    });
+    EventsOn('queue:done', () => { loadGames(); });
+    EventsOn('watcher:newgame', () => { loadGames(); });
+    EventsOn('scan:complete', () => { loadGames(); });
   }, [loadGames]);
 
   const handleScan = async () => {
@@ -180,6 +189,11 @@ function App() {
           <div className="top-bar-left">
             <span className="app-machine">{appInfo?.['machineName'] ?? ''}</span>
             {isScraping && <span className="scrape-progress-text">{scrapeDone} / {scrapeTotal}</span>}
+            {(queueStatus.pending > 0 || queueStatus.running > 0) && (
+              <span className="queue-status">
+                {'\u25C9'} {queueStatus.running > 0 ? 'Scraping...' : ''} {queueStatus.pending > 0 ? `${queueStatus.pending} queued` : ''}
+              </span>
+            )}
           </div>
           <div className="top-bar-right">
             {games.length > 0 && (

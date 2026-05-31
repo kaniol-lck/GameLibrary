@@ -220,6 +220,12 @@ func (a *App) doScan(force bool) []scanner.ScanResult {
 		return results[i].GameDir < results[j].GameDir
 	})
 
+	for _, r := range results {
+		if r.IsNew && r.GameInfo != nil && r.Error == "" && r.GameInfo.PrimaryPlatform() == "steam" {
+			a.copySteamGridCovers(r.GameDir, r.GameInfo.PrimaryPlatformID())
+		}
+	}
+
 	go a.autoScrapeNew(results)
 
 	return results
@@ -560,6 +566,43 @@ func (a *App) OpenDirectory(dir string) error {
 type SteamUserInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
+}
+
+func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
+	if steamAppID == "" || a.config.SteamUserID == "" {
+		return
+	}
+	steamPath := getSteamPath()
+	if steamPath == "" {
+		return
+	}
+
+	gridDir := filepath.Join(steamPath, "userdata", a.config.SteamUserID, "config", "grid")
+	if _, err := os.Stat(gridDir); os.IsNotExist(err) {
+		return
+	}
+
+	coversDir := game.CoverDir(gameDir)
+	os.MkdirAll(coversDir, 0755)
+
+	sources := map[string]string{
+		"cover":           steamAppID + "p",
+		"cover_landscape": steamAppID,
+	}
+	for dest, prefix := range sources {
+		if _, err := os.Stat(filepath.Join(coversDir, dest+".jpg")); err == nil {
+			continue
+		}
+		for _, ext := range []string{".jpg", ".png"} {
+			src := filepath.Join(gridDir, prefix+ext)
+			if data, err := os.ReadFile(src); err == nil {
+				destPath := filepath.Join(coversDir, dest+ext)
+				os.WriteFile(destPath, data, 0644)
+				logger.Info("copied Steam grid cover", "gameId", steamAppID, "type", dest, "source", filepath.Base(src))
+				break
+			}
+		}
+	}
 }
 
 func (a *App) GetSteamUsers() []SteamUserInfo {

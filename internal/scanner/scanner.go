@@ -319,6 +319,11 @@ func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {
 				logger.ScanExeFiltered(name, "unity crash handler")
 				continue
 			}
+			baseName := strings.TrimSuffix(lower, ".exe")
+			if isUtilityExe(baseName) {
+				logger.ScanExeFiltered(name, "utility")
+				continue
+			}
 			logger.ScanExeFound(name)
 			executables = append(executables, game.Executable{
 				Path:    name,
@@ -373,4 +378,20 @@ func resolveDir(exeDir, dir string) string {
 		return filepath.Clean(dir)
 	}
 	return filepath.Join(exeDir, dir)
+}
+
+func isUtilityExe(name string) bool {
+	utilityPatterns := []string{
+		"crashreport", "bugreport", "errorreport",
+		"patcher", "patch", "update", "updater",
+		"uninstall", "unins000", "unins001",
+		"dxsetup", "vcredist", "redist",
+		"dotnet", "directx", "xna",
+	}
+	for _, p := range utilityPatterns {
+		if name == p || strings.Contains(name, p) {
+			return true
+		}
+	}
+	return false
 }

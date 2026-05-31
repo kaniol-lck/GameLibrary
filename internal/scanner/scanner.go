@@ -167,9 +167,17 @@ func (s *Scanner) identifyGameForce(gameDir string, force bool) ScanResult {
 	info := game.New(gameDir, executables, steamAppID)
 
 	if info.PrimaryPlatform() == "steam" && steamAppID != "" {
-		acfName := s.readACFName(gameDir)
-		if acfName != "" {
-			info.Title = acfName
+		acf := s.readACF(gameDir)
+		if acf != nil {
+			if acf.Name != "" {
+				info.Title = acf.Name
+			}
+			logger.Debug("ACF metadata imported",
+				"gameId", info.ID,
+				"name", acf.Name,
+				"lastUpdated", acf.LastUpdated,
+				"sizeOnDisk", acf.SizeOnDisk,
+			)
 		}
 	}
 	isNew := true
@@ -211,9 +219,11 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 }
 
 type acfInfo struct {
-	AppID      string
-	Name       string
-	InstallDir string
+	AppID       string
+	Name        string
+	InstallDir  string
+	LastUpdated string
+	SizeOnDisk  string
 }
 
 func (s *Scanner) readACF(gameDir string) *acfInfo {
@@ -257,7 +267,7 @@ func parseACF(content string) *acfInfo {
 		if !inAppState {
 			continue
 		}
-		for _, field := range []string{"appid", "name", "installdir"} {
+		for _, field := range []string{"appid", "name", "installdir", "LastUpdated", "SizeOnDisk"} {
 			prefix := `"` + field + `"`
 			if strings.HasPrefix(line, prefix) {
 				parts := strings.SplitN(line, "\t", 2)
@@ -273,6 +283,10 @@ func parseACF(content string) *acfInfo {
 					info.Name = val
 				case "installdir":
 					info.InstallDir = val
+				case "LastUpdated":
+					info.LastUpdated = val
+				case "SizeOnDisk":
+					info.SizeOnDisk = val
 				}
 			}
 		}
@@ -284,14 +298,6 @@ func (s *Scanner) readACFAppID(gameDir string) string {
 	info := s.readACF(gameDir)
 	if info != nil {
 		return info.AppID
-	}
-	return ""
-}
-
-func (s *Scanner) readACFName(gameDir string) string {
-	info := s.readACF(gameDir)
-	if info != nil {
-		return info.Name
 	}
 	return ""
 }

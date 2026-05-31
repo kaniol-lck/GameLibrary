@@ -569,7 +569,7 @@ type SteamUserInfo struct {
 }
 
 func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
-	if steamAppID == "" || a.config.SteamUserID == "" {
+	if steamAppID == "" {
 		return
 	}
 	steamPath := getSteamPath()
@@ -577,30 +577,49 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 		return
 	}
 
-	gridDir := filepath.Join(steamPath, "userdata", a.config.SteamUserID, "config", "grid")
-	if _, err := os.Stat(gridDir); os.IsNotExist(err) {
+	userdataDir := filepath.Join(steamPath, "userdata")
+	entries, err := os.ReadDir(userdataDir)
+	if err != nil {
 		return
 	}
 
-	coversDir := game.CoverDir(gameDir)
-	os.MkdirAll(coversDir, 0755)
-
-	sources := map[string]string{
-		"cover":           steamAppID + "p",
-		"cover_landscape": steamAppID,
-	}
-	for dest, prefix := range sources {
-		if _, err := os.Stat(filepath.Join(coversDir, dest+".jpg")); err == nil {
+	for _, userEntry := range entries {
+		if !userEntry.IsDir() {
 			continue
 		}
-		for _, ext := range []string{".jpg", ".png"} {
-			src := filepath.Join(gridDir, prefix+ext)
-			if data, err := os.ReadFile(src); err == nil {
-				destPath := filepath.Join(coversDir, dest+ext)
-				os.WriteFile(destPath, data, 0644)
-				logger.Info("copied Steam grid cover", "gameId", steamAppID, "type", dest, "source", filepath.Base(src))
-				break
+		gridDir := filepath.Join(userdataDir, userEntry.Name(), "config", "grid")
+		if _, err := os.Stat(gridDir); os.IsNotExist(err) {
+			continue
+		}
+
+		coversDir := game.CoverDir(gameDir)
+		os.MkdirAll(coversDir, 0755)
+
+		copied := false
+		sources := map[string]string{
+			"cover":           steamAppID + "p",
+			"cover_landscape": steamAppID,
+		}
+		for dest, prefix := range sources {
+			if _, err := os.Stat(filepath.Join(coversDir, dest+".jpg")); err == nil {
+				continue
 			}
+			if _, err := os.Stat(filepath.Join(coversDir, dest+".png")); err == nil {
+				continue
+			}
+			for _, ext := range []string{".jpg", ".png"} {
+				src := filepath.Join(gridDir, prefix+ext)
+				if data, err := os.ReadFile(src); err == nil {
+					destPath := filepath.Join(coversDir, dest+ext)
+					os.WriteFile(destPath, data, 0644)
+					logger.Info("copied Steam grid cover", "gameId", steamAppID, "type", dest)
+					copied = true
+					break
+				}
+			}
+		}
+		if copied {
+			return
 		}
 	}
 }

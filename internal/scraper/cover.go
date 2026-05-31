@@ -17,6 +17,20 @@ func DownloadCover(gameDir, coverURL, filename string) error {
 		return fmt.Errorf("no cover URL")
 	}
 
+	coverDir := game.CoverDir(gameDir)
+	os.MkdirAll(coverDir, 0755)
+
+	for _, ext := range []string{".jpg", ".png"} {
+		if _, err := os.Stat(filepath.Join(coverDir, filename+ext)); err == nil {
+			return nil
+		}
+	}
+	for _, ext := range []string{".jpg", ".png"} {
+		if _, err := os.Stat(filepath.Join(gameDir, filename+ext)); err == nil {
+			return nil
+		}
+	}
+
 	resp, err := http.Get(coverURL)
 	if err != nil {
 		return err
@@ -33,8 +47,6 @@ func DownloadCover(gameDir, coverURL, filename string) error {
 		ext = ".png"
 	}
 
-	coverDir := game.CoverDir(gameDir)
-	os.MkdirAll(coverDir, 0755)
 	filePath := filepath.Join(coverDir, filename+ext)
 
 	out, err := os.Create(filePath)

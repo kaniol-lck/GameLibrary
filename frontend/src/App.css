@@ -1341,6 +1341,29 @@
   font-family: "Consolas", "Monaco", monospace;
 }
 
+.detail-exe-item {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: background 0.1s;
+}
+
+.detail-exe-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.detail-exe-radio {
+  color: #666;
+  font-size: 11px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.detail-exe-item:hover .detail-exe-radio {
+  color: #a5b4fc;
+}
+
 .exe-badge {
   padding: 1px 6px;
   background: rgba(79, 110, 247, 0.15);

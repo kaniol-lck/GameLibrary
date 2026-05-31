@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { LaunchGame, GetGameCoverLandscape, ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, SetPreferredSource, OpenBrowser } from '../../wailsjs/go/main/App';
+import { LaunchGame, GetGameCoverLandscape, ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, SetPreferredSource, SetPrimaryExecutable, OpenBrowser } from '../../wailsjs/go/main/App';
 
 interface GameDetailProps {
   game: game.GameInfo;
@@ -47,6 +47,9 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
   };
   const handleOpenDir = async () => { try { await OpenGameDirectory(g.id); } catch {} };
   const handleOpenMeta = async () => { try { await OpenGameMetadata(g.id); } catch {} };
+  const handleSetPrimaryExe = async (path: string) => {
+    try { await SetPrimaryExecutable(g.id, path); g.executables.forEach(e => { e.primary = e.path === path; }); setG({ ...g } as any); onUpdated(); } catch {}
+  };
   const handleSetPreferred = async (src: string) => { try { await SetPreferredSource(g.id, src); (g as any).preferredSource = src; setG({ ...g } as any); onUpdated(); } catch {} };
   const handleOpenPage = (url: string) => { if (url) OpenBrowser(url).catch(() => {}); };
   const handleAddTag = async () => {
@@ -181,7 +184,10 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
             <label>Executables</label>
             <ul className="detail-exe-list">
               {g.executables.map((exe, i) => (
-                <li key={i}>{exe.name}.exe{exe.primary && <span className="exe-badge">primary</span>}</li>
+                <li key={i} className="detail-exe-item" onClick={() => handleSetPrimaryExe(exe.path)}>
+                  <span className="detail-exe-radio">{exe.primary ? '\u25C9' : '\u25CB'}</span>
+                  <span>{exe.name}.exe</span>
+                </li>
               ))}
             </ul>
           </div>

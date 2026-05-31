@@ -47,6 +47,8 @@ export function ScrapeGame(arg1:string):Promise<main.ScrapeReport>;
 
 export function SetPreferredSource(arg1:string,arg2:string):Promise<void>;
 
+export function SetPrimaryExecutable(arg1:string,arg2:string):Promise<void>;
+
 export function ToggleGameStar(arg1:string):Promise<void>;
 
 export function UpdateGameInfo(arg1:game.GameInfo):Promise<void>;

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, SetPreferredSource, OpenBrowser } from '../../wailsjs/go/main/App';
+import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, SetPreferredSource, SetPrimaryExecutable, OpenBrowser } from '../../wailsjs/go/main/App';
 
 interface ContextMenuProps {
   game: game.GameInfo;
@@ -66,6 +66,7 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }
     setShowTagInput(false);
   };
   const handleRemoveTag = async (tag: string) => { try { await RemoveGameTag(game.id, tag); onUpdated(); } catch {} };
+  const handleSetPrimaryExe = async (path: string) => { try { await SetPrimaryExecutable(game.id, path); onUpdated(); } catch {} };
 
   const platforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
   const preferredSource = (game as any).preferredSource || '';
@@ -174,6 +175,30 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }
                 <button key={'pref-'+p.platform} className="context-item" onClick={() => handleSetPreferred(p.platform)}>
                   <span className="context-item-icon">{p.platform === preferredSource ? '\u25C9' : '\u25CB'}</span>
                   <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(game.executables && game.executables.length > 1) && (
+        <div className="ctx-parent"
+          onMouseEnter={() => handleEnter('exe')}
+          onMouseLeave={handleLeave}>
+          <div className="context-item">
+            <span className="context-item-icon">{'\u2699'}</span>
+            <span>Default Executable</span>
+            <span className="ctx-arrow">{'\u25B8'}</span>
+          </div>
+          {hoverSubMenu === 'exe' && (
+            <div className={`ctx-submenu ${subFlipX ? 'ctx-sub-left' : ''}`}
+              onMouseEnter={() => handleSubEnter('exe')}
+              onMouseLeave={handleLeave}>
+              {game.executables.map((exe) => (
+                <button key={'exe-'+exe.path} className="context-item" onClick={() => handleSetPrimaryExe(exe.path)}>
+                  <span className="context-item-icon">{exe.primary ? '\u25C9' : '\u25CB'}</span>
+                  <span>{exe.name}.exe</span>
                 </button>
               ))}
             </div>

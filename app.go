@@ -443,6 +443,24 @@ func findPrimaryExec(executables []game.Executable) *game.Executable {
 	return nil
 }
 
+func (a *App) SetPrimaryExecutable(id string, execPath string) error {
+	info, ok := a.games[id]
+	if !ok {
+		return fmt.Errorf("game not found: %s", id)
+	}
+	found := false
+	for i := range info.Executables {
+		info.Executables[i].Primary = info.Executables[i].Path == execPath
+		if info.Executables[i].Primary {
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("executable not found: %s", execPath)
+	}
+	return info.Save()
+}
+
 func (a *App) GetAppInfo() map[string]string {
 	return map[string]string{
 		"exeDir":      a.exeDir,

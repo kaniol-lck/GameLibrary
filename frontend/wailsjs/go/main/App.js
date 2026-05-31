@@ -86,6 +86,10 @@ export function SetPreferredSource(arg1, arg2) {
   return window['go']['main']['App']['SetPreferredSource'](arg1, arg2);
 }
 
+export function SetPrimaryExecutable(arg1, arg2) {
+  return window['go']['main']['App']['SetPrimaryExecutable'](arg1, arg2);
+}
+
 export function ToggleGameStar(arg1) {
   return window['go']['main']['App']['ToggleGameStar'](arg1);
 }

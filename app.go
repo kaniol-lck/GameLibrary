@@ -602,17 +602,26 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 				return true
 			}
 		}
-		for _, hashDir := range entries {
-			if !hashDir.IsDir() { continue }
+		tryFile := func(dir string) bool {
 			for _, name := range names {
 				for _, ext := range []string{".jpg", ".png"} {
-					src := filepath.Join(cacheDir, hashDir.Name(), name+ext)
+					src := filepath.Join(dir, name+ext)
 					if data, err := os.ReadFile(src); err == nil {
 						os.WriteFile(filepath.Join(coversDir, destName+ext), data, 0644)
 						logger.Info("copied Steam cache cover", "gameId", steamAppID, "type", destName, "source", name+ext)
 						return true
 					}
 				}
+			}
+			return false
+		}
+		if tryFile(cacheDir) {
+			return true
+		}
+		for _, hashDir := range entries {
+			if !hashDir.IsDir() { continue }
+			if tryFile(filepath.Join(cacheDir, hashDir.Name())) {
+				return true
 			}
 		}
 		return false

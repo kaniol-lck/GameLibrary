@@ -766,6 +766,24 @@ func (a *App) GetQueueInfo() *QueueInfo {
 	return &QueueInfo{Pending: pending, Running: running}
 }
 
+func (a *App) QueuePause() {
+	if a.queue != nil {
+		a.queue.Pause()
+	}
+}
+
+func (a *App) QueueResume() {
+	if a.queue != nil {
+		a.queue.Resume()
+	}
+}
+
+func (a *App) QueueClear() {
+	if a.queue != nil {
+		a.queue.Clear()
+	}
+}
+
 func (a *App) SetSteamUser(id string) error {
 	a.config.SteamUserID = id
 	return a.config.Save(a.exeDir)

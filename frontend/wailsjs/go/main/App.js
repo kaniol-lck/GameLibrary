@@ -70,6 +70,18 @@ export function PickGameDirectory() {
   return window['go']['main']['App']['PickGameDirectory']();
 }
 
+export function QueueClear() {
+  return window['go']['main']['App']['QueueClear']();
+}
+
+export function QueuePause() {
+  return window['go']['main']['App']['QueuePause']();
+}
+
+export function QueueResume() {
+  return window['go']['main']['App']['QueueResume']();
+}
+
 export function RemoveGameTag(arg1, arg2) {
   return window['go']['main']['App']['RemoveGameTag'](arg1, arg2);
 }

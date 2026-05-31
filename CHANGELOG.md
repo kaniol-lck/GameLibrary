@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.7.0-alpha (2026-05-31)
+
+### Added
+
+- **任务队列**：后台串行刮削（`internal/taskqueue/`），`autoScrapeNew` 提交至队列
+  *Task queue: background sequential scraping, autoScrapeNew submits to queue*
+- **文件监听**：`fsnotify` 监听游戏目录，新增/删除游戏自动处理（`internal/watcher/`）
+  *File watcher: fsnotify-based directory monitoring for new/removed games*
+- **实时推送**：Wails `EventsEmit/EventsOn` 推送队列状态、新游戏、删除事件
+  *Real-time events: queue status, new game detection via Wails events*
+- **队列控制**：顶栏暂停/继续/清空按钮
+  *Queue controls: pause/resume/clear in top bar*
+- 设置页：`File Watcher` 开关 + 防抖滑块（50-2000ms，默认 100ms）
+  *Settings: File Watcher toggle + debounce slider*
+
+### Changed
+
+- 手动 `ScrapeGame`/`ScrapeAllGames` 仍为同步直接执行（前端 `useScrape` hook 兼容）
+  *Manual scrape still synchronous for useScrape hook compatibility*
+- 队列仅用于 `autoScrapeNew` 后台处理
+  *Queue used only for autoScrapeNew background tasks*
+
+---
+
 ## v0.6.3-alpha (2026-05-31)
 
 ### Changed

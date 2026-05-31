@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
-import { GetGameList, ScanGames, GetAppInfo, GetConfig } from '../wailsjs/go/main/App';
+import { GetGameList, ScanGames, GetAppInfo, GetConfig, QueuePause, QueueResume, QueueClear } from '../wailsjs/go/main/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { game, scanner, config, main } from '../wailsjs/go/models';
 import { useScrape } from './hooks/useScrape';
@@ -193,6 +193,9 @@ function App() {
             {(queueStatus.pending > 0 || queueStatus.running > 0) && (
               <span className="queue-status">
                 {'\u25C9'} {queueStatus.running > 0 ? 'Scraping...' : ''} {queueStatus.pending > 0 ? `${queueStatus.pending} queued` : ''}
+                <button className="queue-btn" onClick={() => QueuePause()} title="Pause">||</button>
+                <button className="queue-btn" onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>
+                <button className="queue-btn" onClick={() => QueueClear()} title="Clear">{'\u2715'}</button>
               </span>
             )}
           </div>

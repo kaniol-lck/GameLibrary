@@ -39,6 +39,12 @@ export function OpenGameMetadata(arg1:string):Promise<void>;
 
 export function PickGameDirectory():Promise<string>;
 
+export function QueueClear():Promise<void>;
+
+export function QueuePause():Promise<void>;
+
+export function QueueResume():Promise<void>;
+
 export function RemoveGameTag(arg1:string,arg2:string):Promise<void>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;

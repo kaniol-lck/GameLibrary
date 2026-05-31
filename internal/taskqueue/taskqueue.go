@@ -38,6 +38,7 @@ type Queue struct {
 	tasks    []*Task
 	notEmpty chan struct{}
 	stopped  chan struct{}
+	paused   bool
 	callback ProgressCallback
 	worker   func(*Task)
 	wg       sync.WaitGroup
@@ -54,6 +55,31 @@ func New(worker func(*Task), cb ProgressCallback) *Queue {
 	q.wg.Add(1)
 	go q.run()
 	return q
+}
+
+func (q *Queue) Pause() {
+	q.mu.Lock()
+	q.paused = true
+	q.mu.Unlock()
+}
+
+func (q *Queue) Resume() {
+	q.mu.Lock()
+	q.paused = false
+	q.mu.Unlock()
+	select {
+	case q.notEmpty <- struct{}{}:
+	default:
+	}
+}
+
+func (q *Queue) Clear() {
+	q.mu.Lock()
+	q.tasks = q.tasks[:0]
+	q.mu.Unlock()
+	if q.callback != nil {
+		q.callback(0, 0, nil)
+	}
 }
 
 func (q *Queue) Submit(task *Task) {
@@ -106,7 +132,7 @@ func (q *Queue) run() {
 
 func (q *Queue) processNext() {
 	q.mu.Lock()
-	if len(q.tasks) == 0 {
+	if q.paused || len(q.tasks) == 0 {
 		q.mu.Unlock()
 		return
 	}

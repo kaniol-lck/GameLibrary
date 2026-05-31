@@ -580,6 +580,11 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 	coversDir := game.CoverDir(gameDir)
 	os.MkdirAll(coversDir, 0755)
 
+	cacheDir := filepath.Join(steamPath, "appcache", "librarycache", steamAppID)
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		return
+	}
+
 	sources := map[string]string{
 		"cover":           "library_600x900",
 		"cover_landscape": "header",
@@ -592,13 +597,13 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 			continue
 		}
 		for _, ext := range []string{".jpg", ".png"} {
-			src := filepath.Join(steamPath, "appcache", "librarycache", steamAppID+"_"+baseName+ext)
+			src := filepath.Join(cacheDir, baseName+ext)
 			if data, err := os.ReadFile(src); err == nil {
 				os.WriteFile(filepath.Join(coversDir, dest+ext), data, 0644)
 				logger.Info("copied Steam cache cover", "gameId", steamAppID, "type", dest)
 				break
 			}
-			srcSchinese := filepath.Join(steamPath, "appcache", "librarycache", steamAppID+"_"+baseName+"_schinese"+ext)
+			srcSchinese := filepath.Join(cacheDir, baseName+"_schinese"+ext)
 			if data, err := os.ReadFile(srcSchinese); err == nil {
 				os.WriteFile(filepath.Join(coversDir, dest+ext), data, 0644)
 				logger.Info("copied Steam cache cover (schinese)", "gameId", steamAppID, "type", dest)

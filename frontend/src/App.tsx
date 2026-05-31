@@ -35,7 +35,7 @@ function App() {
   const [coverRefresh, setCoverRefresh] = useState(0);
   const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
   const [showUnmatched, setShowUnmatched] = useState(true);
-  const [queueStatus, setQueueStatus] = useState<{pending: number; running: number; currentTitle?: string; total?: number}>({pending: 0, running: 0});
+  const [queueStatus, setQueueStatus] = useState<{pending: number; running: number; currentTitle?: string; total?: number; pendingTitles?: string[]}>({pending: 0, running: 0});
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
@@ -53,7 +53,7 @@ function App() {
       try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch {}
       await loadGames();
     })();
-    EventsOn('queue:status', (data: any) => setQueueStatus({ pending: data.pending || 0, running: data.running || 0 }));
+    EventsOn('queue:status', (data: any) => setQueueStatus({ pending: data.pending || 0, running: data.running || 0, currentTitle: data.currentTitle, pendingTitles: data.pendingTitles || [] }));
     EventsOn('queue:done', () => { loadGames(); });
     EventsOn('watcher:newgame', () => { loadGames(); });
     EventsOn('watcher:gamegone', () => { loadGames(); });

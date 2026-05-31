@@ -121,11 +121,12 @@ func (a *App) startup(ctx context.Context) {
 		if task != nil && task.Status == taskqueue.StatusRunning {
 			currentTitle = task.Title
 		}
+		pendingTasks := a.queue.PendingTasks()
 		runtime.EventsEmit(a.ctx, "queue:status", map[string]interface{}{
-			"pending":      p,
-			"running":      r,
-			"currentTitle": currentTitle,
-			"total":        total,
+			"pending":       p,
+			"running":       r,
+			"currentTitle":  currentTitle,
+			"pendingTitles": pendingTasks,
 		})
 	})
 

@@ -20,7 +20,7 @@ interface SidebarProps {
   exeDir?: string;
   showUnmatched?: boolean;
   onToggleUnmatched?: () => void;
-  queueStatus?: {pending: number; running: number; currentTitle?: string; total?: number};
+  queueStatus?: {pending: number; running: number; currentTitle?: string; pendingTitles?: string[]};
 }
 
 function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
@@ -299,6 +299,13 @@ export default function Sidebar({
                 <div className="queue-info-row">
                   {(queueStatus?.running ?? 0) > 0 ? 'Running' : 'Idle'} | {queueStatus?.pending ?? 0} pending
                 </div>
+                {(queueStatus?.pendingTitles?.length ?? 0) > 0 && (
+                  <div className="queue-info-pending">
+                    {queueStatus?.pendingTitles?.map((t: string, i: number) => (
+                      <div key={i} className="queue-pending-item">{t}</div>
+                    ))}
+                  </div>
+                )}
                 <div className="queue-info-actions">
                   <button onClick={() => QueuePause()} title="Pause">||</button>
                   <button onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>

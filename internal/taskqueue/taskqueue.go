@@ -118,6 +118,18 @@ func (q *Queue) Status() (pending, running int) {
 	return
 }
 
+func (q *Queue) PendingTasks() []string {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	var titles []string
+	for _, t := range q.tasks {
+		if t.Status == StatusPending {
+			titles = append(titles, t.Title)
+		}
+	}
+	return titles
+}
+
 func (q *Queue) run() {
 	defer q.wg.Done()
 	for {

@@ -118,15 +118,18 @@ func (a *App) startup(ctx context.Context) {
 		}
 		p, r := a.queue.Status()
 		currentTitle := ""
+		var currentGameId string
 		if task != nil && task.Status == taskqueue.StatusRunning {
 			currentTitle = task.Title
+			currentGameId = task.GameID
 		}
 		pendingTasks := a.queue.PendingTasks()
 		runtime.EventsEmit(a.ctx, "queue:status", map[string]interface{}{
-			"pending":       p,
-			"running":       r,
-			"currentTitle":  currentTitle,
-			"pendingTitles": pendingTasks,
+			"pending":        p,
+			"running":        r,
+			"currentTitle":   currentTitle,
+			"currentGameId":  currentGameId,
+			"pendingTitles":  pendingTasks,
 		})
 	})
 

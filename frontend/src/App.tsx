@@ -36,6 +36,7 @@ function App() {
   const [pathLabels, setPathLabels] = useState<Record<string, string[]>>({});
   const [showUnmatched, setShowUnmatched] = useState(true);
   const [queueStatus, setQueueStatus] = useState<{pending: number; running: number; currentTitle?: string; total?: number; pendingTitles?: string[]}>({pending: 0, running: 0});
+  const [queueScrapingId, setQueueScrapingId] = useState<string | null>(null);
 
   const {
     scrapingIds, scrapedOkIds, scrapedErrIds,
@@ -53,8 +54,11 @@ function App() {
       try { const c = await GetConfig(); setPathLabels(c.gameDirectoryLabels || {}); } catch {}
       await loadGames();
     })();
-    EventsOn('queue:status', (data: any) => setQueueStatus({ pending: data.pending || 0, running: data.running || 0, currentTitle: data.currentTitle, pendingTitles: data.pendingTitles || [] }));
-    EventsOn('queue:done', () => { loadGames(); });
+    EventsOn('queue:status', (data: any) => {
+      setQueueStatus({ pending: data.pending || 0, running: data.running || 0, currentTitle: data.currentTitle, pendingTitles: data.pendingTitles || [] });
+      setQueueScrapingId(data.currentGameId || null);
+    });
+    EventsOn('queue:done', () => { loadGames(); setQueueScrapingId(null); });
     EventsOn('watcher:newgame', () => { loadGames(); });
     EventsOn('watcher:gamegone', () => { loadGames(); });
     EventsOn('scan:complete', () => { loadGames(); });
@@ -159,7 +163,7 @@ function App() {
                 )}
                 {filteredGames.map((g) => (
                   <GameCard key={g.id} game={g} onClick={handleGameClick} onContextMenu={handleGameContextMenu}
-                    isScraping={scrapingIds.has(g.id)} scrapedOk={scrapedOkIds.has(g.id)} scrapedErr={scrapedErrIds.has(g.id)} refreshKey={coverRefresh} />
+                    isScraping={scrapingIds.has(g.id) || queueScrapingId === g.id} scrapedOk={scrapedOkIds.has(g.id)} scrapedErr={scrapedErrIds.has(g.id)} refreshKey={coverRefresh} />
                 ))}
               </div>
             </>

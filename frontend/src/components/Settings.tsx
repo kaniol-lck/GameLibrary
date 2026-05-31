@@ -80,11 +80,21 @@ export default function Settings() {
     setCfg(config.Config.createFrom({ ...cfg, ...patch }));
   };
 
+  const isSteamPath = (path: string): boolean => {
+    const lower = path.toLowerCase();
+    return lower.includes('steamlibrary') || lower.includes('steamapps') || lower.includes('steam\\common');
+  };
+
   const browseDirectory = async () => {
     try {
       const path = await PickGameDirectory();
       if (!path) return;
-      updateCfg({ gameDirectories: [...(cfg?.gameDirectories || []), path] });
+      const dirs = [...(cfg?.gameDirectories || []), path];
+      const labels = { ...(cfg?.gameDirectoryLabels || {}) };
+      if (isSteamPath(path) && !(labels[path] || []).some((l: string) => l.toLowerCase() === 'steam')) {
+        labels[path] = [...(labels[path] || []), 'Steam'];
+      }
+      updateCfg({ gameDirectories: dirs, gameDirectoryLabels: labels });
     } catch (err) {
       setError(String(err));
     }

@@ -206,27 +206,26 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 func (s *Scanner) readACFAppID(gameDir string) string {
 	dirName := filepath.Base(gameDir)
 	parent := filepath.Dir(gameDir)
-	grandParent := filepath.Dir(parent)
-	steamappsDir := filepath.Join(grandParent, "steamapps")
-	if filepath.Base(parent) != "common" {
-		steamappsDir = filepath.Join(parent, "steamapps")
-	}
-	entries, err := os.ReadDir(steamappsDir)
-	if err != nil {
-		return ""
-	}
-	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), "appmanifest_") || !strings.HasSuffix(e.Name(), ".acf") {
-			continue
-		}
-		path := filepath.Join(steamappsDir, e.Name())
-		data, err := os.ReadFile(path)
+
+	if strings.EqualFold(filepath.Base(parent), "common") {
+		steamappsDir := filepath.Dir(parent)
+		entries, err := os.ReadDir(steamappsDir)
 		if err != nil {
-			continue
+			return ""
 		}
-		appID, installDir := parseACF(string(data))
-		if appID != "" && strings.EqualFold(installDir, dirName) {
-			return appID
+		for _, e := range entries {
+			if !strings.HasPrefix(e.Name(), "appmanifest_") || !strings.HasSuffix(e.Name(), ".acf") {
+				continue
+			}
+			path := filepath.Join(steamappsDir, e.Name())
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			appID, installDir := parseACF(string(data))
+			if appID != "" && strings.EqualFold(installDir, dirName) {
+				return appID
+			}
 		}
 	}
 	return ""

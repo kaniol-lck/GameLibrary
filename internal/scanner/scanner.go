@@ -165,6 +165,13 @@ func (s *Scanner) identifyGameForce(gameDir string, force bool) ScanResult {
 	}
 
 	info := game.New(gameDir, executables, steamAppID)
+
+	if info.PrimaryPlatform() == "steam" && steamAppID != "" {
+		acfName := s.readACFName(gameDir)
+		if acfName != "" {
+			info.Title = acfName
+		}
+	}
 	isNew := true
 
 	logger.ScanGameDiscovered(gameDir, info.ID, info.Title, info.PrimaryPlatform(), len(executables))
@@ -203,7 +210,13 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 	return ""
 }
 
-func (s *Scanner) readACFAppID(gameDir string) string {
+type acfInfo struct {
+	AppID      string
+	Name       string
+	InstallDir string
+}
+
+func (s *Scanner) readACF(gameDir string) *acfInfo {
 	dirName := filepath.Base(gameDir)
 	parent := filepath.Dir(gameDir)
 
@@ -211,7 +224,7 @@ func (s *Scanner) readACFAppID(gameDir string) string {
 		steamappsDir := filepath.Dir(parent)
 		entries, err := os.ReadDir(steamappsDir)
 		if err != nil {
-			return ""
+			return nil
 		}
 		for _, e := range entries {
 			if !strings.HasPrefix(e.Name(), "appmanifest_") || !strings.HasSuffix(e.Name(), ".acf") {
@@ -222,16 +235,17 @@ func (s *Scanner) readACFAppID(gameDir string) string {
 			if err != nil {
 				continue
 			}
-			appID, installDir := parseACF(string(data))
-			if appID != "" && strings.EqualFold(installDir, dirName) {
-				return appID
+			info := parseACF(string(data))
+			if info.AppID != "" && strings.EqualFold(info.InstallDir, dirName) {
+				return info
 			}
 		}
 	}
-	return ""
+	return nil
 }
 
-func parseACF(content string) (appID string, installDir string) {
+func parseACF(content string) *acfInfo {
+	info := &acfInfo{}
 	inAppState := false
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
@@ -243,7 +257,7 @@ func parseACF(content string) (appID string, installDir string) {
 		if !inAppState {
 			continue
 		}
-		for _, field := range []string{"appid", "installdir"} {
+		for _, field := range []string{"appid", "name", "installdir"} {
 			prefix := `"` + field + `"`
 			if strings.HasPrefix(line, prefix) {
 				parts := strings.SplitN(line, "\t", 2)
@@ -252,15 +266,34 @@ func parseACF(content string) (appID string, installDir string) {
 				}
 				val := strings.TrimSpace(parts[len(parts)-1])
 				val = strings.Trim(val, `"`)
-				if field == "appid" {
-					appID = val
-				} else {
-					installDir = val
+				switch field {
+				case "appid":
+					info.AppID = val
+				case "name":
+					info.Name = val
+				case "installdir":
+					info.InstallDir = val
 				}
 			}
 		}
 	}
-	return
+	return info
+}
+
+func (s *Scanner) readACFAppID(gameDir string) string {
+	info := s.readACF(gameDir)
+	if info != nil {
+		return info.AppID
+	}
+	return ""
+}
+
+func (s *Scanner) readACFName(gameDir string) string {
+	info := s.readACF(gameDir)
+	if info != nil {
+		return info.Name
+	}
+	return ""
 }
 
 func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {

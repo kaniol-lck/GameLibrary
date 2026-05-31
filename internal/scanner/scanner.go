@@ -147,6 +147,9 @@ func (s *Scanner) identifyGameForce(gameDir string, force bool) ScanResult {
 	entries, _ := os.ReadDir(gameDir)
 
 	steamAppID := s.readSteamAppID(gameDir)
+	if steamAppID == "" {
+		steamAppID = s.readACFAppID(gameDir)
+	}
 	if steamAppID != "" {
 		logger.ScanGameSteamDetected(gameDir, steamAppID)
 	}
@@ -198,6 +201,67 @@ func (s *Scanner) readSteamAppID(gameDir string) string {
 		gameDir = parent
 	}
 	return ""
+}
+
+func (s *Scanner) readACFAppID(gameDir string) string {
+	dirName := filepath.Base(gameDir)
+	parent := filepath.Dir(gameDir)
+	grandParent := filepath.Dir(parent)
+	steamappsDir := filepath.Join(grandParent, "steamapps")
+	if filepath.Base(parent) != "common" {
+		steamappsDir = filepath.Join(parent, "steamapps")
+	}
+	entries, err := os.ReadDir(steamappsDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), "appmanifest_") || !strings.HasSuffix(e.Name(), ".acf") {
+			continue
+		}
+		path := filepath.Join(steamappsDir, e.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		appID, installDir := parseACF(string(data))
+		if appID != "" && strings.EqualFold(installDir, dirName) {
+			return appID
+		}
+	}
+	return ""
+}
+
+func parseACF(content string) (appID string, installDir string) {
+	inAppState := false
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == `"AppState"` {
+			inAppState = true
+			continue
+		}
+		if !inAppState {
+			continue
+		}
+		for _, field := range []string{"appid", "installdir"} {
+			prefix := `"` + field + `"`
+			if strings.HasPrefix(line, prefix) {
+				parts := strings.SplitN(line, "\t", 2)
+				if len(parts) < 2 {
+					parts = strings.SplitN(line, " ", 2)
+				}
+				val := strings.TrimSpace(parts[len(parts)-1])
+				val = strings.Trim(val, `"`)
+				if field == "appid" {
+					appID = val
+				} else {
+					installDir = val
+				}
+			}
+		}
+	}
+	return
 }
 
 func (s *Scanner) findExecutables(entries []os.DirEntry) []game.Executable {

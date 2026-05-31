@@ -188,7 +188,7 @@ export default function Sidebar({
             className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
             onClick={() => onSelectNav(cat.key)}
           >
-            <span className="sidebar-item-icon">{'\uD83D\uDCC1'}</span>
+            <span className="sidebar-item-icon">{cat.label === 'Steam' ? '\u25A0' : '\uD83D\uDCC1'}</span>
             {!collapsed && (
               <>
                 <span className="sidebar-item-label">{cat.label}</span>

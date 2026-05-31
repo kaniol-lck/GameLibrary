@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"GameLibrary/internal/logger"
 )
@@ -137,6 +138,7 @@ func migrateLegacyFields(raw map[string]json.RawMessage) bool {
 }
 
 func (c *Config) Save(exeDir string) error {
+	c.autoLabelPaths()
 	path := filepath.Join(exeDir, "config.json")
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -144,6 +146,33 @@ func (c *Config) Save(exeDir string) error {
 	}
 	logger.ConfigSaved(exeDir)
 	return os.WriteFile(path, data, 0644)
+}
+
+func (c *Config) autoLabelPaths() {
+	if c.GameDirectoryLabels == nil {
+		c.GameDirectoryLabels = map[string][]string{}
+	}
+	for _, dir := range c.GameDirectories {
+		lower := strings.ToLower(dir)
+		isSteam := strings.Contains(lower, "steamlibrary") ||
+			strings.Contains(lower, "steamapps") ||
+			strings.Contains(lower, "steam\\common")
+		if isSteam {
+			labels := c.GameDirectoryLabels[dir]
+			if !containsLabel(labels, "Steam") {
+				c.GameDirectoryLabels[dir] = append(labels, "Steam")
+			}
+		}
+	}
+}
+
+func containsLabel(labels []string, label string) bool {
+	for _, l := range labels {
+		if strings.EqualFold(l, label) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) SourceSettings(key string) map[string]string {

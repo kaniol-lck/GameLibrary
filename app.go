@@ -234,6 +234,10 @@ func (a *App) doScan(force bool) []scanner.ScanResult {
 func (a *App) autoScrapeNew(results []scanner.ScanResult) {
 	for _, r := range results {
 		if r.IsNew && r.GameInfo != nil && r.Error == "" {
+			if _, err := os.Stat(scraper.CoverPath(r.GameDir)); err == nil {
+				logger.Info("auto-scrape skipped (cover exists)", "gameId", r.GameInfo.ID)
+				continue
+			}
 			logger.Info("auto-scraping new game", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
 			a.ScrapeGame(r.GameInfo.ID)
 		}

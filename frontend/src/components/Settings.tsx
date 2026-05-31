@@ -59,6 +59,11 @@ export default function Settings() {
         setHost(h);
         const users = await GetSteamUsers();
         setSteamUsers(users || []);
+        if (users && users.length === 1 && !c.steamUserId) {
+          c.steamUserId = users[0].id;
+          setCfg(config.Config.createFrom({ ...c, steamUserId: users[0].id }));
+          try { await SetSteamUser(users[0].id); } catch {}
+        }
       } catch (err) {
         setError(String(err));
       }

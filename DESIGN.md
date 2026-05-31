@@ -95,57 +95,51 @@ GameLibrary 是一个跨机器、便携式的游戏库管理器。管理程序�
 ```
 GameLibrary/
 ├── main.go                     # Wails 入口 (package main)
-├── app.go                      # App 主体 + 类型别名
+├── app.go                      # App 主体 + 类型别名 + Steam 逻辑
+├── steam_windows.go            # Windows 注册表/Steam 路径检测
+├── steam_other.go              # 非 Windows 平台 Stub
 ├── internal/                   # 内部包 (不可外部导入)
 │   ├── config/
-│   │   ├── config.go           # 配置模型 + 读写 + 旧版迁移
+│   │   ├── config.go           # 配置模型 + 读写 + 旧版迁移 + 路径标签
 │   │   └── config_test.go
 │   ├── game/
-│   │   ├── gameinfo.go         # 游戏元数据模型 + JSON 持久化
+│   │   ├── gameinfo.go         # 游戏元数据模型 + JSON 持久化 + .gamemanager/
 │   │   └── gameinfo_test.go
 │   ├── scanner/
-│   │   ├── scanner.go          # 目录递归扫描 + exe 识别
+│   │   ├── scanner.go          # 目录递归扫描 + exe 识别 + ACF 解析
 │   │   └── scanner_test.go
 │   ├── scraper/
-│   │   ├── scraper.go          # 刮削流水线 + Source 接口
+│   │   ├── scraper.go          # 刮削流水线 + Source 接口 + ScrapeAll
 │   │   ├── steam.go            # Steam 刮削器
 │   │   ├── vndb.go             # VNDB 刮削器
 │   │   ├── dlsite.go           # DLsite 爬虫
 │   │   ├── bangumi.go          # Bangumi 刮削器
 │   │   ├── steamgriddb.go      # SteamGridDB 封面刮削器
-│   │   ├── cover.go            # 封面下载工具
+│   │   ├── rawg.go             # RAWG.io 刮削器
+│   │   ├── cover.go            # 封面下载工具（本地存在跳过）
 │   │   └── scraper_test.go
 │   └── logger/
-│       └── logger.go           # 结构化日志系统 (slog + 按天归档)
+│       └── logger.go           # 结构化日志系统 (slog + 按会话归档)
 ├── frontend/                   # React SPA
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── wailsjs/                # Wails 自动生成的 TS 绑定 (提交)
-│   │   ├── go/main/App.d.ts    # Go 方法声明
-│   │   ├── go/main/App.js      # Go 方法调用
-│   │   ├── go/models.ts        # Go 结构体的 TS 类
-│   │   └── runtime/            # Wails 运行时
 │   └── src/
-│       ├── App.tsx             # 主布局 (侧边栏 + 内容区)
-│       ├── App.css             # 全局样式
+│       ├── App.tsx             # 主布局 + 全局状态
+│       ├── App.css             # 全局样式（暗色主题）
 │       ├── main.tsx            # ReactDOM 入口
-│   └── components/
-│           ├── Sidebar.tsx      # 可折叠侧边栏导航
-│           ├── GameCard.tsx     # 游戏封面卡片（含星标/标签覆盖层）
-│           ├── GameDetail.tsx   # 游戏详情面板
-│           ├── ContextMenu.tsx  # 右键上下文菜单（星标/标签/浏览路径/元数据）
-│           └── Settings.tsx     # 设置页面
+│       ├── hooks/
+│       │   └── useScrape.ts    # 刮削状态管理 hook（单/批量+进度）
+│       └── components/
+│           ├── Sidebar.tsx      # 多层级侧边栏 + Show Unmatched 切换
+│           ├── GameCard.tsx     # 游戏封面卡片（星标/平台/标签/刮削角标）
+│           ├── GameDetail.tsx   # 居中弹窗详情面板（全操作）
+│           ├── ContextMenu.tsx  # 右键菜单 + 侧滑子菜单
+│           └── Settings.tsx     # 设置页面（路径标签+Steam用户）
 ├── testdata/                   # 测试用模拟游戏目录
-│   ├── simple_steam_game/
-│   ├── deep_exe_game/
-│   ├── multi_exe_game/
-│   ├── local_game/
-│   ├── visual_novel/
-│   ├── collection/
-│   ├── already_scanned/
-│   └── not_a_game/
 ├── DESIGN.md                   # 本文件
+├── CHANGELOG.md                # 变更日志
 ├── README.md                   # 用户文档
 ├── wails.json                  # Wails 项目配置
 ├── go.mod / go.sum
@@ -162,16 +156,27 @@ GameLibrary/
         → scanDir() 递归扫描
           → 发现 .exe → identifyGame()
             → 读 steam_appid.txt (向上3层)
-            → 创建 GameInfo → 写入 .gameinfo.json
+            → 无则读 Steam/appcache appmanifest_*.acf 解析 AppID + 名称
+            → 创建 GameInfo → 写入 .gamemanager/gameinfo.json
+    → copySteamGridCovers() 从 Steam 缓存复制封面
     → refreshGameCache()
-      → 遍历目录加载所有 .gameinfo.json
+      → 遍历目录加载所有 gameinfo.json
   ← 返回 ScanResult[]
+    → autoScrapeNew(results) 后台刮削新游戏
     → React setGames() → 渲染 GameCard 网格
+
+刮削流程:
+  → ScrapeGame(id) → Pipeline.ScrapeAll()
+    → 按 metadataSources 优先级遍历所有启用的源
+    → 每个源 Search(gameDir, platformID)
+    → 首选源全量 ApplyResult，其他源仅添加平台+别名
+    → DownloadCover: 本地存在则跳过，无则从 CDN 下载
+    → 保存 .gamemanager/gameinfo.json + SaveMeta(source)
 
 用户修改设置
   → Settings 组件编辑 config
   → SaveConfig(cfg) [Go]
-    → config.Save(exeDir) → 写 config.json
+    → config.Save(exeDir) → 写 config.json + autoLabelPaths
 ```
 
 ### 2.5 Wails IPC 绑定机制
@@ -206,39 +211,54 @@ type ScanResult = scanner.ScanResult // 实际在 internal/scanner/
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `machineId` | string | 自动生成，当前未使用（规划中用于锁文件） |
+| `machineId` | string | 自动生成 |
 | `gameDirectories` | []string | 相对路径的游戏目录列表 |
+| `gameDirectoryLabels` | map[string][]string | 路径→标签列表（多标签，Steam 路径自动添加） |
 | `maxScanDepth` | int | 扫描深度 (1-10) |
 | `language` | string | 刮削语言偏好 (zh-CN/en-US/ja-JP) |
-| `steamApiKey` | string | Steam API Key (规划中) |
+| `steamUserId` | string | 选中的 Steam 用户 ID（从 userdata/ 检测） |
 | `metadataSources` | []MetadataSource | 元数据源列表，顺序即优先级 |
 
 **MetadataSource:**
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `key` | string | 标识 (steam/vndb/dlsite/igdb) |
+| `key` | string | 标识 (steam/vndb/dlsite/rawg/bangumi/steamgriddb/igdb) |
 | `name` | string | 显示名称 |
 | `enabled` | bool | 是否启用 |
-
-**兼容性：** `Load()` 自动将旧版 `vndbEnabled`/`dlsiteEnabled` 字段迁移为 `metadataSources`。
+| `settings` | map[string]string | 源专属设置（API Key 等） |
 
 ### 3.2 GameInfo (`internal/game/`)
 
-每个游戏目录下的 `.gameinfo.json` 文件，记录：
+元数据存储在 `.gamemanager/` 隐藏文件夹中：
+
+```
+GameDir/
+  .gamemanager/
+    gameinfo.json       ← 核心游戏数据
+    meta/                ← 按平台分存储元数据
+      steam.json
+      dlsite.json
+    covers/              ← 封面文件
+      cover.jpg
+      cover_landscape.jpg
+```
 
 | 字段 | 说明 |
 |------|------|
 | `id` | 唯一标识 (steam_123456 或目录名) |
-| `title` | 游戏标题 (初始为目录名) |
-| `platform` | 来源平台 (steam/local/vndb/dlsite) |
-| `executables` | 可执行文件列表，含 Primary 标记 |
-| `savePaths` | 存档路径配置 (规划中) |
-| `metadata` | 刮削元数据 (封面/开发商/标签等) |
+| `title` | 游戏标题（扫描时从 ACF/目录名获取） |
+| `platforms` | []PlatformInfo 多平台关联（平台/ID/名称） |
+| `preferredSource` | 首选数据来源（可手动切换） |
+| `aliases` | 不同平台返回的名称变体 |
+| `executables` | 可执行文件列表，含 Primary 标记（可手动切换） |
+| `metadata` | 刮削元数据（封面/开发商/标签等） |
 | `starred` | 用户星标标记 |
 | `tags` | 用户自定义标签列表 |
-| `totalPlaytime` | 累计游玩时长 (规划中，需多端聚合) |
+| `totalPlaytime` | 累计游玩时长（规划中） |
 
-### 3.3 Scanner (`internal/scanner/`)
+**向后兼容**：旧 `.gameinfo.json` 和根目录封面自动迁移至新位置。
+
+### 3.3 Scanner + ACF 解析 (`internal/scanner/`)
 
 递归扫描逻辑：
 
@@ -253,11 +273,13 @@ scanDir(dir, depth):
   else → 递归进入子目录 (跳过 . 开头的隐藏目录)
 
 identifyGame(dir):
-  1. 检查 dir/.gameinfo.json → 已存在则返回 (IsNew=false)
-  2. 向上 3 层查找 steam_appid.txt → 解析 AppID
-  3. 列出 dir 中所有 .exe (过滤 unins*.exe)
-  4. pickPrimaryExec: game > launcher > start > main > app > 最短名
-  5. game.New() → game.Save() → 写入 .gameinfo.json
+  1. 检查 .gamemanager/gameinfo.json（非 force 模式跳过已有）
+  2. 向上 3 层查找 steam_appid.txt → 解析 AppID（BOM 自动去除）
+  3. 无则 readACFAppID: 向上找到 steamapps/appmanifest_*.acf
+     → 解析 appid+name+LastUpdated+SizeOnDisk
+  4. 列出 dir 中所有 .exe (过滤 unins* + UnityCrashHandler)
+  5. pickPrimaryExec: game > launcher > start > main > app > 最短名
+  6. game.New() → game.Save() → 写入 .gamemanager/gameinfo.json
 ```
 
 **游戏识别优先级：**
@@ -265,7 +287,29 @@ identifyGame(dir):
 2. 未来：文件名哈希 / VNDB 搜索 / DLsite RJ 号匹配
 3. 兜底：目录名作为 ID，platform=local
 
-### 3.4 Logger (`internal/logger/`)
+已移除 `local` 占位平台，无平台游戏归类为 Unmatched。
+
+### 3.4 Steam 集成 (`steam_windows.go`)
+
+**Steam 路径检测**：
+1. 读 Windows 注册表 `HKCU\Software\Valve\Steam\SteamPath`（`advapi32.dll`）
+2. 回落默认路径 `C:\Program Files (x86)\Steam` → `D:\Steam` → `E:\Steam`
+3. 非 Windows 平台 `getSteamPath()` 返回 ""
+
+**Steam 用户检测**：遍历 `userdata/<id>/` 目录，解析 `config/localconfig.vdf` 中 `PersonaName` 字段。单用户自动选中，多用户可下拉切换。
+
+**封面缓存复制**：
+```
+copySteamGridCovers(gameDir, appID):
+  → Steam/appcache/librarycache/<appID>/
+    → 顶层文件 + hash 子目录
+    → library_600x900_schinese > library_600x900 (竖版)
+    → header_schinese > header > library_header_schinese > library_header (横版)
+  → 复制到 .gamemanager/covers/
+  → 设置 Metadata.CoverURL
+```
+
+### 3.5 Logger (`internal/logger/`)
 
 结构化日志系统，基于 Go `log/slog` + 自定义 `dailyHandler`：
 
@@ -313,18 +357,26 @@ App
 ├── Sidebar
 │   ├── Brand (logo + title + collapse button)
 │   ├── Nav Items
-│   │   ├── "All Games" (count badge)
-│   │   ├── Divider + "Categories"
-│   │   └── Dynamic categories from game.type / game.tags
-│   └── Bottom (machine name + Settings link, fixed)
+│   │   ├── "All Games" (count badge, 不含 Unmatched)
+│   │   ├── "Starred"
+│   │   ├── ── Folders (路径标签) ──
+│   │   ├── ── Platforms ──
+│   │   │   ├── Steam (10), DLsite (3), ...
+│   │   │   └── Unmatched (未刮削游戏)
+│   │   ├── ── Genres ──
+│   │   └── ── My Tags ──
+│   └── Bottom
+│       ├── Machine Name
+│       ├── ☑ Show Unmatched (切换未匹配可见性)
+│       └── Settings
 └── Main Area
-    ├── Top Bar (machine badge + Scan button)
-    ├── Alert / Scan Summary
+    ├── Top Bar (machine badge + Scrape All/Force + Scan button + 进度条)
+    ├── Scan Summary
     └── Content
-        ├── Content Header (title + count)
-        ├── Game Grid (filtered by selected category)
-        │   └── GameCard × N
-        └── Settings (when selectedNav === 'settings')
+        ├── Game Grid → GameCard × N (45% 暗化刮削中)
+        │   └── 右键 → ContextMenu（侧滑子菜单: Open Web Page / Preferred Source / Default Exe）
+        ├── Settings
+        └── GameDetail (居中 540px 弹窗，全操作同步右键菜单)
 ```
 
 ### 4.2 页面
@@ -343,32 +395,27 @@ App
 4. **Metadata Sources** — 可排序列表，toggle 开关，▲▼ 排序
 5. **About** — 展示自动获取的机器名
 
-### 4.4 标签系统 (Phase 2 — 标签)
+### 4.4 标签系统 + 右键菜单 + 刮削模块
 
-三级标签架构，各标签类型对应侧边栏不同区块筛选：
+**四级标签架构**，各标签类型对应侧边栏不同区块筛选：
 
 | 层级 | 来源 | 存储字段 | 卡片样式 | 侧边栏 |
 |------|------|---------|---------|--------|
-| 平台标签 | `platform` 字段（自动） | `GameInfo.Platform` | 左上角角标（Steam=蓝/DLsite=粉/Local=灰） | Platforms 区块 |
+| 文件夹标签 | 设置页配置（Steam路径自动检测） | `Config.GameDirectoryLabels` | — | Folders 区块 |
+| 平台标签 | `platforms` 字段（刮削自动） | `GameInfo.Platforms[]` | 右上角竖排标签（主不透明/附半透明） | Platforms 区块 |
 | 分类标签 | 刮削器返回的 genres/tags | `Metadata.Tags` | 左下角紫色 overlay | Genres 区块 |
-| 用户标签 | 右键菜单手动添加 | `GameInfo.Tags` | 下中黄色 overlay，`#` 前缀 | My Tags 区块 |
+| 用户标签 | 右键菜单手动添加 | `GameInfo.Tags` | 右下角黄色 overlay | My Tags 区块 |
 
-```
-侧边栏层次:
-├── All Games
-├── Starred
-├── ── Platforms ──
-│   ├── Steam (10)
-│   ├── DLsite (3)
-│   └── Local (2)
-├── ── Genres ──
-│   ├── Action (5)
-│   ├── RPG (3)
-│   └── ...
-├── ── My Tags ──
-│   └── #favorites (2)
-└── Settings
-```
+**右键菜单侧滑子菜单**（系统级体验）：hover 父项右侧滑出，200ms 延迟关闭，边界自动翻转。Launch、Star、Re-scrape、Open Web Page ▸、Preferred Source ▸、Default Exe ▸、Tags、Open Folder、Metadata。
+
+**刮削状态管理** (`src/hooks/useScrape.ts`)：统一的刮削状态 hook，`scrapeSingle`/`scrapeBatch` 管理 `scrapingIds`/`scrapedOkIds`/`scrapedErrIds`/进度条。详情面板和右键菜单共用同一 hook。
+
+**刮削流程增强**：
+- `ScrapeAll` 遍历所有启用的源收集结果（一游戏多平台）
+- Steam 刮削器跳过 RJ 码目录名
+- 首选源全量 `ApplyResult`，其他源仅添加平台+别名
+- 封面下载前检查本地文件存在即跳过
+- 扫描后自动刮削（`autoScrapeNew`），跳过已有封面游戏
 
 ---
 

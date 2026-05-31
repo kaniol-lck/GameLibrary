@@ -90,7 +90,7 @@ func (q *Queue) Submit(task *Task) {
 	q.mu.Unlock()
 
 	if q.callback != nil {
-		q.callback(len(q.tasks), total, nil)
+		q.callback(total, total, nil)
 	}
 
 	select {
@@ -136,9 +136,19 @@ func (q *Queue) processNext() {
 		q.mu.Unlock()
 		return
 	}
-	task := q.tasks[0]
-	q.tasks = q.tasks[1:]
-	task.Status = StatusRunning
+
+	var task *Task
+	for _, t := range q.tasks {
+		if t.Status == StatusPending {
+			t.Status = StatusRunning
+			task = t
+			break
+		}
+	}
+	if task == nil {
+		q.mu.Unlock()
+		return
+	}
 	total := len(q.tasks)
 	q.mu.Unlock()
 
@@ -159,8 +169,17 @@ func (q *Queue) processNext() {
 	}
 
 	if q.callback != nil {
-		q.callback(0, total+1, task)
+		q.callback(0, total, task)
 	}
+
+	q.mu.Lock()
+	for i, t := range q.tasks {
+		if t == task {
+			q.tasks = append(q.tasks[:i], q.tasks[i+1:]...)
+			break
+		}
+	}
+	q.mu.Unlock()
 
 	select {
 	case q.notEmpty <- struct{}{}:

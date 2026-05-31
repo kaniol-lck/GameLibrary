@@ -1,6 +1,6 @@
 # GameLibrary — 设计文档
 
-> AI-assisted project. Current version: **0.6.3-alpha** | Last updated: 2026-05-31
+> AI-assisted project. Current version: **0.7.5** | Last updated: 2026-06-01
 
 ## 版本路线图
 
@@ -31,6 +31,11 @@
 | 0.6.2-alpha | Phase 2 — Steam 集成 | 注册表检测、Steam 用户、缓存优先 | ✅ |
 | 0.6.3-alpha | Phase 2 — 筛选完善 | 未匹配显示切换、文档补全 | ✅ |
 | 0.7.0-alpha | Phase 2 — 队列+监听 | 任务队列、文件监听、实时推送、队列控制 | ✅ |
+| 0.7.1-alpha | Phase 2 — 修复 | 过滤工具 exe（crashreport 等） | ✅ |
+| 0.7.2-alpha | Phase 2 — 联动 | SaveConfig 触发监听重启+自动扫描新路径 | ✅ |
+| 0.7.3-alpha | Phase 2 — UI | 队列移至侧边栏，移除顶栏刮削按钮 | ✅ |
+| 0.7.4-alpha | Phase 2 — 修复 | 队列 Status() 计算修正 | ✅ |
+| 0.7.5       | Phase 2 — 完善 | 队列详情面板、pending 列表、卡片 spinner、滚动条样式 | ✅ |
 | 0.8.0-alpha | Phase 3 — 启动 | 锁机制、心跳检测、运行状态 | 📋 |
 | 0.9.0-alpha | Phase 4 — 时长 | 进程监控、多端时长聚合、统计 | 📋 |
 | 0.9.0-beta  | 测试完善 | 全功能测试、Bug 修复、文档 | 📋 |

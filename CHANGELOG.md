@@ -1,5 +1,63 @@
 # Changelog
 
+## v0.7.5 (2026-06-01)
+
+### Added
+
+- 队列弹出框显示 pending 任务列表，可滚动查看待处理游戏名
+  *Pending task list in queue popup with scrollable game names*
+- `queue:status` 事件新增 `currentGameId`，前端跟踪队列刮削的游戏卡片 spinner
+  *currentGameId in queue:status so frontend shows scraping spinner on auto-scraped cards*
+- 自定义滚动条样式：8px 宽，hover 时通过 border 技巧变粗不挤压内容
+  *Custom scrollbar: 8px width, expands on hover without layout shift*
+
+### Fixed
+
+- 队列任务提交时携带 `Title`，修复 "Scraping: ..." 显示问题
+  *Task Title set at submission time so queue shows correct game name*
+- `App.css` 意外覆盖导致样式丢失/侧边栏布局失效
+  *CSS accidental overwrite causing sidebar layout break*
+- 自动刮削任务不显示卡片进度动画（手动/队列刮削状态分离跟踪）
+  *Auto-scrape tasks now show card-level scraping spinner*
+
+---
+
+## v0.7.4-alpha (2026-05-31)
+
+### Fixed
+
+- 队列 `Status()` 计算：任务处理期间保留在 slice 中，统计更准确
+  *Keep tasks in slice during processing for accurate Status counts*
+
+---
+
+## v0.7.3-alpha (2026-05-31)
+
+### Changed
+
+- 队列指示器从顶栏移至侧边栏底部，移除了顶栏刮削按钮
+  *Moved queue indicator from top bar to sidebar bottom; removed top bar scrape buttons*
+
+---
+
+## v0.7.2-alpha (2026-05-31)
+
+### Added
+
+- `SaveConfig` 自动重启文件监听器并扫描新增路径
+  *SaveConfig auto-restarts watcher and scans newly added paths*
+
+---
+
+## v0.7.1-alpha (2026-05-31)
+
+### Fixed
+
+- 过滤非游戏 exe（crashreport, bugreport, patch, redist 等工具程序）
+  *Filter out utility exes (crashreport, patch, redist, etc.) from game list*
+
+---
+
 ## v0.7.0-alpha (2026-05-31)
 
 ### Added

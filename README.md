@@ -1,6 +1,6 @@
 # GameLibrary
 
-[![Version](https://img.shields.io/badge/version-0.6.3--alpha-blue)](https://github.com/kaniol-lck/GameLibrary/releases)
+[![Version](https://img.shields.io/badge/version-0.7.5-blue)](https://github.com/kaniol-lck/GameLibrary/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/kaniol-lck/GameLibrary/release.yml)](https://github.com/kaniol-lck/GameLibrary/actions)
 [![Downloads](https://img.shields.io/github/downloads/kaniol-lck/GameLibrary/total?color=brightgreen)](https://github.com/kaniol-lck/GameLibrary/releases)
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://go.dev/)

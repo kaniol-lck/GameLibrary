@@ -22,7 +22,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var version = "0.7.5-alpha"
+var version = "0.7.5"
 
 type Config = config.Config
 type GameInfo = game.GameInfo

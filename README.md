@@ -1,14 +1,14 @@
 # GameLibrary
 
-[![Version](https://img.shields.io/badge/version-0.2.1--alpha-blue)](https://github.com/kaniol-lck/GameLibrary/releases)
+[![Version](https://img.shields.io/badge/version-0.6.3--alpha-blue)](https://github.com/kaniol-lck/GameLibrary/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/kaniol-lck/GameLibrary/release.yml)](https://github.com/kaniol-lck/GameLibrary/actions)
+[![Downloads](https://img.shields.io/github/downloads/kaniol-lck/GameLibrary/total?color=brightgreen)](https://github.com/kaniol-lck/GameLibrary/releases)
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v2-DF0000?logo=wails)](https://wails.io/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/kaniol-lck/GameLibrary/releases)
-[![AI](https://img.shields.io/badge/AI-generated_by-opencode-8A2BE2)](https://github.com/anomalyco/opencode)
+[![AI](https://img.shields.io/badge/AI-assisted-opencode-8A2BE2)](https://github.com/anomalyco/opencode)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/kaniol-lck/GameLibrary/pulls)
 
 > This project is generated with AI assistance (opencode).
 

@@ -593,6 +593,9 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 	portraitNames := []string{"library_600x900_schinese", "library_600x900"}
 	landscapeNames := []string{"header_schinese", "header", "library_header_schinese", "library_header"}
 
+	gotPortrait := false
+	gotLandscape := false
+
 	copyCover := func(names []string, destName string) bool {
 		for _, ext := range []string{".jpg", ".png"} {
 			if _, err := os.Stat(filepath.Join(coversDir, destName+ext)); err == nil {
@@ -615,8 +618,42 @@ func (a *App) copySteamGridCovers(gameDir string, steamAppID string) {
 		return false
 	}
 
-	copyCover(portraitNames, "cover")
-	copyCover(landscapeNames, "cover_landscape")
+	gotPortrait = copyCover(portraitNames, "cover")
+	gotLandscape = copyCover(landscapeNames, "cover_landscape")
+
+	if a.games != nil {
+		if info, ok := a.games[steamAppID]; ok && info != nil {
+			saved := false
+			if gotPortrait && (info.Metadata == nil || info.Metadata.CoverURL == "") {
+				if info.Metadata == nil { info.Metadata = &game.Metadata{} }
+				info.Metadata.CoverURL = "cover"
+				saved = true
+			}
+			if gotLandscape && (info.Metadata == nil || info.Metadata.CoverLandscape == "") {
+				if info.Metadata == nil { info.Metadata = &game.Metadata{} }
+				info.Metadata.CoverLandscape = "cover_landscape"
+				saved = true
+			}
+			if saved {
+				info.Save()
+			}
+		} else if info, ok := a.games["steam_"+steamAppID]; ok && info != nil {
+			saved := false
+			if gotPortrait && (info.Metadata == nil || info.Metadata.CoverURL == "") {
+				if info.Metadata == nil { info.Metadata = &game.Metadata{} }
+				info.Metadata.CoverURL = "cover"
+				saved = true
+			}
+			if gotLandscape && (info.Metadata == nil || info.Metadata.CoverLandscape == "") {
+				if info.Metadata == nil { info.Metadata = &game.Metadata{} }
+				info.Metadata.CoverLandscape = "cover_landscape"
+				saved = true
+			}
+			if saved {
+				info.Save()
+			}
+		}
+	}
 }
 
 func (a *App) GetSteamUsers() []SteamUserInfo {

@@ -327,8 +327,12 @@ func (a *App) autoScrapeNew(results []scanner.ScanResult) {
 				logger.Info("auto-scrape skipped (cover exists)", "gameId", r.GameInfo.ID)
 				continue
 			}
-			logger.Info("auto-scrape queued", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
-			a.queue.Submit(&taskqueue.Task{Type: taskqueue.TaskScrape, GameID: r.GameInfo.ID})
+		logger.Info("auto-scrape queued", "gameId", r.GameInfo.ID, "title", r.GameInfo.Title)
+		a.queue.Submit(&taskqueue.Task{
+			Type:  taskqueue.TaskScrape,
+			GameID: r.GameInfo.ID,
+			Title:  r.GameInfo.Title,
+		})
 		}
 	}
 }

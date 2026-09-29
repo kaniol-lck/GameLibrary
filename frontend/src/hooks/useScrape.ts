@@ -1,141 +1,146 @@
-import { useState, useCallback } from 'react';
-import { ScrapeGame, GetGameList } from '../../wailsjs/go/main/App';
-import { game } from '../../wailsjs/go/models';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, type ScrapeReport } from "../api/client";
+import { errorMessage } from "../lib/format";
 
-const SCRAPE_PARALLEL = 3;
+/** How long a success/failure marker stays on a card. */
+const MARKER_TIMEOUT_MS = 4000;
 
 export interface UseScrapeReturn {
-  scrapingIds: Set<string>;
-  scrapedOkIds: Set<string>;
-  scrapedErrIds: Set<string>;
-  scrapeDone: number;
-  scrapeTotal: number;
+  /** Games with a scrape currently in flight. */
+  scrapingIds: ReadonlySet<string>;
+  /** Games whose last scrape succeeded, briefly. */
+  scrapedOkIds: ReadonlySet<string>;
+  /** Games whose last scrape failed, briefly. */
+  scrapedErrIds: ReadonlySet<string>;
   isScraping: boolean;
-  pct: number;
-  scrapeSingle: (id: string) => Promise<void>;
-  scrapeBatch: (targets: game.GameInfo[], force?: boolean) => Promise<void>;
-  clearScrapeState: () => void;
+  /** Message from the most recent failure, for the UI to surface. */
+  lastError: string;
+  clearError: () => void;
+  /** Scrapes one game and returns its report, or null when the call failed. */
+  scrapeSingle: (id: string) => Promise<ScrapeReport | null>;
+  /** Queues a batch scrape on the backend; returns how many tasks were accepted. */
+  queueAll: (force: boolean) => Promise<number>;
 }
 
-export function useScrape(
-  setGames: React.Dispatch<React.SetStateAction<game.GameInfo[]>>,
-  onScraped?: () => void,
-): UseScrapeReturn {
-  const [scrapingIds, setScrapingIds] = useState<Set<string>>(new Set());
-  const [scrapedOkIds, setScrapedOkIds] = useState<Set<string>>(new Set());
-  const [scrapedErrIds, setScrapedErrIds] = useState<Set<string>>(new Set());
-  const [scrapeDone, setScrapeDone] = useState(0);
-  const [scrapeTotal, setScrapeTotal] = useState(0);
+/**
+ * Scrape state.
+ *
+ * Batch scraping no longer runs in the browser. It used to spin up three worker
+ * promises that each called `ScrapeGame` and then re-fetched the entire library
+ * **inside the worker loop** — N games meant N full `GetGameList` round trips and N
+ * full re-renders, on top of a per-card cover fetch for every card. The backend
+ * queue already serialises the work and reports progress through events, so the UI
+ * now just asks for the batch and listens.
+ */
+export function useScrape(onLibraryChanged: () => void): UseScrapeReturn {
+  const [scrapingIds, setScrapingIds] = useState<Set<string>>(() => new Set());
+  const [scrapedOkIds, setScrapedOkIds] = useState<Set<string>>(() => new Set());
+  const [scrapedErrIds, setScrapedErrIds] = useState<Set<string>>(() => new Set());
+  const [lastError, setLastError] = useState("");
 
-  const loadGames = useCallback(async () => {
-    try {
-      const list = await GetGameList();
-      setGames(list || []);
-    } catch { /* ignore */ }
-  }, [setGames]);
-
-  const scrapeSingle = useCallback(async (id: string) => {
-    setScrapingIds((prev) => new Set(prev).add(id));
-    setScrapeTotal(1);
-    setScrapeDone(0);
-    setScrapedOkIds(new Set());
-    setScrapedErrIds(new Set());
-
-    let ok = false;
-    try {
-      const r = await ScrapeGame(id);
-      ok = !r.error;
-    } catch { /* ignore */ }
-
-    setScrapedOkIds(ok ? new Set([id]) : new Set());
-    setScrapedErrIds(ok ? new Set() : new Set([id]));
-    setScrapeDone(1);
-    setScrapingIds(new Set());
-
-    await loadGames();
-    if (onScraped) onScraped();
-
-    setTimeout(() => {
-      setScrapedOkIds(new Set());
-      setScrapedErrIds(new Set());
-      setScrapeTotal(0);
-      setScrapeDone(0);
-    }, 4000);
-  }, [loadGames]);
-
-  const scrapeBatch = useCallback(async (targets: game.GameInfo[]) => {
-    setScrapeDone(0);
-    setScrapeTotal(targets.length);
-    setScrapedOkIds(new Set());
-    setScrapedErrIds(new Set());
-
-    let idx = 0;
-    let done = 0;
-    const active = new Set<string>();
-    const ok = new Set<string>();
-    const err = new Set<string>();
-
-    const report = () => {
-      setScrapingIds(new Set(active));
-      setScrapeDone(done);
-      setScrapedOkIds(new Set(ok));
-      setScrapedErrIds(new Set(err));
-    };
-
-    const worker = async () => {
-      while (idx < targets.length) {
-        const i = idx++;
-        const g = targets[i];
-        active.add(g.id);
-        report();
-        let success = false;
-        try {
-          const r = await ScrapeGame(g.id);
-          success = !r.error;
-        } catch { /* continue */ }
-        active.delete(g.id);
-        if (success) { ok.add(g.id); } else { err.add(g.id); }
-        done++;
-        report();
-        await loadGames();
+  // Marker timers are tracked so they can be cancelled on unmount; previously
+  // they were fire-and-forget and wrote state after the component was gone.
+  const timers = useRef<number[]>([]);
+  useEffect(
+    () => () => {
+      for (const timer of timers.current) {
+        window.clearTimeout(timer);
       }
-    };
+      timers.current = [];
+    },
+    [],
+  );
 
-    const workers = Array.from(
-      { length: Math.min(SCRAPE_PARALLEL, targets.length) },
-      () => worker()
-    );
-    await Promise.all(workers);
+  const mark = useCallback((id: string, ok: boolean) => {
+    setScrapedOkIds((prev) => {
+      const next = new Set(prev);
+      if (ok) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+    setScrapedErrIds((prev) => {
+      const next = new Set(prev);
+      if (ok) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
 
-    await loadGames();
-    if (onScraped) onScraped();
-    setScrapingIds(new Set());
-    setScrapeDone(0);
-    setScrapeTotal(0);
-    setTimeout(() => { setScrapedOkIds(new Set()); setScrapedErrIds(new Set()); }, 4000);
-  }, [loadGames]);
-
-  const clearScrapeState = useCallback(() => {
-    setScrapingIds(new Set());
-    setScrapedOkIds(new Set());
-    setScrapedErrIds(new Set());
-    setScrapeDone(0);
-    setScrapeTotal(0);
+    const timer = window.setTimeout(() => {
+      setScrapedOkIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setScrapedErrIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, MARKER_TIMEOUT_MS);
+    timers.current.push(timer);
   }, []);
 
-  const isScraping = scrapingIds.size > 0;
-  const pct = scrapeTotal > 0 ? Math.round((scrapeDone / scrapeTotal) * 100) : 0;
+  const clearError = useCallback(() => setLastError(""), []);
+
+  const scrapeSingle = useCallback(
+    async (id: string): Promise<ScrapeReport | null> => {
+      // Additive: scraping one game must not clear the markers or the spinner of
+      // a batch that is already running, which is what the old implementation did.
+      setScrapingIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setLastError("");
+
+      try {
+        const report = await api.scrapeGame(id);
+        const ok = !report.error;
+        if (!ok) {
+          setLastError(report.error ?? "scrape failed");
+        }
+        mark(id, ok);
+        onLibraryChanged();
+        return report;
+      } catch (err) {
+        setLastError(errorMessage(err));
+        mark(id, false);
+        return null;
+      } finally {
+        setScrapingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [mark, onLibraryChanged],
+  );
+
+  const queueAll = useCallback(async (force: boolean): Promise<number> => {
+    setLastError("");
+    try {
+      return await api.queueScrapeAll(force);
+    } catch (err) {
+      setLastError(errorMessage(err));
+      return 0;
+    }
+  }, []);
 
   return {
     scrapingIds,
     scrapedOkIds,
     scrapedErrIds,
-    scrapeDone,
-    scrapeTotal,
-    isScraping,
-    pct,
+    isScraping: scrapingIds.size > 0,
+    lastError,
+    clearError,
     scrapeSingle,
-    scrapeBatch,
-    clearScrapeState,
+    queueAll,
   };
 }

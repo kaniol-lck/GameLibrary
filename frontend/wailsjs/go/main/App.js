@@ -6,6 +6,10 @@ export function AddGameTag(arg1, arg2) {
   return window['go']['main']['App']['AddGameTag'](arg1, arg2);
 }
 
+export function CommonPaths() {
+  return window['go']['main']['App']['CommonPaths']();
+}
+
 export function ForceScanGames() {
   return window['go']['main']['App']['ForceScanGames']();
 }
@@ -22,16 +26,12 @@ export function GetGame(arg1) {
   return window['go']['main']['App']['GetGame'](arg1);
 }
 
-export function GetGameCover(arg1) {
-  return window['go']['main']['App']['GetGameCover'](arg1);
-}
-
-export function GetGameCoverLandscape(arg1) {
-  return window['go']['main']['App']['GetGameCoverLandscape'](arg1);
-}
-
 export function GetGameList() {
   return window['go']['main']['App']['GetGameList']();
+}
+
+export function GetGamePathLabels() {
+  return window['go']['main']['App']['GetGamePathLabels']();
 }
 
 export function GetMachineName() {
@@ -40,6 +40,10 @@ export function GetMachineName() {
 
 export function GetQueueInfo() {
   return window['go']['main']['App']['GetQueueInfo']();
+}
+
+export function GetSteamPath() {
+  return window['go']['main']['App']['GetSteamPath']();
 }
 
 export function GetSteamUsers() {
@@ -78,8 +82,20 @@ export function QueuePause() {
   return window['go']['main']['App']['QueuePause']();
 }
 
+export function QueueResetProgress() {
+  return window['go']['main']['App']['QueueResetProgress']();
+}
+
 export function QueueResume() {
   return window['go']['main']['App']['QueueResume']();
+}
+
+export function QueueScrapeAll(arg1) {
+  return window['go']['main']['App']['QueueScrapeAll'](arg1);
+}
+
+export function QueueSetConcurrency(arg1) {
+  return window['go']['main']['App']['QueueSetConcurrency'](arg1);
 }
 
 export function RemoveGameTag(arg1, arg2) {
@@ -92,10 +108,6 @@ export function SaveConfig(arg1) {
 
 export function ScanGames() {
   return window['go']['main']['App']['ScanGames']();
-}
-
-export function ScrapeAllGames() {
-  return window['go']['main']['App']['ScrapeAllGames']();
 }
 
 export function ScrapeGame(arg1) {
@@ -114,14 +126,6 @@ export function SetSteamUser(arg1) {
   return window['go']['main']['App']['SetSteamUser'](arg1);
 }
 
-export function StopWatcher() {
-  return window['go']['main']['App']['StopWatcher']();
-}
-
 export function ToggleGameStar(arg1) {
   return window['go']['main']['App']['ToggleGameStar'](arg1);
-}
-
-export function UpdateGameInfo(arg1) {
-  return window['go']['main']['App']['UpdateGameInfo'](arg1);
 }

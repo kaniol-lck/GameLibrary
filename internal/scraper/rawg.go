@@ -1,133 +1,142 @@
 package scraper
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
-	"html"
-	"io"
-	"net/http"
 	"net/url"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
+// rawgSearchURL is the RAWG.io game search endpoint.
+const rawgSearchURL = "https://api.rawg.io/api/games"
+
+// rawgMinInterval keeps well inside the free tier's request budget.
+const rawgMinInterval = 1200 * time.Millisecond
+
+// RawgScraper resolves games through RAWG.io, which covers western releases well
+// and provides large landscape artwork.
 type RawgScraper struct {
-	client *http.Client
-	apiKey string
+	http     *HTTPClient
+	apiKey   string
+	endpoint string
 }
 
+// NewRawgScraper creates the provider.
 func NewRawgScraper() *RawgScraper {
-	return &RawgScraper{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &RawgScraper{endpoint: rawgSearchURL}
 }
 
+// Key implements Source.
 func (s *RawgScraper) Key() string { return "rawg" }
 
-func (s *RawgScraper) Configure(lang string, settings map[string]string) {
-	_ = lang
-	if settings != nil {
-		if key, ok := settings["apiKey"]; ok {
-			s.apiKey = key
-		}
+// Configure implements Source.
+func (s *RawgScraper) Configure(cfg SourceConfig) error {
+	s.http = cfg.HTTP
+	s.apiKey = strings.TrimSpace(cfg.APIKey)
+	if s.http != nil {
+		s.http.LimitHost("api.rawg.io", rawgMinInterval)
 	}
+	return nil
 }
 
-func (s *RawgScraper) Search(gameDir string, appID string) (*Result, error) {
-	_ = appID
-	name := filepath.Base(gameDir)
-	name = normalizeSearchName(name)
+// Search implements Source.
+func (s *RawgScraper) Search(ctx context.Context, q Query) (*Result, error) {
+	if s.apiKey == "" {
+		// Without a key the API answers 401 and the body parses as "zero
+		// results", which used to be reported as a data miss. Report the real
+		// problem instead.
+		return nil, &APIError{Source: "rawg", Kind: KindAuth, Message: "API key required"}
+	}
 
-	searchTerms := nameVariations(name)
-	for _, term := range searchTerms {
-		r, err := s.search(term)
-		if err == nil && r != nil {
-			return r, nil
+	var lastErr error
+	for _, term := range SearchTerms(q.Name) {
+		result, err := s.search(ctx, term)
+		if err == nil && result != nil {
+			return result, nil
+		}
+		if err != nil && !IsNoResult(err) {
+			lastErr = err
+			break
 		}
 	}
-	return nil, fmt.Errorf("rawg: no results for '%s'", name)
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, NoResult("rawg", q.Name)
 }
 
-func (s *RawgScraper) search(name string) (*Result, error) {
-	query := url.QueryEscape(name)
-	apiURL := fmt.Sprintf("https://api.rawg.io/api/games?search=%s&key=%s&page_size=1", query, s.apiKey)
+type rawgName struct {
+	Name string `json:"name"`
+}
 
-	resp, err := s.client.Get(apiURL)
+func (s *RawgScraper) search(ctx context.Context, term string) (*Result, error) {
+	params := url.Values{}
+	params.Set("search", term)
+	params.Set("key", s.apiKey)
+	params.Set("page_size", "1")
+	params.Set("search_precise", "true")
+	requestURL := s.endpoint + "?" + params.Encode()
+
+	resp, err := s.http.Do(ctx, "rawg", Request{URL: requestURL, MaxBytes: 1 << 20})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-
-	var searchResp struct {
+	var payload struct {
 		Results []struct {
-			ID             int    `json:"id"`
-			Name           string `json:"name"`
-			Slug           string `json:"slug"`
-			Released       string `json:"released"`
-			Description    string `json:"description_raw"`
-			Metacritic     int    `json:"metacritic"`
-			BackgroundImg  string `json:"background_image"`
-			Genres         []struct{ Name string } `json:"genres"`
-			Platforms      []struct {
-				Platform struct{ Name string } `json:"platform"`
-			} `json:"platforms"`
-			Developers []struct{ Name string } `json:"developers"`
-			Publishers []struct{ Name string } `json:"publishers"`
-			Tags       []struct{ Name string } `json:"tags"`
-			Website    string `json:"website"`
+			ID            int        `json:"id"`
+			Name          string     `json:"name"`
+			Slug          string     `json:"slug"`
+			Released      string     `json:"released"`
+			Description   string     `json:"description_raw"`
+			BackgroundImg string     `json:"background_image"`
+			Website       string     `json:"website"`
+			Genres        []rawgName `json:"genres"`
+			Tags          []rawgName `json:"tags"`
+			Developers    []rawgName `json:"developers"`
+			Publishers    []rawgName `json:"publishers"`
 		} `json:"results"`
 	}
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		return nil, err
+	if err := json.Unmarshal(resp.Body, &payload); err != nil {
+		return nil, &APIError{Source: "rawg", Kind: KindParse, URL: requestURL, Message: "unexpected search payload", Err: err}
+	}
+	if len(payload.Results) == 0 {
+		return nil, NoResult("rawg", term)
 	}
 
-	if len(searchResp.Results) == 0 {
-		return nil, fmt.Errorf("rawg: no results for '%s'", name)
+	item := payload.Results[0]
+	if strings.TrimSpace(item.Name) == "" {
+		return nil, NoResult("rawg", term)
 	}
 
-	item := searchResp.Results[0]
-
-	desc := item.Description
-	if len(desc) > 500 {
-		desc = desc[:500] + "..."
+	tags := make([]string, 0, len(item.Genres)+len(item.Tags))
+	for _, list := range [][]rawgName{item.Genres, item.Tags} {
+		for _, entry := range list {
+			if entry.Name != "" {
+				tags = append(tags, entry.Name)
+			}
+		}
 	}
 
-	tags := make([]string, 0)
-	for _, g := range item.Genres {
-		tags = append(tags, g.Name)
+	links := map[string]string{}
+	if item.Slug != "" {
+		links["rawg"] = "https://rawg.io/games/" + item.Slug
 	}
-	for _, t := range item.Tags {
-		tags = append(tags, t.Name)
+	if item.Website != "" {
+		links["website"] = item.Website
 	}
-
-	platforms := make([]string, len(item.Platforms))
-	for i, p := range item.Platforms {
-		platforms[i] = p.Platform.Name
-	}
-
-	dev := ""
-	pub := ""
-	if len(item.Developers) > 0 {
-		dev = item.Developers[0].Name
-	}
-	if len(item.Publishers) > 0 {
-		pub = item.Publishers[0].Name
-	}
-
-	links := map[string]string{
-		"rawg":    fmt.Sprintf("https://rawg.io/games/%s", item.Slug),
-		"website": item.Website,
+	if item.ID != 0 {
+		links[PlatformIDKey] = strconv.Itoa(item.ID)
 	}
 
 	return &Result{
-		Title:             html.UnescapeString(item.Name),
-		Description:       html.UnescapeString(desc),
-		Developer:         dev,
-		Publisher:         pub,
-		ReleaseDate:       item.Released,
+		Title:             Unescape(item.Name),
+		Description:       PrepareDescription(item.Description),
+		Developer:         firstRawgName(item.Developers),
+		Publisher:         firstRawgName(item.Publishers),
+		ReleaseDate:       CleanText(item.Released),
 		Tags:              tags,
 		CoverURL:          item.BackgroundImg,
 		CoverLandscapeURL: item.BackgroundImg,
@@ -135,61 +144,9 @@ func (s *RawgScraper) search(name string) (*Result, error) {
 	}, nil
 }
 
-func normalizeSearchName(name string) string {
-	name = strings.TrimSpace(name)
-
-	prefixes := []string{"steam_", "RJ", "rj"}
-	for _, p := range prefixes {
-		if strings.HasPrefix(name, p) {
-			return name
-		}
+func firstRawgName(items []rawgName) string {
+	if len(items) == 0 {
+		return ""
 	}
-
-	return name
+	return strings.TrimSpace(items[0].Name)
 }
-
-func nameVariations(name string) []string {
-	vars := []string{name}
-	seen := map[string]bool{name: true}
-
-	spaced := splitCamelCase(name)
-	if !seen[spaced] {
-		vars = append(vars, spaced)
-		seen[spaced] = true
-	}
-
-	noDash := strings.ReplaceAll(name, "-", " ")
-	if !seen[noDash] {
-		vars = append(vars, noDash)
-		seen[noDash] = true
-	}
-
-	noUnderscore := strings.ReplaceAll(name, "_", " ")
-	if !seen[noUnderscore] {
-		vars = append(vars, noUnderscore)
-		seen[noUnderscore] = true
-	}
-
-	noDashNoUC := strings.ReplaceAll(spaced, "-", " ")
-	if !seen[noDashNoUC] {
-		vars = append(vars, noDashNoUC)
-		seen[noDashNoUC] = true
-	}
-
-	return vars
-}
-
-func splitCamelCase(s string) string {
-	var result strings.Builder
-	runes := []rune(s)
-	for i, r := range runes {
-		if i > 0 && isUpper(r) && isLower(runes[i-1]) {
-			result.WriteRune(' ')
-		}
-		result.WriteRune(r)
-	}
-	return result.String()
-}
-
-func isUpper(r rune) bool { return r >= 'A' && r <= 'Z' }
-func isLower(r rune) bool { return r >= 'a' && r <= 'z' }

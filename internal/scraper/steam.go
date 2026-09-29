@@ -1,90 +1,106 @@
 package scraper
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"html"
-	"io"
-	"net/http"
 	"net/url"
-	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
-
-	"GameLibrary/internal/logger"
 )
 
+// SteamScraper resolves metadata through the public Steam storefront API.
+//
+// When the app ID is known the lookup is exact; otherwise the store search is
+// used, which means a title match is a guess and the caller should treat a
+// confusing result as a search quality problem rather than a bug.
 type SteamScraper struct {
-	client   *http.Client
-	language string
-	apiKey   string
+	http   *HTTPClient
+	lang   Lang
+	apiKey string
+
+	appDetailsURL  string
+	storeSearchURL string
 }
 
+// NewSteamScraper creates the provider. apiKey is accepted for parity with the
+// other providers but the public storefront endpoints used here need none.
 func NewSteamScraper() *SteamScraper {
 	return &SteamScraper{
-		client:   &http.Client{Timeout: 15 * time.Second},
-		language: "en-US",
+		lang:           LangEnglish,
+		appDetailsURL:  "https://store.steampowered.com/api/appdetails",
+		storeSearchURL: "https://store.steampowered.com/api/storesearch/",
 	}
 }
 
+// Key implements Source.
 func (s *SteamScraper) Key() string { return "steam" }
 
-func (s *SteamScraper) Configure(lang string, settings map[string]string) {
-	if lang != "" {
-		s.language = lang
+// Configure implements Source.
+func (s *SteamScraper) Configure(cfg SourceConfig) error {
+	s.http = cfg.HTTP
+	if cfg.Language != "" {
+		s.lang = cfg.Language
 	}
-	if settings != nil {
-		if key, ok := settings["apiKey"]; ok {
-			s.apiKey = key
-		}
-	}
+	s.apiKey = cfg.APIKey
+	return nil
 }
 
-func (s *SteamScraper) Search(gameDir string, appID string) (*Result, error) {
-	if appID != "" {
-		logger.Debug("steam scraper: searching by appID", "appId", appID)
-		return s.searchByAppID(appID)
+// Search implements Source.
+func (s *SteamScraper) Search(ctx context.Context, q Query) (*Result, error) {
+	if appID := q.SteamAppID(); appID != "" {
+		return s.searchByAppID(ctx, appID)
 	}
 
-	baseName := filepath.Base(gameDir)
-	if rjPattern.MatchString(baseName) {
-		return nil, fmt.Errorf("steam: skipping RJ code game '%s'", baseName)
+	// Visual novels are distributed under DLsite product codes; sending an
+	// "RJ123456" folder name to the Steam search only ever returns noise.
+	if RJCode(q.Name) != "" {
+		return nil, NoResult("steam", q.Name)
 	}
 
-	searchName := normalizeSearchName(baseName)
-	logger.Debug("steam scraper: searching by name", "searchTerm", searchName, "gameDir", gameDir)
-
-	terms := nameVariations(searchName)
-	for _, term := range terms {
-		r, err := s.searchByName(term)
-		if err == nil && r != nil {
-			return r, nil
+	var lastErr error
+	for _, term := range SearchTerms(q.Name) {
+		result, err := s.searchByName(ctx, term)
+		if err == nil && result != nil {
+			return result, nil
+		}
+		if err != nil && !IsNoResult(err) {
+			lastErr = err
+			break
 		}
 	}
-	return nil, fmt.Errorf("steam: no results for '%s'", baseName)
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, NoResult("steam", q.Name)
 }
 
-func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
-	langParam := ""
-	if s.language != "en-US" {
-		langParam = "&l=" + languageCode(s.language)
-	}
-	apiURL := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%s%s", appID, langParam)
+func (s *SteamScraper) searchByAppID(ctx context.Context, appID string) (*Result, error) {
+	params := url.Values{}
+	params.Set("appids", appID)
+	params.Set("l", s.lang.SteamCode())
+	params.Set("cc", "us")
 
-	resp, err := s.client.Get(apiURL)
+	requestURL := s.appDetailsURL + "?" + params.Encode()
+	resp, err := s.http.Do(ctx, "steam", Request{URL: requestURL, MaxBytes: 2 << 20})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-
-	var raw map[string]struct {
+	var payload map[string]struct {
 		Success bool            `json:"success"`
 		Data    json.RawMessage `json:"data"`
 	}
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, err
+	if err := json.Unmarshal(resp.Body, &payload); err != nil {
+		return nil, &APIError{Source: "steam", Kind: KindParse, URL: requestURL, Message: "unexpected appdetails payload", Err: err}
+	}
+
+	entry, ok := payload[appID]
+	if !ok {
+		return nil, NoResult("steam", appID)
+	}
+	if !entry.Success {
+		return nil, NoResult("steam", appID)
 	}
 
 	var appData struct {
@@ -99,116 +115,84 @@ func (s *SteamScraper) searchByAppID(appID string) (*Result, error) {
 		Genres []struct {
 			Description string `json:"description"`
 		} `json:"genres"`
-		HeaderImage string `json:"header_image"`
+	}
+	if err := json.Unmarshal(entry.Data, &appData); err != nil {
+		return nil, &APIError{Source: "steam", Kind: KindParse, URL: requestURL, Message: "unexpected appdetails data", Err: err}
+	}
+	if strings.TrimSpace(appData.Name) == "" {
+		return nil, NoResult("steam", appID)
 	}
 
-	for _, v := range raw {
-		if !v.Success {
-			return nil, fmt.Errorf("steam: app not found")
+	description := appData.ShortDescription
+	if strings.TrimSpace(description) == "" {
+		description = appData.DetailedDescription
+	}
+
+	tags := make([]string, 0, len(appData.Genres))
+	for _, genre := range appData.Genres {
+		if genre.Description != "" {
+			tags = append(tags, genre.Description)
 		}
-		if err := json.Unmarshal(v.Data, &appData); err != nil {
-			return nil, err
-		}
-		break
 	}
-
-	desc := appData.ShortDescription
-	if desc == "" {
-		desc = stripHTML(appData.DetailedDescription)
-		if len(desc) > 500 {
-			desc = desc[:500] + "..."
-		}
-	}
-
-	tags := make([]string, len(appData.Genres))
-	for i, g := range appData.Genres {
-		tags[i] = g.Description
-	}
-
-	coverPortrait := fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%s/library_600x900_2x.jpg", appID)
-	coverLandscape := fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%s/header.jpg", appID)
 
 	return &Result{
-		Title:             html.UnescapeString(appData.Name),
-		Description:       html.UnescapeString(desc),
-		Developer:         firstOrEmpty(appData.Developers),
-		Publisher:         firstOrEmpty(appData.Publishers),
+		Title:             appData.Name,
+		Description:       PrepareDescription(description),
+		Developer:         FirstOrEmpty(appData.Developers),
+		Publisher:         FirstOrEmpty(appData.Publishers),
 		ReleaseDate:       appData.ReleaseDate.Date,
 		Tags:              tags,
-		CoverURL:          coverPortrait,
-		CoverLandscapeURL: coverLandscape,
+		CoverURL:          steamCoverURL(appID, "library_600x900_2x.jpg"),
+		CoverLandscapeURL: steamCoverURL(appID, "header.jpg"),
 		Links: map[string]string{
-			"steam":      fmt.Sprintf("https://store.steampowered.com/app/%s/", appID),
-			"platformId": appID,
+			"steam":       fmt.Sprintf("https://store.steampowered.com/app/%s/", appID),
+			PlatformIDKey: appID,
 		},
 	}, nil
 }
 
-func (s *SteamScraper) searchByName(name string) (*Result, error) {
-	query := url.QueryEscape(name)
-	apiURL := fmt.Sprintf("https://store.steampowered.com/api/storesearch/?term=%s&l=%s", query, languageCode(s.language))
+func (s *SteamScraper) searchByName(ctx context.Context, term string) (*Result, error) {
+	params := url.Values{}
+	params.Set("term", term)
+	params.Set("l", s.lang.SteamCode())
+	params.Set("cc", "us")
 
-	resp, err := s.client.Get(apiURL)
+	requestURL := s.storeSearchURL + "?" + params.Encode()
+	resp, err := s.http.Do(ctx, "steam", Request{URL: requestURL, MaxBytes: 1 << 20})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-
-	var searchResult struct {
+	var search struct {
 		Total int `json:"total"`
 		Items []struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"items"`
 	}
-	if err := json.Unmarshal(body, &searchResult); err != nil {
-		return nil, err
+	if err := json.Unmarshal(resp.Body, &search); err != nil {
+		return nil, &APIError{Source: "steam", Kind: KindParse, URL: requestURL, Message: "unexpected storesearch payload", Err: err}
 	}
 
-	if searchResult.Total == 0 {
-		return nil, fmt.Errorf("steam: no results for '%s'", name)
+	// Guard against total>0 with an empty items array, which used to index out of
+	// range and panic the whole webview call.
+	if len(search.Items) == 0 {
+		return nil, NoResult("steam", term)
 	}
 
-	bestID := fmt.Sprintf("%d", searchResult.Items[0].ID)
-	logger.Debug("steam name search result", "searchTerm", name, "matchedId", bestID, "matchedName", searchResult.Items[0].Name)
-	return s.searchByAppID(bestID)
+	matchedID := strconv.Itoa(search.Items[0].ID)
+	if matchedID == "0" {
+		return nil, NoResult("steam", term)
+	}
+	return s.searchByAppID(ctx, matchedID)
 }
 
-func languageCode(lang string) string {
-	switch lang {
-	case "zh-CN":
-		return "schinese"
-	case "ja-JP":
-		return "japanese"
-	default:
-		return "english"
+// steamCoverURL builds a Steam CDN URL. App IDs are digits from the API, but
+// they are validated anyway so a malformed value can never be interpolated into
+// a URL path.
+func steamCoverURL(appID, asset string) string {
+	if !isDigits(appID) {
+		return ""
 	}
-}
-
-func stripHTML(s string) string {
-	inTag := false
-	var b strings.Builder
-	for _, r := range s {
-		if r == '<' {
-			inTag = true
-			continue
-		}
-		if r == '>' {
-			inTag = false
-			continue
-		}
-		if !inTag {
-			b.WriteRune(r)
-		}
-	}
-	return strings.TrimSpace(b.String())
-}
-
-func firstOrEmpty(s []string) string {
-	if len(s) > 0 {
-		return s[0]
-	}
-	return ""
+	return fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%s/%s", appID, asset)
 }

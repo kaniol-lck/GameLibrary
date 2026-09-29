@@ -1,6 +1,20 @@
-build/
+# Compiled output only. The Wails build assets (build/appicon.png, build/windows/)
+# are source: Wails needs them to stamp the executable's icon and Windows file
+# properties, and a fresh clone without them silently falls back to placeholders.
+build/bin/
+build/test_games/
+build/release/
 node_modules/
 frontend/dist/
 /*.exe
 config.json
 Games/
+logs/
+coverage.out
+coverage.html
+/coverage
+frontend/coverage/
+.tmp-*/
+# Local build caches, used when the default cache location is unavailable.
+.gocache/
+.npm-cache/

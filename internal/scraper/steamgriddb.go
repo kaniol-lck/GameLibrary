@@ -1,96 +1,132 @@
 package scraper
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
+// steamGridDBGridsURL is the grid (cover art) endpoint.
+const steamGridDBGridsURL = "https://www.steamgriddb.com/api/v2/grids/steam/%s"
+
+// steamGridDBMinInterval keeps the request rate modest on a free API key.
+const steamGridDBMinInterval = 800 * time.Millisecond
+
+// SteamGridDBScraper supplies high resolution cover art.
+//
+// It deliberately returns no title or description: its job is artwork only. The
+// pipeline merges fields, so a cover-only result can no longer blank out the name
+// and description that another provider already found.
 type SteamGridDBScraper struct {
-	client *http.Client
-	apiKey string
+	http     *HTTPClient
+	apiKey   string
+	endpoint string
 }
 
+// NewSteamGridDBScraper creates the provider.
 func NewSteamGridDBScraper() *SteamGridDBScraper {
-	return &SteamGridDBScraper{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &SteamGridDBScraper{endpoint: steamGridDBGridsURL}
 }
 
+// Key implements Source.
 func (s *SteamGridDBScraper) Key() string { return "steamgriddb" }
 
-func (s *SteamGridDBScraper) Configure(lang string, settings map[string]string) {
-	_ = lang
-	if settings != nil {
-		if key, ok := settings["apiKey"]; ok {
-			s.apiKey = key
-		}
+// Configure implements Source.
+func (s *SteamGridDBScraper) Configure(cfg SourceConfig) error {
+	s.http = cfg.HTTP
+	s.apiKey = strings.TrimSpace(cfg.APIKey)
+	if s.http != nil {
+		s.http.LimitHost("www.steamgriddb.com", steamGridDBMinInterval)
 	}
+	return nil
 }
 
-func (s *SteamGridDBScraper) Search(gameDir string, appID string) (*Result, error) {
-	if s.apiKey == "" {
-		return nil, fmt.Errorf("steamgriddb: API key required")
-	}
+// Search implements Source.
+func (s *SteamGridDBScraper) Search(ctx context.Context, q Query) (*Result, error) {
+	appID := q.SteamAppID()
 	if appID == "" {
-		return nil, fmt.Errorf("steamgriddb: requires steam appID")
+		// Without a Steam app ID there is nothing to look up. That is a normal
+		// miss, not a failure worth warning about.
+		return nil, NoResult("steamgriddb", q.Name)
+	}
+	if s.apiKey == "" {
+		// Signalled as an auth problem so the UI can tell the user to add a key
+		// instead of quietly reporting "no cover found".
+		return nil, &APIError{Source: "steamgriddb", Kind: KindAuth, Message: "API key required"}
 	}
 
-	url := fmt.Sprintf("https://www.steamgriddb.com/api/v2/grids/steam/%s?limit=5&styles=alternate,material,blurred", appID)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	params := url.Values{}
+	params.Set("limit", "10")
+	params.Set("styles", "alternate,material,blurred")
+	requestURL := fmt.Sprintf(s.endpoint, appID) + "?" + params.Encode()
 
-	resp, err := s.client.Do(req)
+	resp, err := s.http.Do(ctx, "steamgriddb", Request{
+		URL:      requestURL,
+		Headers:  map[string]string{"Authorization": "Bearer " + s.apiKey},
+		MaxBytes: 1 << 20,
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-
-	var apiResp struct {
-		Data []struct {
-			URL    string `json:"url"`
-			Width  int    `json:"width"`
-			Height int    `json:"height"`
-			Style  string `json:"style"`
-		} `json:"data"`
+	var payload struct {
+		Data []gridEntry `json:"data"`
 	}
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, err
+	if err := json.Unmarshal(resp.Body, &payload); err != nil {
+		return nil, &APIError{Source: "steamgriddb", Kind: KindParse, URL: requestURL, Message: "unexpected grids payload", Err: err}
+	}
+	if len(payload.Data) == 0 {
+		return nil, NoResult("steamgriddb", appID)
 	}
 
-	if len(apiResp.Data) == 0 {
-		return nil, fmt.Errorf("steamgriddb: no grids found")
+	portrait, landscape := pickGrids(payload.Data)
+	if portrait == "" && landscape == "" {
+		return nil, NoResult("steamgriddb", appID)
 	}
 
-	portrait := ""
-	landscape := ""
-	for _, g := range apiResp.Data {
-		if portrait == "" && g.Height > g.Width {
-			portrait = g.URL
+	return &Result{
+		CoverURL:          portrait,
+		CoverLandscapeURL: landscape,
+		Links:             map[string]string{PlatformIDKey: appID},
+	}, nil
+}
+
+type gridEntry struct {
+	URL    string `json:"url"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+}
+
+// pickGrids chooses the best portrait and landscape image. SteamGridDB returns
+// both orientations in one list, distinguished by their dimensions.
+func pickGrids(grids []gridEntry) (portrait, landscape string) {
+	for _, grid := range grids {
+		if grid.URL == "" {
+			continue
 		}
-		if landscape == "" && g.Width > g.Height {
-			landscape = g.URL
+		switch {
+		case portrait == "" && grid.Height > grid.Width:
+			portrait = grid.URL
+		case landscape == "" && grid.Width > grid.Height:
+			landscape = grid.URL
 		}
 		if portrait != "" && landscape != "" {
 			break
 		}
 	}
-	if portrait == "" && len(apiResp.Data) > 0 {
-		portrait = apiResp.Data[0].URL
+	if portrait == "" {
+		for _, grid := range grids {
+			if grid.URL != "" {
+				portrait = grid.URL
+				break
+			}
+		}
 	}
 	if landscape == "" {
 		landscape = portrait
 	}
-
-	_ = strings.TrimSuffix(gameDir, "")
-
-	return &Result{
-		CoverURL:          portrait,
-		CoverLandscapeURL: landscape,
-	}, nil
+	return portrait, landscape
 }

@@ -1,145 +1,191 @@
-import { useState, useEffect } from 'react';
-import { game } from '../../wailsjs/go/models';
-import { GetGameCover, LaunchGame, ScrapeGame } from '../../wailsjs/go/main/App';
+import { memo, useCallback, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { api, type Game } from "@/api/client";
+import { coverKey, coverUrl } from "@/lib/cover";
+import { errorMessage, formatPlaytime } from "@/lib/format";
+import { gamePlatforms, platformMeta } from "@/lib/platform";
 
-interface GameCardProps {
-  game: game.GameInfo;
-  onClick?: (game: game.GameInfo) => void;
-  onContextMenu?: (game: game.GameInfo, x: number, y: number) => void;
-  onUpdated?: () => void;
-  isScraping?: boolean;
-  scrapedOk?: boolean;
-  scrapedErr?: boolean;
-  refreshKey?: number;
+/**
+ * Scrape state for one card.
+ *
+ * It is a single prop instead of the three booleans (`isScraping`, `scrapedOk`,
+ * `scrapedErr`) the old card took, so the four states cannot contradict each
+ * other.
+ */
+export type GameCardStatus = "idle" | "scraping" | "ok" | "error";
+
+export interface GameCardProps {
+  game: Game;
+  status: GameCardStatus;
+  onClick: (id: string) => void;
+  onContextMenu: (id: string, x: number, y: number) => void;
 }
 
-function formatPlaytime(seconds: number): string {
-  if (seconds <= 0) return '';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
+/** Genre tags shown on the artwork before the card gets too busy. */
+const GENRE_TAG_LIMIT = 3;
+/** User tags shown on the artwork. */
+const USER_TAG_LIMIT = 2;
 
-function getPlatformBadge(platform: string): { label: string; color: string } | null {
-  if (!platform) return null;
-  switch (platform) {
-    case 'steam':   return { label: 'Steam', color: '#1a4b8a' };
-    case 'vndb':    return { label: 'VNDB', color: '#2255a4' };
-    case 'dlsite':  return { label: 'DLsite', color: '#c2185b' };
-    case 'bangumi': return { label: 'Bangumi', color: '#e57399' };
-    default:        return { label: platform, color: '#555' };
-  }
-}
+function GameCard({ game, status, onClick, onContextMenu }: GameCardProps) {
+  // Tracked by cover key rather than a boolean, so re-scraping a game that once
+  // failed to load its artwork tries the new URL instead of staying a placeholder.
+  const [failedCover, setFailedCover] = useState("");
+  const [launchError, setLaunchError] = useState("");
 
-function platformUrl(platform: string, id: string): string {
-  switch (platform) {
-    case 'steam': return id ? `https://store.steampowered.com/app/${id}/` : '';
-    case 'dlsite': return id ? `https://www.dlsite.com/maniax/work/=/product_id/${id}.html` : '';
-    case 'vndb': return id ? `https://vndb.org/v${id}` : '';
-    case 'bangumi': return id ? `https://bgm.tv/subject/${id}` : '';
-    default: return '';
-  }
-}
-
-export default function GameCard({ game, onClick, onContextMenu, onUpdated, isScraping, scrapedOk, scrapedErr, refreshKey }: GameCardProps) {
-  const [coverData, setCoverData] = useState('');
-
-  const primaryPlatform = (game as any).preferredSource || (game as any).platforms?.[0]?.platform || (game as any).platform || '';
-
-  useEffect(() => {
-    if (!game.metadata?.coverUrl) return;
-    GetGameCover(game.id).then(setCoverData).catch(() => {});
-  }, [game.id, game.metadata?.coverUrl, refreshKey]);
-
-  const badge = getPlatformBadge(primaryPlatform);
+  const platforms = gamePlatforms(game);
+  const primaryPlatform = game.preferredSource || platforms[0]?.platform || "";
+  const cover = coverUrl(game.id, "cover", game.coverVersion);
+  const coverId = coverKey(game.id, game.coverVersion);
   const playtime = formatPlaytime(game.totalPlaytime);
-  const genreTags = (game.metadata?.tags || []).slice(0, 3);
-  const userTags = (game.tags || []).slice(0, 2);
-  const allPlatforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
+  const genreTags = (game.metadata?.tags ?? []).slice(0, GENRE_TAG_LIMIT);
+  const userTags = (game.tags ?? []).slice(0, USER_TAG_LIMIT);
+  const scraping = status === "scraping";
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onContextMenu?.(game, e.clientX, e.clientY);
+  const handleLaunch = useCallback(
+    async (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      setLaunchError("");
+      try {
+        await api.launch(game.id);
+      } catch (err) {
+        // The old card swallowed this, so a game that failed to start looked
+        // like a game that did nothing.
+        setLaunchError(errorMessage(err));
+      }
+    },
+    [game.id],
+  );
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      // Space would otherwise scroll the grid.
+      event.preventDefault();
+      onClick(game.id);
+    }
   };
-
-  const handleLaunch = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { await LaunchGame(game.id); } catch { /* ignore */ }
-  };
-
-  const showBadge = scrapedOk || scrapedErr || isScraping;
 
   return (
     <div
-      className={`game-card ${isScraping ? 'game-card-scraping-dim' : ''}`}
-      onClick={() => onClick?.(game)}
-      onContextMenu={handleContextMenu}
+      className={`game-card${scraping ? " game-card-scraping-dim" : ""}`}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') onClick?.(game); }}
+      aria-label={game.title}
+      onClick={() => onClick(game.id)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onContextMenu(game.id, event.clientX, event.clientY);
+      }}
+      onKeyDown={handleKeyDown}
     >
       <div className="game-card-cover">
-        {coverData ? (
-          <img src={coverData} alt={game.title} loading="lazy" />
-        ) : (
+        {failedCover === coverId ? (
           <div className="game-card-cover-placeholder">
             <span>{game.title.charAt(0).toUpperCase()}</span>
           </div>
+        ) : (
+          <img
+            src={cover}
+            alt={game.title}
+            loading="lazy"
+            onError={() => setFailedCover(coverId)}
+          />
         )}
-        {game.starred && (
-          <span className="game-card-star" title="Starred">{'\u2605'}</span>
+
+        {game.starred === true && (
+          <span className="game-card-star" title="Starred">
+            {"\u2605"}
+          </span>
         )}
-        {allPlatforms.length > 0 && (
+
+        {platforms.length > 0 && (
           <div className="game-card-platforms">
-            {allPlatforms.map((p) => (
-              <span key={p.platform} className={`game-card-plat-tag ${p.platform === primaryPlatform ? 'game-card-plat-primary' : ''}`}
-                style={{ backgroundColor: (getPlatformBadge(p.platform) || { color: '#555' }).color }}
-                title={p.platform}>
-                {(getPlatformBadge(p.platform) || { label: p.platform }).label}
+            {platforms.map((platform) => {
+              const meta = platformMeta(platform.platform);
+              const label = meta.label || platform.platform;
+              return (
+                <span
+                  key={platform.platform}
+                  className={`game-card-plat-tag${
+                    platform.platform === primaryPlatform ? " game-card-plat-primary" : ""
+                  }`}
+                  style={{ backgroundColor: meta.color }}
+                  title={label}
+                >
+                  {label}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="game-card-launch"
+          onClick={(event) => void handleLaunch(event)}
+          title="Launch"
+          aria-label={`Launch ${game.title}`}
+        >
+          {"\u25B6"}
+        </button>
+
+        {scraping && <span className="game-card-scraping" title="Scraping…" />}
+        {status === "ok" && (
+          <span className="game-card-scraped-ok" title="Scraped successfully">
+            {"\u2713"}
+          </span>
+        )}
+        {status === "error" && (
+          <span className="game-card-scraped-err" title="Scrape failed">
+            {"\u2717"}
+          </span>
+        )}
+
+        {genreTags.length > 0 && (
+          <div className="game-card-genre-tags">
+            {genreTags.map((tag) => (
+              <span key={tag} className="game-card-genre-tag">
+                {tag}
               </span>
             ))}
           </div>
         )}
-        <button className="game-card-launch" onClick={handleLaunch} title="Launch">
-          {'\u25B6'}
-        </button>
-        {showBadge && isScraping && (
-          <span className="game-card-scraping" title="Scraping..." />
-        )}
-        {scrapedOk && (
-          <span className="game-card-scraped-ok" title="Scraped successfully">{'\u2713'}</span>
-        )}
-        {scrapedErr && (
-          <span className="game-card-scraped-err" title="Scrape failed">{'\u2717'}</span>
-        )}
-        {genreTags.length > 0 && (
-          <div className="game-card-genre-tags">
-            {genreTags.map((tag) => (
-              <span key={tag} className="game-card-genre-tag">{tag}</span>
-            ))}
-          </div>
-        )}
+
         {userTags.length > 0 && (
           <div className="game-card-user-tags">
             {userTags.map((tag) => (
-              <span key={tag} className="game-card-user-tag">#{tag}</span>
+              <span key={tag} className="game-card-user-tag">
+                #{tag}
+              </span>
             ))}
           </div>
         )}
       </div>
+
       <div className="game-card-body">
         <h3 className="game-card-title">{game.title}</h3>
         {game.titleNative && <p className="game-card-title-native">{game.titleNative}</p>}
-        {playtime && <span className="game-card-playtime">{playtime}</span>}
-        {allPlatforms.length > 1 && (
+        {playtime !== "" && <span className="game-card-playtime">{playtime}</span>}
+        {platforms.length > 1 && (
           <div className="game-card-platform-dots">
-            {allPlatforms.map((p) => (
-              <span key={p.platform} className="game-card-plat-dot" style={{ backgroundColor: (getPlatformBadge(p.platform) || { color: '#555' }).color }} title={p.platform} />
+            {platforms.map((platform) => (
+              <span
+                key={platform.platform}
+                className="game-card-plat-dot"
+                style={{ backgroundColor: platformMeta(platform.platform).color }}
+                title={platformMeta(platform.platform).label || platform.platform}
+              />
             ))}
           </div>
+        )}
+        {launchError !== "" && (
+          <p className="game-card-error" role="alert">
+            {launchError}
+          </p>
         )}
       </div>
     </div>
   );
 }
+
+// The grid re-renders on every queue event; a card only changes when its own
+// game, status or callbacks do.
+export default memo(GameCard);

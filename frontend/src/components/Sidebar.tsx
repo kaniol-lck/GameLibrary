@@ -1,331 +1,216 @@
-import { useState } from 'react';
-import { game } from '../../wailsjs/go/models';
-import { QueuePause, QueueResume, QueueClear } from '../../wailsjs/go/main/App';
+import type { QueueStatus } from "@/api/client";
+import { navKeyId, type NavCounts, type NavKey } from "@/lib/filters";
+import { platformMeta } from "@/lib/platform";
+import { hasQueueActivity } from "@/lib/queue";
+import QueuePanel from "./QueuePanel";
 
-interface Category {
-  key: string;
-  label: string;
-  count: number;
-  section: 'platform' | 'genre' | 'user' | 'path';
-}
-
-interface SidebarProps {
+export interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  games: game.GameInfo[];
-  selectedNav: string;
-  onSelectNav: (key: string) => void;
+  /** Pre-aggregated counts from `deriveCounts`; the sidebar never walks games. */
+  counts: NavCounts;
+  selected: string;
+  onSelect: (nav: NavKey) => void;
   machineName: string;
-  pathLabels?: Record<string, string[]>;
-  exeDir?: string;
-  showUnmatched?: boolean;
-  onToggleUnmatched?: () => void;
-  queueStatus?: {pending: number; running: number; currentTitle?: string; pendingTitles?: string[]};
+  version: string;
+  queueStatus: QueueStatus;
+  /** Re-scrapes one game; used by the retry button on a queued failure. */
+  onQueueRetry?: (gameId: string) => void;
 }
 
-function deriveCategories(games: game.GameInfo[], pathLabels: Record<string, string[]> | undefined, exeDir?: string): Category[] {
-  const cats: Category[] = [];
-
-  const platformCounts = new Map<string, number>();
-  const genreCounts = new Map<string, number>();
-  const userCounts = new Map<string, number>();
-  const pathCounts = new Map<string, number>();
-  let unmatchedCount = 0;
-
-  for (const g of games) {
-    const plats: any[] = (g as any).platforms || [];
-    if (plats.length === 0) {
-      unmatchedCount++;
-    } else {
-      for (const p of plats) {
-        platformCounts.set(p.platform, (platformCounts.get(p.platform) || 0) + 1);
-      }
-    }
-
-    for (const tag of g.metadata?.tags || []) {
-      genreCounts.set(tag, (genreCounts.get(tag) || 0) + 1);
-    }
-
-    for (const tag of g.tags || []) {
-      userCounts.set(tag, (userCounts.get(tag) || 0) + 1);
-    }
-
-    if (pathLabels) {
-      const gd = ((g as any).gameDir || '').replace(/\\/g, '/');
-      const ed = (exeDir || '').replace(/\\/g, '/');
-      for (const [dirPath, labels] of Object.entries(pathLabels)) {
-        let absPath = dirPath.replace(/\\/g, '/');
-        if (absPath.startsWith('.')) { absPath = ed + '/' + absPath; }
-        while (absPath.includes('/./')) absPath = absPath.replace('/./', '/');
-        while (absPath.includes('/../')) {
-          const parts = absPath.split('/');
-          const idx = parts.indexOf('..');
-          if (idx > 1) { parts.splice(idx - 1, 2); absPath = parts.join('/'); } else break;
-        }
-        if (gd.startsWith(absPath)) {
-          for (const l of (labels as string[])) {
-            if (l) pathCounts.set(l, (pathCounts.get(l) || 0) + 1);
-          }
-        }
-      }
-    }
-  }
-
-  if (unmatchedCount > 0) {
-    cats.push({ key: 'platform:unmatched', label: 'Unmatched', count: unmatchedCount, section: 'platform' });
-  }
-
-  if (platformCounts.size > 0) {
-    for (const [key, count] of [...platformCounts].sort((a, b) => b[1] - a[1])) {
-      cats.push({ key: `platform:${key}`, label: platformLabel(key), count, section: 'platform' });
-    }
-  }
-
-  for (const [key, count] of [...genreCounts].sort((a, b) => b[1] - a[1])) {
-    cats.push({ key: `tag:${key}`, label: key, count, section: 'genre' });
-  }
-
-  for (const [key, count] of [...userCounts].sort((a, b) => b[1] - a[1])) {
-    cats.push({ key: `usertag:${key}`, label: key, count, section: 'user' });
-  }
-
-  for (const [key, count] of [...pathCounts].sort((a, b) => b[1] - a[1])) {
-    cats.push({ key: `pathlabel:${key}`, label: key, count, section: 'path' });
-  }
-
-  return cats;
+interface SidebarItemProps {
+  nav: NavKey;
+  icon: string;
+  label: string;
+  count: number;
+  collapsed: boolean;
+  selected: string;
+  onSelect: (nav: NavKey) => void;
 }
 
-function platformLabel(plat: string): string {
-  switch (plat) {
-    case 'steam': return 'Steam';
-    case 'dlsite': return 'DLsite';
-    case 'vndb': return 'VNDB';
-    case 'bangumi': return 'Bangumi';
-    default: return plat;
-  }
+function SidebarItem({ nav, icon, label, count, collapsed, selected, onSelect }: SidebarItemProps) {
+  const id = navKeyId(nav);
+  return (
+    <button
+      type="button"
+      className={`sidebar-item${id === selected ? " active" : ""}`}
+      onClick={() => onSelect(nav)}
+      title={label}
+    >
+      <span className="sidebar-item-icon">{icon}</span>
+      {!collapsed && (
+        <>
+          <span className="sidebar-item-label">{label}</span>
+          <span className="sidebar-item-badge">{count}</span>
+        </>
+      )}
+    </button>
+  );
 }
 
-function platformIcon(plat: string): string {
-  switch (plat) {
-    case 'steam': return '\u25A0';
-    case 'dlsite': return '\u25C6';
-    case 'vndb': return '\u25B6';
-    case 'bangumi': return '\u25CF';
-    case 'unmatched': return '\u25CB';
-    default: return '\u25A0';
-  }
-}
-
+/**
+ * Navigation built entirely from the counts the app derived once per library
+ * change. It used to re-aggregate every game on each render, including one pass
+ * per scraped game as the queue streamed updates in.
+ */
 export default function Sidebar({
   collapsed,
   onToggle,
-  games,
-  selectedNav,
-  onSelectNav,
+  counts,
+  selected,
+  onSelect,
   machineName,
-  pathLabels,
-  exeDir,
-  showUnmatched,
-  onToggleUnmatched,
+  version,
   queueStatus,
+  onQueueRetry,
 }: SidebarProps) {
-  const categories = deriveCategories(games, pathLabels, exeDir);
-  const allCount = games.length;
-  const starredCount = games.filter((g) => g.starred).length;
-  const [showQueueInfo, setShowQueueInfo] = useState(false);
-
-  const platforms = categories.filter((c) => c.section === 'platform');
-  const genres = categories.filter((c) => c.section === 'genre');
-  const userTags = categories.filter((c) => c.section === 'user');
-  const pathTags = categories.filter((c) => c.section === 'path');
-
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
       <div className="sidebar-top">
         <div className="sidebar-brand">
           <span className="sidebar-logo">GL</span>
           {!collapsed && <span className="sidebar-title">GameLibrary</span>}
         </div>
         <button
+          type="button"
           className="sidebar-toggle"
           onClick={onToggle}
-          title={collapsed ? 'Expand' : 'Collapse'}
+          title={collapsed ? "Expand" : "Collapse"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
         >
-          {collapsed ? '\u25B6' : '\u25C0'}
+          {collapsed ? "\u25B6" : "\u25C0"}
         </button>
       </div>
 
       <nav className="sidebar-nav">
-        <button
-          className={`sidebar-item ${selectedNav === 'all' ? 'active' : ''}`}
-          onClick={() => onSelectNav('all')}
-        >
-          <span className="sidebar-item-icon">&#9783;</span>
-          {!collapsed && (
-            <>
-              <span className="sidebar-item-label">All Games</span>
-              <span className="sidebar-item-badge">{allCount}</span>
-            </>
-          )}
-        </button>
-
-        {starredCount > 0 && (
-          <button
-            className={`sidebar-item ${selectedNav === 'starred' ? 'active' : ''}`}
-            onClick={() => onSelectNav('starred')}
-          >
-            <span className="sidebar-item-icon">{'\u2605'}</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">Starred</span>
-                <span className="sidebar-item-badge">{starredCount}</span>
-              </>
-            )}
-          </button>
+        <SidebarItem
+          nav={{ kind: "all" }}
+          icon={"\u2637"}
+          label="All Games"
+          count={counts.all}
+          collapsed={collapsed}
+          selected={selected}
+          onSelect={onSelect}
+        />
+        {counts.starred > 0 && (
+          <SidebarItem
+            nav={{ kind: "starred" }}
+            icon={"\u2605"}
+            label="Starred"
+            count={counts.starred}
+            collapsed={collapsed}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        )}
+        {counts.unmatched > 0 && (
+          <SidebarItem
+            nav={{ kind: "unmatched" }}
+            icon={"\u25CB"}
+            label="Unmatched"
+            count={counts.unmatched}
+            collapsed={collapsed}
+            selected={selected}
+            onSelect={onSelect}
+          />
         )}
 
-        {pathTags.length > 0 && !collapsed && (
-          <div className="sidebar-divider" />
-        )}
-        {pathTags.length > 0 && !collapsed && (
-          <div className="sidebar-section-label">Folders</div>
-        )}
-        {pathTags.map((cat) => (
-          <button
-            key={cat.key}
-            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
-            onClick={() => onSelectNav(cat.key)}
-          >
-            <span className="sidebar-item-icon">{cat.label === 'Steam' ? '\u25A0' : '\uD83D\uDCC1'}</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">{cat.label}</span>
-                <span className="sidebar-item-badge">{cat.count}</span>
-              </>
-            )}
-          </button>
-        ))}
-
-        {platforms.length > 0 && !collapsed && (
-          <div className="sidebar-divider" />
-        )}
-        {platforms.length > 0 && !collapsed && (
+        {counts.platforms.length > 0 && !collapsed && <div className="sidebar-divider" />}
+        {counts.platforms.length > 0 && !collapsed && (
           <div className="sidebar-section-label">Platforms</div>
         )}
-        {platforms.map((cat) => (
-          <button
-            key={cat.key}
-            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
-            onClick={() => onSelectNav(cat.key)}
-          >
-            <span className="sidebar-item-icon">{platformIcon(cat.key.slice(9))}</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">{cat.label}</span>
-                <span className="sidebar-item-badge">{cat.count}</span>
-              </>
-            )}
-          </button>
-        ))}
+        {counts.platforms.map((platform) => {
+          const meta = platformMeta(platform.id);
+          return (
+            <SidebarItem
+              key={`platform:${platform.id}`}
+              nav={{ kind: "platform", id: platform.id }}
+              icon={meta.icon}
+              label={meta.label || platform.id}
+              count={platform.count}
+              collapsed={collapsed}
+              selected={selected}
+              onSelect={onSelect}
+            />
+          );
+        })}
 
-        {genres.length > 0 && !collapsed && (
-          <div className="sidebar-divider" />
-        )}
-        {genres.length > 0 && !collapsed && (
+        {counts.genres.length > 0 && !collapsed && <div className="sidebar-divider" />}
+        {counts.genres.length > 0 && !collapsed && (
           <div className="sidebar-section-label">Genres</div>
         )}
-        {genres.map((cat) => (
-          <button
-            key={cat.key}
-            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
-            onClick={() => onSelectNav(cat.key)}
-          >
-            <span className="sidebar-item-icon">{'\u25C9'}</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">{cat.label}</span>
-                <span className="sidebar-item-badge">{cat.count}</span>
-              </>
-            )}
-          </button>
+        {counts.genres.map((genre) => (
+          <SidebarItem
+            key={`genre:${genre.id}`}
+            nav={{ kind: "genre", id: genre.id }}
+            icon={"\u25C9"}
+            label={genre.id}
+            count={genre.count}
+            collapsed={collapsed}
+            selected={selected}
+            onSelect={onSelect}
+          />
         ))}
 
-        {userTags.length > 0 && !collapsed && (
-          <div className="sidebar-divider" />
+        {counts.folders.length > 0 && !collapsed && <div className="sidebar-divider" />}
+        {counts.folders.length > 0 && !collapsed && (
+          <div className="sidebar-section-label">Folders</div>
         )}
-        {userTags.length > 0 && !collapsed && (
+        {counts.folders.map((folder) => (
+          <SidebarItem
+            key={`folder:${folder.id}`}
+            nav={{ kind: "folder", id: folder.id }}
+            icon={"\uD83D\uDCC1"}
+            label={folder.id}
+            count={folder.count}
+            collapsed={collapsed}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        ))}
+
+        {counts.userTags.length > 0 && !collapsed && <div className="sidebar-divider" />}
+        {counts.userTags.length > 0 && !collapsed && (
           <div className="sidebar-section-label">My Tags</div>
         )}
-        {userTags.map((cat) => (
-          <button
-            key={cat.key}
-            className={`sidebar-item ${selectedNav === cat.key ? 'active' : ''}`}
-            onClick={() => onSelectNav(cat.key)}
-          >
-            <span className="sidebar-item-icon">#</span>
-            {!collapsed && (
-              <>
-                <span className="sidebar-item-label">{cat.label}</span>
-                <span className="sidebar-item-badge">{cat.count}</span>
-              </>
-            )}
-          </button>
+        {counts.userTags.map((tag) => (
+          <SidebarItem
+            key={`usertag:${tag.id}`}
+            nav={{ kind: "usertag", id: tag.id }}
+            icon="#"
+            label={tag.id}
+            count={tag.count}
+            collapsed={collapsed}
+            selected={selected}
+            onSelect={onSelect}
+          />
         ))}
 
-        {collapsed && allCount > 0 && (
-          <div className="sidebar-collapsed-badge">{allCount}</div>
-        )}
+        {collapsed && counts.all > 0 && <div className="sidebar-collapsed-badge">{counts.all}</div>}
       </nav>
 
       <div className="sidebar-bottom">
         {!collapsed && (
-          <span className="sidebar-machine">{machineName}</span>
+          <span className="sidebar-machine" title={machineName}>
+            {machineName}
+            {version !== "" ? ` · v${version}` : ""}
+          </span>
         )}
-        {((queueStatus?.running ?? 0) > 0 || (queueStatus?.pending ?? 0) > 0) && !collapsed && (
-          <div className="sidebar-queue">
-            <div className="sidebar-queue-title" onClick={() => setShowQueueInfo(!showQueueInfo)}>
-              <span className="sidebar-queue-icon">{'\u25C9'}</span>
-              <span>{(queueStatus?.running ?? 0) > 0 ? 'Processing' : 'Queued'} ({queueStatus?.pending ?? 0})</span>
-              <span className="sidebar-queue-arrow">{showQueueInfo ? '\u25BC' : '\u25B6'}</span>
-            </div>
-            {showQueueInfo && (
-              <div className="sidebar-queue-info">
-                {(queueStatus?.running ?? 0) > 0 && (
-                  <div className="queue-info-row queue-info-title">
-                    Scraping: {queueStatus?.currentTitle || '...'}
-                  </div>
-                )}
-                <div className="queue-info-row">
-                  {(queueStatus?.running ?? 0) > 0 ? 'Running' : 'Idle'} | {queueStatus?.pending ?? 0} pending
-                </div>
-                {(queueStatus?.pendingTitles?.length ?? 0) > 0 && (
-                  <div className="queue-info-pending">
-                    {queueStatus?.pendingTitles?.map((t: string, i: number) => (
-                      <div key={i} className="queue-pending-item">{t}</div>
-                    ))}
-                  </div>
-                )}
-                <div className="queue-info-actions">
-                  <button onClick={() => QueuePause()} title="Pause">||</button>
-                  <button onClick={() => QueueResume()} title="Resume">{'\u25B6'}</button>
-                  <button onClick={() => QueueClear()} title="Clear">{'\u2715'}</button>
-                </div>
-              </div>
-            )}
-          </div>
+
+        {!collapsed && hasQueueActivity(queueStatus) && (
+          <QueuePanel status={queueStatus} onRetry={onQueueRetry} />
         )}
-        {!collapsed && (
-          <label className="sidebar-unmatched-toggle">
-            <input type="checkbox" checked={showUnmatched} onChange={onToggleUnmatched} />
-            <span>Show Unmatched</span>
-          </label>
-        )}
+
         <button
-          className={`sidebar-item sidebar-item-settings ${selectedNav === 'settings' ? 'active' : ''}`}
-          onClick={() => onSelectNav('settings')}
+          type="button"
+          className={`sidebar-item sidebar-item-settings${
+            selected === navKeyId({ kind: "settings" }) ? " active" : ""
+          }`}
+          onClick={() => onSelect({ kind: "settings" })}
+          title="Settings"
         >
-          <span className="sidebar-item-icon">&#9881;</span>
+          <span className="sidebar-item-icon">{"\u2699"}</span>
           {!collapsed && <span className="sidebar-item-label">Settings</span>}
         </button>
       </div>

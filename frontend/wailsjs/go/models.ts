@@ -19,6 +19,7 @@ export namespace config {
 	    }
 	}
 	export class Config {
+	    schemaVersion: number;
 	    machineId: string;
 	    gameDirectories: string[];
 	    gameDirectoryLabels?: Record<string, Array<string>>;
@@ -27,6 +28,9 @@ export namespace config {
 	    steamUserId?: string;
 	    watcherEnabled: boolean;
 	    watcherDebounceMs: number;
+	    scrapeConcurrency?: number;
+	    logLevel?: string;
+	    logToLibrary?: boolean;
 	    metadataSources: MetadataSource[];
 	
 	    static createFrom(source: any = {}) {
@@ -35,6 +39,7 @@ export namespace config {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schemaVersion = source["schemaVersion"];
 	        this.machineId = source["machineId"];
 	        this.gameDirectories = source["gameDirectories"];
 	        this.gameDirectoryLabels = source["gameDirectoryLabels"];
@@ -43,6 +48,9 @@ export namespace config {
 	        this.steamUserId = source["steamUserId"];
 	        this.watcherEnabled = source["watcherEnabled"];
 	        this.watcherDebounceMs = source["watcherDebounceMs"];
+	        this.scrapeConcurrency = source["scrapeConcurrency"];
+	        this.logLevel = source["logLevel"];
+	        this.logToLibrary = source["logToLibrary"];
 	        this.metadataSources = this.convertValues(source["metadataSources"], MetadataSource);
 	    }
 	
@@ -144,13 +152,14 @@ export namespace game {
 	    }
 	}
 	export class GameInfo {
+	    schemaVersion: number;
 	    id: string;
 	    title: string;
 	    titleNative?: string;
+	    type: string;
 	    platforms?: PlatformInfo[];
 	    aliases?: string[];
 	    preferredSource?: string;
-	    type: string;
 	    executables: Executable[];
 	    savePaths?: SavePath[];
 	    metadata?: Metadata;
@@ -159,7 +168,7 @@ export namespace game {
 	    lastPlayedAt?: string;
 	    starred?: boolean;
 	    tags?: string[];
-	    gameDir?: string;
+	    coverVersion?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new GameInfo(source);
@@ -167,13 +176,14 @@ export namespace game {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schemaVersion = source["schemaVersion"];
 	        this.id = source["id"];
 	        this.title = source["title"];
 	        this.titleNative = source["titleNative"];
+	        this.type = source["type"];
 	        this.platforms = this.convertValues(source["platforms"], PlatformInfo);
 	        this.aliases = source["aliases"];
 	        this.preferredSource = source["preferredSource"];
-	        this.type = source["type"];
 	        this.executables = this.convertValues(source["executables"], Executable);
 	        this.savePaths = this.convertValues(source["savePaths"], SavePath);
 	        this.metadata = this.convertValues(source["metadata"], Metadata);
@@ -182,7 +192,7 @@ export namespace game {
 	        this.lastPlayedAt = source["lastPlayedAt"];
 	        this.starred = source["starred"];
 	        this.tags = source["tags"];
-	        this.gameDir = source["gameDir"];
+	        this.coverVersion = source["coverVersion"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -210,24 +220,37 @@ export namespace game {
 
 export namespace main {
 	
-	export class QueueInfo {
-	    pending: number;
-	    running: number;
+	export class AppInfo {
+	    exeDir: string;
+	    machineId: string;
+	    machineName: string;
+	    version: string;
+	    buildTime: string;
+	    logDir: string;
+	    platform: string;
+	    coverBaseUrl: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new QueueInfo(source);
+	        return new AppInfo(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.pending = source["pending"];
-	        this.running = source["running"];
+	        this.exeDir = source["exeDir"];
+	        this.machineId = source["machineId"];
+	        this.machineName = source["machineName"];
+	        this.version = source["version"];
+	        this.buildTime = source["buildTime"];
+	        this.logDir = source["logDir"];
+	        this.platform = source["platform"];
+	        this.coverBaseUrl = source["coverBaseUrl"];
 	    }
 	}
 	export class ScrapeReport {
 	    gameId: string;
 	    title: string;
-	    source: string;
+	    source?: string;
+	    sources?: string[];
 	    error?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -239,6 +262,7 @@ export namespace main {
 	        this.gameId = source["gameId"];
 	        this.title = source["title"];
 	        this.source = source["source"];
+	        this.sources = source["sources"];
 	        this.error = source["error"];
 	    }
 	}
@@ -277,6 +301,79 @@ export namespace scanner {
 	        this.gameInfo = this.convertValues(source["gameInfo"], game.GameInfo);
 	        this.isNew = source["isNew"];
 	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace taskqueue {
+	
+	export class Failure {
+	    gameId: string;
+	    title?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Failure(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.gameId = source["gameId"];
+	        this.title = source["title"];
+	        this.error = source["error"];
+	    }
+	}
+	export class Status {
+	    pending: number;
+	    running: number;
+	    paused: boolean;
+	    concurrency: number;
+	    currentTitle?: string;
+	    currentGameId?: string;
+	    runningTitles: string[];
+	    pendingTitles: string[];
+	    completed: number;
+	    failed: number;
+	    total: number;
+	    failures: Failure[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pending = source["pending"];
+	        this.running = source["running"];
+	        this.paused = source["paused"];
+	        this.concurrency = source["concurrency"];
+	        this.currentTitle = source["currentTitle"];
+	        this.currentGameId = source["currentGameId"];
+	        this.runningTitles = source["runningTitles"];
+	        this.pendingTitles = source["pendingTitles"];
+	        this.completed = source["completed"];
+	        this.failed = source["failed"];
+	        this.total = source["total"];
+	        this.failures = this.convertValues(source["failures"], Failure);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

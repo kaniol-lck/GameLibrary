@@ -1,0 +1,58 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - noctx
+    - unconvert
+    - wastedassign
+  settings:
+    errcheck:
+      exclude-functions:
+        # Best-effort cleanup / logging paths where the error is deliberately
+        # discarded. Everything else must be handled.
+        - (io.Closer).Close
+        - (*os.File).Close
+    staticcheck:
+      checks:
+        - all
+  exclusions:
+    # frontend/node_modules happens to ship an unrelated Go package and
+    # build/ holds compiled output; neither belongs to this module.
+    paths:
+      - frontend
+      - build
+      - \.gocache
+    rules:
+      # Test helpers may ignore errors when building fixtures.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - bodyclose
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - GameLibrary
+  exclusions:
+    paths:
+      - frontend
+      - build
+      - \.gocache

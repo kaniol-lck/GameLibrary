@@ -1,155 +1,345 @@
-import { useState, useEffect } from 'react';
-import { game } from '../../wailsjs/go/models';
-import { LaunchGame, GetGameCoverLandscape, ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, SetPreferredSource, SetPrimaryExecutable, OpenBrowser } from '../../wailsjs/go/main/App';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { api, type Game, type ScrapeReport } from "@/api/client";
+import { coverKey, coverUrl } from "@/lib/cover";
+import { errorMessage, formatPlaytime } from "@/lib/format";
+import { gamePlatforms, platformMeta, primaryGameUrl } from "@/lib/platform";
 
-interface GameDetailProps {
-  game: game.GameInfo;
+export interface GameDetailProps {
+  game: Game;
   onClose: () => void;
-  onUpdated: () => void;
-  onScrape?: (id: string) => Promise<void>;
-  isScraping?: boolean;
+  onUpdated: () => void | Promise<void>;
+  onScrape: (id: string) => Promise<ScrapeReport | null>;
+  isScraping: boolean;
 }
 
-function formatPlaytime(seconds: number): string {
-  if (seconds <= 0) return '';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+/** Inline result line shown at the bottom of the panel. */
+interface Feedback {
+  kind: "ok" | "error";
+  text: string;
 }
 
-function getPlatColor(platform: string): string {
-  switch (platform) { case 'steam': return '#1a4b8a'; case 'vndb': return '#2255a4'; case 'dlsite': return '#c2185b'; case 'bangumi': return '#e57399'; default: return '#555'; }
-}
+const TITLE_ID = "game-detail-title";
+const TAG_INPUT_ID = "game-detail-tag-input";
 
-export default function GameDetail({ game: initialGame, onClose, onUpdated, onScrape, isScraping }: GameDetailProps) {
-  const [g, setG] = useState<game.GameInfo>(initialGame);
-  const [coverData, setCoverData] = useState('');
-  const [scrapeMsg, setScrapeMsg] = useState('');
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [tagInput, setTagInput] = useState('');
+/**
+ * Read-only summary of one game plus the actions the backend exposes for it.
+ *
+ * Every action goes through `api.*` and then `onUpdated()`, so the panel always
+ * renders the parent's freshly fetched game. The previous version mutated the
+ * `game` prop in place (`g.starred = !g.starred`), which changed the parent's
+ * state object without a re-render and lost the change on the next fetch.
+ */
+export default function GameDetail({
+  game,
+  onClose,
+  onUpdated,
+  onScrape,
+  isScraping,
+}: GameDetailProps) {
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [pending, setPending] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [tagInputOpen, setTagInputOpen] = useState(false);
+  const [failedCover, setFailedCover] = useState("");
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const metadata = game.metadata;
+  const platforms = gamePlatforms(game);
+  const preferredSource = game.preferredSource ?? "";
+  const userTags = game.tags ?? [];
+  const aliases = game.aliases ?? [];
+  const executables = game.executables ?? [];
+  const primaryUrl = primaryGameUrl(game);
+  const cover = coverUrl(game.id, "landscape", game.coverVersion);
+  const coverId = coverKey(game.id, game.coverVersion);
+  const busy = pending || isScraping;
+
+  // The dialog is focused on mount so Escape and Tab work before the first click.
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   useEffect(() => {
-    if (!g.metadata?.coverUrl) return;
-    GetGameCoverLandscape(g.id).then(setCoverData).catch(() => {});
-  }, [g.id, g.metadata?.coverUrl]);
-  useEffect(() => { setG(initialGame); }, [initialGame]);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
 
-  const meta = g.metadata;
-  const platforms: Array<{platform: string, id: string}> = (g as any).platforms || [];
-  const preferredSource = (g as any).preferredSource || '';
+  /** Runs one backend action, then refreshes the parent from fresh data. */
+  const runAction = useCallback(
+    async (action: () => Promise<void>, successMessage?: string) => {
+      setPending(true);
+      setFeedback(null);
+      try {
+        await action();
+        await onUpdated();
+        if (successMessage) {
+          setFeedback({ kind: "ok", text: successMessage });
+        }
+      } catch (err) {
+        setFeedback({ kind: "error", text: errorMessage(err) });
+      } finally {
+        setPending(false);
+      }
+    },
+    [onUpdated],
+  );
 
-  const handleStar = async () => { try { await ToggleGameStar(g.id); g.starred = !g.starred; setG({ ...g } as any); onUpdated(); } catch {} };
-  const handleLaunch = async () => { try { await LaunchGame(g.id); } catch (err) { setScrapeMsg(String(err)); } };
+  const handleLaunch = () => runAction(() => api.launch(game.id));
+  const handleToggleStar = () => runAction(() => api.toggleStar(game.id));
+  const handleRemoveTag = (tag: string) => runAction(() => api.removeTag(game.id, tag));
+  const handleSetPreferred = (source: string) =>
+    runAction(() => api.setPreferredSource(game.id, source));
+  const handleSetPrimary = (path: string) =>
+    runAction(() => api.setPrimaryExecutable(game.id, path));
+  const handleOpenFolder = () => runAction(() => api.openGameDirectory(game.id));
+  const handleOpenMetadata = () => runAction(() => api.openGameMetadata(game.id));
+  const handleOpenPage = (url: string) => runAction(() => api.openBrowser(url));
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim();
+    setTagInput("");
+    setTagInputOpen(false);
+    if (tag === "") {
+      return;
+    }
+    void runAction(() => api.addTag(game.id, tag));
+  };
+
   const handleScrape = async () => {
-    setScrapeMsg('Scraping...');
-    try { if (onScrape) { await onScrape(g.id); setScrapeMsg('Scrape completed'); } onUpdated(); } catch { setScrapeMsg('Scrape failed'); }
+    setPending(true);
+    setFeedback(null);
+    try {
+      const report = await onScrape(game.id);
+      if (report === null) {
+        // The hook records the underlying error in the app-level banner.
+        setFeedback({ kind: "error", text: "Scrape failed. See the error banner for details." });
+        return;
+      }
+      if (report.error) {
+        setFeedback({ kind: "error", text: report.error });
+        return;
+      }
+      const sources = report.sources?.length ? report.sources.join(", ") : (report.source ?? "");
+      setFeedback({
+        kind: "ok",
+        text: sources === "" ? "Metadata updated." : `Metadata updated from ${sources}.`,
+      });
+      await onUpdated();
+    } catch (err) {
+      setFeedback({ kind: "error", text: errorMessage(err) });
+    } finally {
+      setPending(false);
+    }
   };
-  const handleOpenDir = async () => { try { await OpenGameDirectory(g.id); } catch {} };
-  const handleOpenMeta = async () => { try { await OpenGameMetadata(g.id); } catch {} };
-  const handleSetPrimaryExe = async (path: string) => {
-    try { await SetPrimaryExecutable(g.id, path); g.executables.forEach(e => { e.primary = e.path === path; }); setG({ ...g } as any); onUpdated(); } catch {}
-  };
-  const handleSetPreferred = async (src: string) => { try { await SetPreferredSource(g.id, src); (g as any).preferredSource = src; setG({ ...g } as any); onUpdated(); } catch {} };
-  const handleOpenPage = (url: string) => { if (url) OpenBrowser(url).catch(() => {}); };
-  const handleAddTag = async () => {
-    const tag = tagInput.trim(); if (!tag) { setShowTagInput(false); return; }
-    try { await AddGameTag(g.id, tag); g.tags = [...(g.tags || []), tag]; setG({ ...g } as any); onUpdated(); setTagInput(''); setShowTagInput(false); } catch {}
-  };
-  const handleRemoveTag = async (tag: string) => { try { await RemoveGameTag(g.id, tag); g.tags = (g.tags || []).filter((t: string) => t !== tag); setG({ ...g } as any); onUpdated(); } catch {} };
 
-  const platUrl = (p: any) => {
-    if (p.platform === 'steam' && p.id) return `https://store.steampowered.com/app/${p.id}/`;
-    if (p.platform === 'dlsite' && p.id) return `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
-    if (p.platform === 'bangumi' && p.id) return `https://bgm.tv/subject/${p.id}`;
-    return '';
+  const handleExecutableKeyDown = (event: ReactKeyboardEvent<HTMLLIElement>, path: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void handleSetPrimary(path);
+    }
   };
 
   return (
     <div className="detail-overlay" onClick={onClose}>
-      <div className="detail-dialog" onClick={(e) => e.stopPropagation()}>
-        <button className="detail-close" onClick={onClose}>&times;</button>
+      <div
+        className="detail-dialog"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={TITLE_ID}
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="detail-close"
+          onClick={onClose}
+          aria-label="Close details"
+          title="Close"
+        >
+          {"\u00D7"}
+        </button>
 
         <div className="detail-cover">
-          {coverData ? <img src={coverData} alt={g.title} />
-            : <div className="game-card-cover-placeholder"><span>{g.title.charAt(0).toUpperCase()}</span></div>}
+          {failedCover === coverId ? (
+            <div className="game-card-cover-placeholder">
+              <span>{game.title.charAt(0).toUpperCase()}</span>
+            </div>
+          ) : (
+            <img src={cover} alt={game.title} onError={() => setFailedCover(coverId)} />
+          )}
         </div>
 
         <div className="detail-body">
           <div className="detail-header-row">
-            <h2 className="detail-title">{g.title}</h2>
-            <button className="detail-star-btn" onClick={handleStar} title={g.starred ? 'Unstar' : 'Star'}>
-              {g.starred ? '\u2605' : '\u2606'}
+            <h2 className="detail-title" id={TITLE_ID}>
+              {game.title}
+            </h2>
+            <button
+              type="button"
+              className="detail-star-btn"
+              onClick={() => void handleToggleStar()}
+              title={game.starred === true ? "Unstar" : "Star"}
+              aria-label={game.starred === true ? "Remove star" : "Add star"}
+              aria-pressed={game.starred === true}
+              disabled={busy}
+            >
+              {game.starred === true ? "\u2605" : "\u2606"}
             </button>
           </div>
-          {g.titleNative && <p className="detail-title-native">{g.titleNative}</p>}
+          {game.titleNative && <p className="detail-title-native">{game.titleNative}</p>}
 
           <div className="detail-meta-row">
             <div className="detail-platforms">
-              {platforms.map((p: any) => {
-                const url = platUrl(p);
-                return url ? (
-                  <a key={p.platform} className="detail-platform-tag detail-platform-link"
-                    style={{ backgroundColor: getPlatColor(p.platform) }}
-                    onClick={(e) => { e.stopPropagation(); handleOpenPage(url); }} title={'Open ' + p.platform + ' page'}>
-                    {p.platform}
-                    <span className="detail-plat-arrow">{'\u2197'}</span>
+              {platforms.map((platform) => {
+                const meta = platformMeta(platform.platform);
+                const label = meta.label || platform.platform;
+                const url = meta.url(platform.id ?? "");
+                if (url === "") {
+                  return (
+                    <span
+                      key={platform.platform}
+                      className="detail-platform-tag"
+                      style={{ backgroundColor: meta.color }}
+                    >
+                      {label}
+                    </span>
+                  );
+                }
+                return (
+                  <a
+                    key={platform.platform}
+                    className="detail-platform-tag detail-platform-link"
+                    href={url}
+                    style={{ backgroundColor: meta.color }}
+                    title={`Open ${label} page`}
+                    onClick={(event) => {
+                      // The webview must not navigate away from the app.
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void handleOpenPage(url);
+                    }}
+                  >
+                    {label}
+                    <span className="detail-plat-arrow">{"\u2197"}</span>
                   </a>
-                ) : (
-                  <span key={p.platform} className="detail-platform-tag" style={{ backgroundColor: getPlatColor(p.platform) }}>{p.platform}</span>
                 );
               })}
             </div>
-            {g.totalPlaytime > 0 && <span className="detail-meta-text">{formatPlaytime(g.totalPlaytime)}</span>}
+            {game.totalPlaytime > 0 && (
+              <span className="detail-meta-text">{formatPlaytime(game.totalPlaytime)}</span>
+            )}
           </div>
 
-          <button className="btn btn-launch btn-launch-lg" onClick={handleLaunch} disabled={g.executables.length === 0}>
-            {'\u25B6'} Launch Game
+          <button
+            type="button"
+            className="btn btn-launch btn-launch-lg"
+            onClick={() => void handleLaunch()}
+            disabled={executables.length === 0 || busy}
+          >
+            {"\u25B6"} Launch Game
           </button>
 
-          {(meta?.developer || meta?.publisher) && (
+          {(metadata?.developer || metadata?.publisher) && (
             <div className="detail-section">
-              {meta.developer && <div className="detail-field"><label>Developer</label><span>{meta.developer}</span></div>}
-              {meta.publisher && <div className="detail-field"><label>Publisher</label><span>{meta.publisher}</span></div>}
+              {metadata.developer && (
+                <div className="detail-field">
+                  <label>Developer</label>
+                  <span>{metadata.developer}</span>
+                </div>
+              )}
+              {metadata.publisher && (
+                <div className="detail-field">
+                  <label>Publisher</label>
+                  <span>{metadata.publisher}</span>
+                </div>
+              )}
             </div>
           )}
 
-          {meta?.releaseDate && (
+          {metadata?.releaseDate && (
             <div className="detail-section">
-              <div className="detail-field"><label>Release Date</label><span>{meta.releaseDate}</span></div>
+              <div className="detail-field">
+                <label>Release Date</label>
+                <span>{metadata.releaseDate}</span>
+              </div>
             </div>
           )}
 
-          {meta?.description && (
+          {metadata?.description && (
             <div className="detail-section">
               <label>Description</label>
-              <p className="detail-desc">{meta.description}</p>
+              <p className="detail-desc">{metadata.description}</p>
             </div>
           )}
 
           <div className="detail-section">
-            <label>Tags</label>
+            <label htmlFor={TAG_INPUT_ID}>Tags</label>
             <div className="detail-tags-wrap">
-              {/* genre tags from scraper */}
-              {(meta?.tags || []).map((tag: string, i: number) => (
-                <span key={'g'+i} className="detail-tag detail-tag-genre">{tag}</span>
-              ))}
-              {/* custom user tags */}
-              {(g.tags || []).map((t: string) => (
-                <span key={'u'+t} className="detail-tag detail-tag-user">
-                  #{t}
-                  <button className="detail-tag-remove" onClick={() => handleRemoveTag(t)}>&times;</button>
+              {(metadata?.tags ?? []).map((tag) => (
+                <span key={tag} className="detail-tag detail-tag-genre">
+                  {tag}
                 </span>
               ))}
-              {!showTagInput ? (
-                <button className="detail-tag detail-tag-add" onClick={() => setShowTagInput(true)}>+</button>
-              ) : (
+              {userTags.map((tag) => (
+                <span key={tag} className="detail-tag detail-tag-user">
+                  #{tag}
+                  <button
+                    type="button"
+                    className="detail-tag-remove"
+                    onClick={() => void handleRemoveTag(tag)}
+                    aria-label={`Remove tag ${tag}`}
+                    disabled={busy}
+                  >
+                    {"\u00D7"}
+                  </button>
+                </span>
+              ))}
+              {tagInputOpen ? (
                 <div className="context-tag-input detail-tag-inline">
-                  <input autoFocus type="text" placeholder="tag..." value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); if (e.key === 'Escape') setShowTagInput(false); }} />
-                  <button onClick={handleAddTag}>Add</button>
+                  <input
+                    id={TAG_INPUT_ID}
+                    type="text"
+                    placeholder="tag…"
+                    value={tagInput}
+                    autoFocus
+                    aria-label="New tag"
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        handleAddTag();
+                      }
+                      if (event.key === "Escape") {
+                        setTagInputOpen(false);
+                        setTagInput("");
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={handleAddTag}>
+                    Add
+                  </button>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  className="detail-tag detail-tag-add"
+                  onClick={() => setTagInputOpen(true)}
+                  aria-label="Add tag"
+                  disabled={busy}
+                >
+                  +
+                </button>
               )}
             </div>
           </div>
@@ -158,23 +348,33 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
             <div className="detail-section">
               <label>Preferred Source</label>
               <div className="detail-pref-row">
-                {platforms.map((p) => (
-                  <button key={'pref-'+p.platform}
-                    className={`detail-pref-btn ${p.platform === preferredSource ? 'detail-pref-active' : ''}`}
-                    onClick={() => handleSetPreferred(p.platform)}>
-                    {p.platform === preferredSource ? '\u25C9' : '\u25CB'} {p.platform}
+                {platforms.map((platform) => (
+                  <button
+                    key={platform.platform}
+                    type="button"
+                    className={`detail-pref-btn${
+                      platform.platform === preferredSource ? " detail-pref-active" : ""
+                    }`}
+                    onClick={() => void handleSetPreferred(platform.platform)}
+                    aria-pressed={platform.platform === preferredSource}
+                    disabled={busy}
+                  >
+                    {platform.platform === preferredSource ? "\u25C9" : "\u25CB"}{" "}
+                    {platformMeta(platform.platform).label || platform.platform}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {(g.aliases && g.aliases.length > 0) && (
+          {aliases.length > 0 && (
             <div className="detail-section">
               <label>Aliases</label>
               <div className="detail-tags-wrap">
-                {g.aliases.map((a: string, i: number) => (
-                  <span key={i} className="detail-tag detail-tag-alias">{a}</span>
+                {aliases.map((alias) => (
+                  <span key={alias} className="detail-tag detail-tag-alias">
+                    {alias}
+                  </span>
                 ))}
               </div>
             </div>
@@ -183,25 +383,70 @@ export default function GameDetail({ game: initialGame, onClose, onUpdated, onSc
           <div className="detail-section">
             <label>Executables</label>
             <ul className="detail-exe-list">
-              {g.executables.map((exe, i) => (
-                <li key={i} className="detail-exe-item" onClick={() => handleSetPrimaryExe(exe.path)}>
-                  <span className="detail-exe-radio">{exe.primary ? '\u25C9' : '\u25CB'}</span>
-                  <span>{exe.name}.exe</span>
+              {executables.map((executable) => (
+                <li
+                  key={executable.path}
+                  className="detail-exe-item"
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={executable.primary === true}
+                  title={`Use ${executable.name}.exe as the primary executable`}
+                  onClick={() => void handleSetPrimary(executable.path)}
+                  onKeyDown={(event) => handleExecutableKeyDown(event, executable.path)}
+                >
+                  <span className="detail-exe-radio">
+                    {executable.primary === true ? "\u25C9" : "\u25CB"}
+                  </span>
+                  <span>{executable.name}.exe</span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="detail-section detail-bottom-actions">
-            <button className="btn btn-secondary" onClick={handleScrape} disabled={isScraping}>
-              {isScraping ? 'Scraping...' : '\u21BB Re-scrape Metadata'}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void handleScrape()}
+              disabled={busy}
+            >
+              {isScraping ? "Scraping…" : "\u21BB Re-scrape Metadata"}
             </button>
-            <button className="btn btn-secondary" onClick={handleOpenDir}>{'\uD83D\uDCC1'} Open Folder</button>
-            <button className="btn btn-ghost-sm" onClick={handleOpenMeta}>{'\uD83D\uDCC4'} Metadata</button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void handleOpenFolder()}
+              disabled={busy}
+            >
+              {"\uD83D\uDCC1"} Open Folder
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost-sm"
+              onClick={() => void handleOpenMetadata()}
+              disabled={busy}
+            >
+              {"\uD83D\uDCC4"} Metadata
+            </button>
+            {primaryUrl !== "" && (
+              <button
+                type="button"
+                className="btn btn-ghost-sm"
+                onClick={() => void handleOpenPage(primaryUrl)}
+                disabled={busy}
+              >
+                {"\uD83C\uDF10"} Open Page
+              </button>
+            )}
           </div>
 
-          {scrapeMsg && (
-            <div className={`scrape-result ${scrapeMsg.includes('completed') ? 'scrape-ok' : 'scrape-err'}`}>{scrapeMsg}</div>
+          {feedback && (
+            <div
+              className={`scrape-result ${feedback.kind === "ok" ? "scrape-ok" : "scrape-err"}`}
+              role={feedback.kind === "ok" ? "status" : "alert"}
+            >
+              {feedback.text}
+            </div>
           )}
         </div>
       </div>

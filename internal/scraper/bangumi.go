@@ -1,130 +1,170 @@
 package scraper
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"html"
-	"io"
-	"net/http"
 	"net/url"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
-
-	"GameLibrary/internal/logger"
 )
 
+// bangumiSearchURL is the Bangumi v0 subject search endpoint.
+//
+// The previous implementation issued a GET to "/v0/search/subject/{keyword}"
+// with legacy query parameters ("responseGroup", "max_results"). No such route
+// exists in the v0 API, so every request returned HTTP 404 and the provider could
+// never match anything. The documented endpoint is a POST of a JSON body, and the
+// response is a paged object whose results live under "data".
+const bangumiSearchURL = "https://api.bgm.tv/v0/search/subjects"
+
+// bangumiSubjectTypeGame is the subject type for games.
+const bangumiSubjectTypeGame = 4
+
+// bangumiMinInterval keeps the request rate modest; Bangumi publishes no formal
+// budget but throttles aggressive clients.
+const bangumiMinInterval = 1000 * time.Millisecond
+
+// BangumiScraper resolves games through Bangumi (bgm.tv), which is the most
+// reliable source of Chinese titles and release dates for Japanese games.
 type BangumiScraper struct {
-	client *http.Client
+	http      *HTTPClient
+	endpoint  string
+	userAgent string
 }
 
+// NewBangumiScraper creates the provider.
 func NewBangumiScraper() *BangumiScraper {
 	return &BangumiScraper{
-		client: &http.Client{Timeout: 15 * time.Second},
+		endpoint:  bangumiSearchURL,
+		userAgent: "GameLibrary/" + ClientVersion + " (https://github.com/kaniol-lck/GameLibrary)",
 	}
 }
 
+// Key implements Source.
 func (s *BangumiScraper) Key() string { return "bangumi" }
 
-func (s *BangumiScraper) Configure(lang string, settings map[string]string) {
-	_ = lang
-	_ = settings
+// Configure implements Source.
+func (s *BangumiScraper) Configure(cfg SourceConfig) error {
+	s.http = cfg.HTTP
+	if s.http != nil {
+		s.http.LimitHost(hostOf(s.endpoint), bangumiMinInterval)
+	}
+	return nil
 }
 
-func (s *BangumiScraper) Search(gameDir string, appID string) (*Result, error) {
-	_ = appID
-	baseName := filepath.Base(gameDir)
-	name := normalizeSearchName(baseName)
-
-	terms := nameVariations(name)
-	for _, term := range terms {
-		r, err := s.searchByName(term)
-		if err == nil && r != nil {
-			return r, nil
+// Search implements Source.
+func (s *BangumiScraper) Search(ctx context.Context, q Query) (*Result, error) {
+	var lastErr error
+	for _, term := range SearchTerms(q.Name) {
+		result, err := s.searchByName(ctx, term)
+		if err == nil && result != nil {
+			return result, nil
+		}
+		if err != nil && !IsNoResult(err) {
+			lastErr = err
+			break
 		}
 	}
-	return nil, fmt.Errorf("bangumi: no results for '%s'", baseName)
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, NoResult("bangumi", q.Name)
 }
 
-func (s *BangumiScraper) searchByName(name string) (*Result, error) {
-	query := url.QueryEscape(name)
-	searchURL := fmt.Sprintf("https://api.bgm.tv/v0/search/subject/%s?type=4&responseGroup=large&max_results=3", query)
-
-	req, _ := http.NewRequest("GET", searchURL, nil)
-	req.Header.Set("User-Agent", "GameLibrary/0.3")
-
-	resp, err := s.client.Do(req)
+func (s *BangumiScraper) searchByName(ctx context.Context, name string) (*Result, error) {
+	payload, err := json.Marshal(map[string]any{
+		"keyword": name,
+		"sort":    "match",
+		"filter": map[string]any{
+			"type": []int{bangumiSubjectTypeGame},
+		},
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "timeout") || strings.Contains(err.Error(), "deadline exceeded") {
-			logger.Warn("bangumi: network timeout (site may be blocked or slow)",
-				"url", searchURL,
-				"error", err.Error(),
-			)
-		}
+		return nil, fmt.Errorf("bangumi: encode query: %w", err)
+	}
+
+	params := url.Values{}
+	params.Set("limit", strconv.Itoa(3))
+	requestURL := s.endpoint + "?" + params.Encode()
+
+	resp, err := s.http.Do(ctx, "bangumi", Request{
+		Method: "POST",
+		URL:    requestURL,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+			// Bangumi asks API clients to identify themselves.
+			"User-Agent": s.userAgent,
+		},
+		Body:     payload,
+		MaxBytes: 1 << 20,
+	})
+	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bangumi: HTTP %d", resp.StatusCode)
-	}
-
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-
-	var searchResp struct {
-		List []struct {
+	var search struct {
+		Total int `json:"total"`
+		Data  []struct {
 			ID      int    `json:"id"`
 			Name    string `json:"name"`
 			NameCN  string `json:"name_cn"`
 			Summary string `json:"summary"`
 			Date    string `json:"date"`
 			Images  struct {
-				Large string `json:"large"`
+				Large  string `json:"large"`
+				Common string `json:"common"`
 			} `json:"images"`
-		} `json:"list"`
+		} `json:"data"`
 	}
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		logger.Warn("bangumi: non-JSON response",
-			"status", resp.StatusCode,
-			"bodyPreview", string(body[:minLen(body, 100)]),
-		)
-		return nil, err
+	if err := json.Unmarshal(resp.Body, &search); err != nil {
+		return nil, &APIError{Source: "bangumi", Kind: KindParse, URL: requestURL, Message: "unexpected search payload", Err: err}
 	}
-
-	if len(searchResp.List) == 0 {
-		return nil, fmt.Errorf("bangumi: no results for '%s'", name)
+	if len(search.Data) == 0 {
+		return nil, NoResult("bangumi", name)
 	}
 
-	item := searchResp.List[0]
+	item := search.Data[0]
 
-	title := item.NameCN
+	// Chinese users want the Chinese title as the display name; the original
+	// script is kept alongside it either way.
+	title := CleanText(item.NameCN)
+	native := CleanText(item.Name)
 	if title == "" {
-		title = item.Name
+		title = native
+	}
+	if title == "" {
+		return nil, NoResult("bangumi", name)
 	}
 
-	desc := strings.TrimSpace(item.Summary)
-	if len(desc) > 500 {
-		desc = desc[:500] + "..."
+	cover := item.Images.Large
+	if cover == "" {
+		cover = item.Images.Common
 	}
-
-	logger.Debug("bangumi search result", "searchTerm", name, "matchedTitle", title, "id", item.ID)
 
 	return &Result{
-		Title:             html.UnescapeString(title),
-		TitleNative:       html.UnescapeString(item.Name),
-		Description:       desc,
-		ReleaseDate:       item.Date,
-		CoverURL:          item.Images.Large,
-		CoverLandscapeURL: item.Images.Large,
+		Title:             Unescape(title),
+		TitleNative:       Unescape(native),
+		Description:       PrepareDescription(item.Summary),
+		ReleaseDate:       CleanText(item.Date),
+		CoverURL:          cover,
+		CoverLandscapeURL: cover,
 		Links: map[string]string{
-			"bangumi": fmt.Sprintf("https://bgm.tv/subject/%d", item.ID),
+			"bangumi":     fmt.Sprintf("https://bgm.tv/subject/%d", item.ID),
+			PlatformIDKey: strconv.Itoa(item.ID),
 		},
 	}, nil
 }
 
-func minLen(b []byte, n int) int {
-	if len(b) < n {
-		return len(b)
+// TrimWrappedParens is a helper used by provider tests when comparing titles that
+// Bangumi decorates, e.g. "Steins;Gate (PC)".
+func TrimWrappedParens(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, ")") {
+		if idx := strings.LastIndexByte(s, '('); idx > 0 {
+			return strings.TrimSpace(s[:idx])
+		}
 	}
-	return n
+	return s
 }

@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.8.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.8.0",
+			"CompanyName": "kaniol",
+			"FileDescription": "GameLibrary",
+			"LegalCopyright": "MIT License",
+			"ProductName": "GameLibrary",
+			"Comments": "Portable game library manager for a NAS share"
+		}
+	}
+}

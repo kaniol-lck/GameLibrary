@@ -1,180 +1,352 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { game } from '../../wailsjs/go/models';
-import { ToggleGameStar, AddGameTag, RemoveGameTag, OpenGameDirectory, OpenGameMetadata, LaunchGame, SetPreferredSource, SetPrimaryExecutable, OpenBrowser } from '../../wailsjs/go/main/App';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { api, type Game, type ScrapeReport } from "@/api/client";
+import { errorMessage } from "@/lib/format";
+import { gamePlatforms, platformMeta, primaryGameUrl } from "@/lib/platform";
 
-interface ContextMenuProps {
-  game: game.GameInfo;
+export interface ContextMenuProps {
+  game: Game;
   x: number;
   y: number;
   onClose: () => void;
-  onUpdated: () => void;
-  onScrape?: (id: string) => Promise<void>;
+  onScrape: (id: string) => Promise<ScrapeReport | null>;
+  onUpdated: () => void | Promise<void>;
 }
 
-export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }: ContextMenuProps) {
+/** Assumed submenu width, used to decide which side a submenu opens on. */
+const SUBMENU_WIDTH = 190;
+/** Gap kept between the menu and the window edge. */
+const VIEWPORT_MARGIN = 4;
+/** How long a submenu survives the pointer leaving it. */
+const HOVER_CLOSE_DELAY_MS = 200;
+
+/**
+ * Right-click menu for one game.
+ *
+ * Every action calls `api.*` and then `onUpdated()`; failures are shown inside
+ * the menu because the menu previously closed on click and the error was lost.
+ */
+export default function ContextMenu({
+  game,
+  x,
+  y,
+  onClose,
+  onScrape,
+  onUpdated,
+}: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [tagInput, setTagInput] = useState('');
-  const [hoverSubMenu, setHoverSubMenu] = useState('');
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [error, setError] = useState("");
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [hoverSubMenu, setHoverSubMenu] = useState("");
+  const [placement, setPlacement] = useState({ left: x, top: y, flip: false });
 
-  const adjustedX = Math.min(x, window.innerWidth - 420);
-  const adjustedY = Math.min(y, window.innerHeight - 300);
+  // Measured before the first paint, so the menu never opens half off-screen,
+  // and re-measured on resize so it cannot stay at a stale position.
+  useLayoutEffect(() => {
+    const place = () => {
+      const menu = menuRef.current;
+      const width = menu?.offsetWidth ?? 220;
+      const height = menu?.offsetHeight ?? 320;
+      const left = Math.max(
+        VIEWPORT_MARGIN,
+        Math.min(x, window.innerWidth - width - VIEWPORT_MARGIN),
+      );
+      const top = Math.max(
+        VIEWPORT_MARGIN,
+        Math.min(y, window.innerHeight - height - VIEWPORT_MARGIN),
+      );
+      setPlacement({ left, top, flip: left + width + SUBMENU_WIDTH > window.innerWidth });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [x, y, game.id]);
 
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-      onClose();
-    }
-  }, [onClose]);
+  // The pending submenu-close timer used to keep running after unmount.
+  useEffect(
+    () => () => {
+      if (closeTimer.current !== null) {
+        clearTimeout(closeTimer.current);
+      }
+    },
+    [],
+  );
+
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    },
+    [onClose],
+  );
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [handleClickOutside]);
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  const handleStar = async () => { try { await ToggleGameStar(game.id); onUpdated(); } catch {} onClose(); };
-  const handleOpenDir = async () => { try { await OpenGameDirectory(game.id); } catch {} onClose(); };
-  const handleOpenMeta = async () => { try { await OpenGameMetadata(game.id); } catch {} onClose(); };
-  const handleLaunch = async () => { try { await LaunchGame(game.id); } catch {} onClose(); };
-  const handleReScrape = async () => { if (onScrape) { try { await onScrape(game.id); onUpdated(); } catch {} } onClose(); };
-  const handleSetPreferred = async (source: string) => { try { await SetPreferredSource(game.id, source); onUpdated(); } catch {} setHoverSubMenu(''); };
-  const handleOpenPage = (url: string) => { if (url) OpenBrowser(url).catch(() => {}); };
+  /** Runs one backend action, refreshing the parent and keeping errors visible. */
+  const runAction = useCallback(
+    async (action: () => Promise<void>, closeAfter = false) => {
+      setError("");
+      try {
+        await action();
+        await onUpdated();
+        if (closeAfter) {
+          onClose();
+        }
+      } catch (err) {
+        setError(errorMessage(err));
+      }
+    },
+    [onClose, onUpdated],
+  );
+
+  const handleScrape = async () => {
+    setError("");
+    try {
+      const report = await onScrape(game.id);
+      if (report === null) {
+        setError("Scrape failed. See the error banner for details.");
+        return;
+      }
+      if (report.error) {
+        setError(report.error);
+        return;
+      }
+      await onUpdated();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim();
+    setTagInput("");
+    setShowTagInput(false);
+    if (tag === "") {
+      return;
+    }
+    void runAction(() => api.addTag(game.id, tag));
+  };
 
   const handleEnter = (key: string) => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
+    if (closeTimer.current !== null) {
+      clearTimeout(closeTimer.current);
+    }
     setHoverSubMenu(key);
   };
+
   const handleLeave = () => {
-    closeTimer.current = setTimeout(() => setHoverSubMenu(''), 200);
-  };
-  const handleSubEnter = (key: string) => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setHoverSubMenu(key);
+    if (closeTimer.current !== null) {
+      clearTimeout(closeTimer.current);
+    }
+    closeTimer.current = setTimeout(() => setHoverSubMenu(""), HOVER_CLOSE_DELAY_MS);
   };
 
-  const handleAddTag = async () => {
-    const tag = tagInput.trim();
-    if (!tag) { setShowTagInput(false); return; }
-    try { await AddGameTag(game.id, tag); onUpdated(); } catch {}
-    setTagInput('');
-    setShowTagInput(false);
-  };
-  const handleRemoveTag = async (tag: string) => { try { await RemoveGameTag(game.id, tag); onUpdated(); } catch {} };
-  const handleSetPrimaryExe = async (path: string) => { try { await SetPrimaryExecutable(game.id, path); onUpdated(); } catch {} };
+  const platforms = gamePlatforms(game);
+  const preferredSource = game.preferredSource ?? "";
+  const executables = game.executables ?? [];
+  const userTags = game.tags ?? [];
+  const savePath = game.savePaths?.[0]?.path ?? "";
 
-  const platforms: Array<{platform: string, id: string}> = (game as any).platforms || [];
-  const preferredSource = (game as any).preferredSource || '';
-  const hasExe = (game.executables || []).length > 0;
+  const pageLinks = useMemo(() => {
+    const links = gamePlatforms(game)
+      .map((platform) => {
+        const meta = platformMeta(platform.platform);
+        return {
+          key: platform.platform,
+          label: meta.label || platform.platform,
+          icon: meta.icon,
+          url: meta.url(platform.id ?? ""),
+        };
+      })
+      .filter((link) => link.url !== "");
+    if (links.length === 0) {
+      // No per-platform page: fall back to the metadata links when there are any.
+      const url = primaryGameUrl(game);
+      if (url !== "") {
+        links.push({ key: "primary", label: "Open Web Page", icon: "\uD83D\uDD17", url });
+      }
+    }
+    return links;
+  }, [game]);
 
-  const subFlipX = adjustedX + 420 > window.innerWidth;
+  const submenuClass = `ctx-submenu${placement.flip ? " ctx-sub-left" : ""}`;
 
   return (
-    <div ref={menuRef} className="context-menu" style={{ left: adjustedX, top: adjustedY }}>
+    <div
+      ref={menuRef}
+      className="context-menu"
+      style={{ left: placement.left, top: placement.top }}
+    >
       <div className="context-menu-section">
         <div className="context-menu-title">{game.title}</div>
       </div>
 
-      {hasExe && (
-        <button className="context-item context-launch" onClick={handleLaunch}>
-          <span className="context-item-icon">{'\u25B6'}</span>
+      {error !== "" && (
+        <div className="context-menu-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {executables.length > 0 && (
+        <button
+          type="button"
+          className="context-item context-launch"
+          onClick={() => void runAction(() => api.launch(game.id), true)}
+        >
+          <span className="context-item-icon">{"\u25B6"}</span>
           <span>Launch Game</span>
         </button>
       )}
 
-      <button className="context-item" onClick={handleStar}>
-        <span className="context-item-icon">{game.starred ? '\u2605' : '\u2606'}</span>
-        <span>{game.starred ? 'Unstar' : 'Star'}</span>
+      <button
+        type="button"
+        className="context-item"
+        onClick={() => void runAction(() => api.toggleStar(game.id), true)}
+      >
+        <span className="context-item-icon">{game.starred === true ? "\u2605" : "\u2606"}</span>
+        <span>{game.starred === true ? "Unstar" : "Star"}</span>
       </button>
 
       <div className="context-divider" />
 
-      <button className="context-item" onClick={handleReScrape}>
-        <span className="context-item-icon">{'\u21BB'}</span>
+      <button type="button" className="context-item" onClick={() => void handleScrape()}>
+        <span className="context-item-icon">{"\u21BB"}</span>
         <span>Re-scrape Metadata</span>
       </button>
 
       <div className="context-divider" />
 
-      {!showTagInput ? (
-        <button className="context-item" onClick={() => setShowTagInput(true)}>
+      {showTagInput ? (
+        <div className="context-tag-input">
+          <input
+            autoFocus
+            type="text"
+            placeholder="Tag name…"
+            value={tagInput}
+            aria-label="New tag"
+            onChange={(event) => setTagInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleAddTag();
+              }
+              if (event.key === "Escape") {
+                setShowTagInput(false);
+                setTagInput("");
+              }
+            }}
+          />
+          <button type="button" onClick={handleAddTag}>
+            Add
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="context-item" onClick={() => setShowTagInput(true)}>
           <span className="context-item-icon">+</span>
           <span>Add Tag</span>
         </button>
-      ) : (
-        <div className="context-tag-input">
-          <input autoFocus type="text" placeholder="Tag name..." value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); if (e.key === 'Escape') setShowTagInput(false); }} />
-          <button onClick={handleAddTag}>Add</button>
-        </div>
       )}
 
-      {(game.tags && game.tags.length > 0) && (
+      {userTags.length > 0 && (
         <div className="context-tags">
-          {game.tags.map((tag) => (
+          {userTags.map((tag) => (
             <span key={tag} className="context-tag-chip">
               {tag}
-              <button className="context-tag-remove" onClick={() => handleRemoveTag(tag)} title="Remove tag">&times;</button>
+              <button
+                type="button"
+                className="context-tag-remove"
+                onClick={() => void runAction(() => api.removeTag(game.id, tag))}
+                aria-label={`Remove tag ${tag}`}
+                title="Remove tag"
+              >
+                {"\u00D7"}
+              </button>
             </span>
           ))}
         </div>
       )}
 
-      {platforms.length > 0 && <div className="context-divider" />}
-
-      {platforms.length > 0 && (
-        <div className="ctx-parent"
-          onMouseEnter={() => handleEnter('pages')}
-          onMouseLeave={handleLeave}>
-          <div className="context-item">
-            <span className="context-item-icon">{'\uD83D\uDD17'}</span>
-            <span>Open Web Page</span>
-            <span className="ctx-arrow">{'\u25B8'}</span>
-          </div>
-          {hoverSubMenu === 'pages' && (
-            <div className={`ctx-submenu ${subFlipX ? 'ctx-sub-left' : ''}`}
-              onMouseEnter={() => handleSubEnter('pages')}
-              onMouseLeave={handleLeave}>
-              {platforms.map((p) => {
-                let url = '';
-                if (p.platform === 'steam' && p.id) url = `https://store.steampowered.com/app/${p.id}/`;
-                else if (p.platform === 'dlsite' && p.id) url = `https://www.dlsite.com/maniax/work/=/product_id/${p.id}.html`;
-                else if (p.platform === 'bangumi' && p.id) url = `https://bgm.tv/subject/${p.id}`;
-                return url ? (
-                  <button key={'link-'+p.platform} className="context-item" onClick={() => handleOpenPage(url)}>
-                    <span className="context-item-icon">{getPlatIcon(p.platform)}</span>
-                    <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}</span>
-                  </button>
-                ) : null;
-              })}
+      {pageLinks.length > 0 && (
+        <>
+          <div className="context-divider" />
+          <div
+            className="ctx-parent"
+            onMouseEnter={() => handleEnter("pages")}
+            onMouseLeave={handleLeave}
+          >
+            <div className="context-item">
+              <span className="context-item-icon">{"\uD83D\uDD17"}</span>
+              <span>Open Web Page</span>
+              <span className="ctx-arrow">{"\u25B8"}</span>
             </div>
-          )}
-        </div>
+            {hoverSubMenu === "pages" && (
+              <div
+                className={submenuClass}
+                onMouseEnter={() => handleEnter("pages")}
+                onMouseLeave={handleLeave}
+              >
+                {pageLinks.map((link) => (
+                  <button
+                    key={link.key}
+                    type="button"
+                    className="context-item"
+                    onClick={() => void runAction(() => api.openBrowser(link.url))}
+                  >
+                    <span className="context-item-icon">{link.icon}</span>
+                    <span>{link.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {platforms.length > 1 && (
-        <div className="ctx-parent"
-          onMouseEnter={() => handleEnter('pref')}
-          onMouseLeave={handleLeave}>
+        <div
+          className="ctx-parent"
+          onMouseEnter={() => handleEnter("pref")}
+          onMouseLeave={handleLeave}
+        >
           <div className="context-item">
-            <span className="context-item-icon">{'\u2699'}</span>
+            <span className="context-item-icon">{"\u2699"}</span>
             <span>Preferred Source</span>
-            <span className="ctx-arrow">{'\u25B8'}</span>
+            <span className="ctx-arrow">{"\u25B8"}</span>
           </div>
-          {hoverSubMenu === 'pref' && (
-            <div className={`ctx-submenu ${subFlipX ? 'ctx-sub-left' : ''}`}
-              onMouseEnter={() => handleSubEnter('pref')}
-              onMouseLeave={handleLeave}>
-              {platforms.map((p) => (
-                <button key={'pref-'+p.platform} className="context-item" onClick={() => handleSetPreferred(p.platform)}>
-                  <span className="context-item-icon">{p.platform === preferredSource ? '\u25C9' : '\u25CB'}</span>
-                  <span>{p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}</span>
+          {hoverSubMenu === "pref" && (
+            <div
+              className={submenuClass}
+              onMouseEnter={() => handleEnter("pref")}
+              onMouseLeave={handleLeave}
+            >
+              {platforms.map((platform) => (
+                <button
+                  key={platform.platform}
+                  type="button"
+                  className="context-item"
+                  onClick={() =>
+                    void runAction(() => api.setPreferredSource(game.id, platform.platform))
+                  }
+                >
+                  <span className="context-item-icon">
+                    {platform.platform === preferredSource ? "\u25C9" : "\u25CB"}
+                  </span>
+                  <span>{platformMeta(platform.platform).label || platform.platform}</span>
                 </button>
               ))}
             </div>
@@ -182,23 +354,36 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }
         </div>
       )}
 
-      {(game.executables && game.executables.length > 1) && (
-        <div className="ctx-parent"
-          onMouseEnter={() => handleEnter('exe')}
-          onMouseLeave={handleLeave}>
+      {executables.length > 1 && (
+        <div
+          className="ctx-parent"
+          onMouseEnter={() => handleEnter("exe")}
+          onMouseLeave={handleLeave}
+        >
           <div className="context-item">
-            <span className="context-item-icon">{'\u2699'}</span>
+            <span className="context-item-icon">{"\u2699"}</span>
             <span>Default Executable</span>
-            <span className="ctx-arrow">{'\u25B8'}</span>
+            <span className="ctx-arrow">{"\u25B8"}</span>
           </div>
-          {hoverSubMenu === 'exe' && (
-            <div className={`ctx-submenu ${subFlipX ? 'ctx-sub-left' : ''}`}
-              onMouseEnter={() => handleSubEnter('exe')}
-              onMouseLeave={handleLeave}>
-              {game.executables.map((exe) => (
-                <button key={'exe-'+exe.path} className="context-item" onClick={() => handleSetPrimaryExe(exe.path)}>
-                  <span className="context-item-icon">{exe.primary ? '\u25C9' : '\u25CB'}</span>
-                  <span>{exe.name}.exe</span>
+          {hoverSubMenu === "exe" && (
+            <div
+              className={submenuClass}
+              onMouseEnter={() => handleEnter("exe")}
+              onMouseLeave={handleLeave}
+            >
+              {executables.map((executable) => (
+                <button
+                  key={executable.path}
+                  type="button"
+                  className="context-item"
+                  onClick={() =>
+                    void runAction(() => api.setPrimaryExecutable(game.id, executable.path))
+                  }
+                >
+                  <span className="context-item-icon">
+                    {executable.primary === true ? "\u25C9" : "\u25CB"}
+                  </span>
+                  <span>{executable.name}.exe</span>
                 </button>
               ))}
             </div>
@@ -208,26 +393,36 @@ export default function ContextMenu({ game, x, y, onClose, onUpdated, onScrape }
 
       <div className="context-divider" />
 
-      <button className="context-item" onClick={handleOpenDir}>
-        <span className="context-item-icon">{'\uD83D\uDCC1'}</span>
+      <button
+        type="button"
+        className="context-item"
+        onClick={() => void runAction(() => api.openGameDirectory(game.id), true)}
+      >
+        <span className="context-item-icon">{"\uD83D\uDCC1"}</span>
         <span>Open Game Folder</span>
       </button>
 
-      <button className="context-item disabled">
-        <span className="context-item-icon">{'\uD83D\uDCBE'}</span>
-        <span>Open Save Folder</span>
-      </button>
+      {savePath !== "" && (
+        <button
+          type="button"
+          className="context-item"
+          onClick={() => void runAction(() => api.openDirectory(savePath), true)}
+        >
+          <span className="context-item-icon">{"\uD83D\uDCBE"}</span>
+          <span>Open Save Folder</span>
+        </button>
+      )}
 
       <div className="context-divider" />
 
-      <button className="context-item" onClick={handleOpenMeta}>
-        <span className="context-item-icon">{'\uD83D\uDCC4'}</span>
+      <button
+        type="button"
+        className="context-item"
+        onClick={() => void runAction(() => api.openGameMetadata(game.id), true)}
+      >
+        <span className="context-item-icon">{"\uD83D\uDCC4"}</span>
         <span>Open Metadata File</span>
       </button>
     </div>
   );
-}
-
-function getPlatIcon(p: string): string {
-  switch (p) { case 'steam': return '\u25A0'; case 'dlsite': return '\u25C6'; case 'vndb': return '\u25B6'; case 'bangumi': return '\u25CF'; default: return '\u25CB'; }
 }

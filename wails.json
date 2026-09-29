@@ -9,5 +9,12 @@
   "author": {
     "name": "kaniol",
     "email": "375520360@qq.com"
+  },
+  "info": {
+    "productName": "GameLibrary",
+    "productVersion": "0.8.0",
+    "companyName": "kaniol",
+    "copyright": "MIT License",
+    "comments": "Portable game library manager for a NAS share"
   }
 }

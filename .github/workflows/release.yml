@@ -10,19 +10,11 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            goos: windows
-            ext: .exe
-          - os: ubuntu-22.04
-            goos: linux
-            ext: ''
-          - os: macos-latest
-            goos: darwin
-            ext: ''
-    runs-on: ${{ matrix.os }}
+    name: Windows build
+    # The application targets Windows: the scanner, the launcher and the shell
+    # integration are Windows-specific by design. Other platforms still compile
+    # and are covered by the CI workflow, but are not shipped.
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,21 +22,15 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: go.mod
           cache: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version-file: frontend/.nvmrc
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Linux deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -53,27 +39,26 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
+      - name: Test
+        shell: bash
+        # Explicit patterns: ./... would also descend into frontend/node_modules.
+        run: go test -count=1 ./internal/... .
+
       - name: Build
         shell: bash
         run: |
           export PATH="$HOME/go/bin:$PATH"
-          wails build -platform "${{ matrix.goos }}/amd64" -ldflags="-X main.version=$VERSION" -clean
+          wails build -platform windows/amd64 \
+            -ldflags="-X main.version=$VERSION -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -clean
 
       - name: Prepare assets
         shell: bash
         run: |
-          if [ "${{ matrix.goos }}" = "darwin" ]; then
-            BIN="build/bin/GameLibrary.app/Contents/MacOS/GameLibrary"
-          else
-            BIN="build/bin/GameLibrary${{ matrix.ext }}"
-          fi
-          ASSET="GameLibrary-${{ matrix.goos }}-amd64${{ matrix.ext }}"
+          BIN="build/bin/GameLibrary.exe"
+          ASSET="GameLibrary-windows-amd64.exe"
           cp "$BIN" "$ASSET"
-          if command -v sha256sum &> /dev/null; then
-            sha256sum "$ASSET" > "${ASSET}.sha256"
-          else
-            shasum -a 256 "$ASSET" > "${ASSET}.sha256"
-          fi
+          sha256sum "$ASSET" > "${ASSET}.sha256"
           echo "ASSET=$ASSET" >> $GITHUB_ENV
 
       - name: Upload to Release

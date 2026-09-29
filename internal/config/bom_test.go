@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"GameLibrary/internal/fsutil"
 )
 
 // TestLoadToleratesByteOrderMark is a regression test.
@@ -50,8 +53,14 @@ func TestLoadToleratesByteOrderMark(t *testing.T) {
 			if loaded.Language != "ja-JP" {
 				t.Errorf("settings were not read back: Language = %q", loaded.Language)
 			}
-			if len(loaded.GameDirectories) != 1 || loaded.GameDirectories[0] != ".\\Library" {
-				t.Errorf("settings were not read back: GameDirectories = %v", loaded.GameDirectories)
+			if len(loaded.GameDirectories) != 1 {
+				t.Fatalf("settings were not read back: GameDirectories = %v", loaded.GameDirectories)
+			}
+			// Asserted through the resolver rather than as text: the stored form uses
+			// the host's separator, and resolving is what the application relies on.
+			resolved := fsutil.Resolve(root, loaded.GameDirectories[0])
+			if want := filepath.Join(root, "Library"); !strings.EqualFold(resolved, want) {
+				t.Errorf("GameDirectories[0] resolves to %q, want %q", resolved, want)
 			}
 		})
 	}

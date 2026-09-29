@@ -77,6 +77,16 @@ type App struct {
 	// scanMu serialises background scans so a watcher burst cannot start
 	// overlapping walks of the same tree.
 	scanMu sync.Mutex
+
+	// bgWork tracks the background scans started after a configuration change, so
+	// shutdown (and tests) can wait for them instead of racing a file write against
+	// process exit or a temporary directory being removed.
+	bgWork sync.WaitGroup
+}
+
+// waitForBackgroundWork blocks until every background scan has finished.
+func (a *App) waitForBackgroundWork() {
+	a.bgWork.Wait()
 }
 
 // NewApp builds the application.
@@ -381,6 +391,9 @@ func (a *App) emit(event string, payload any) {
 
 // shutdown releases background resources. It is safe to call more than once.
 func (a *App) shutdown() {
+	// Let in-flight scans finish first: they write gameinfo.json files, and a scan
+	// cut short by process exit can leave a partially written record.
+	a.bgWork.Wait()
 	if a.queue != nil {
 		a.queue.Stop()
 	}

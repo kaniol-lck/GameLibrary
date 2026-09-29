@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"sort"
 	"strings"
 
 	"GameLibrary/internal/fsutil"
@@ -317,14 +318,36 @@ func (c *Config) AutoLabelPaths(root string) {
 		configured[dir] = true
 	}
 
-	// Drop labels whose directory is gone. Keys are compared after
-	// normalisation so a hand-edited variant does not survive forever.
+	// Rebuild the map from canonical keys only.
+	//
+	// A config file may spell a directory differently from the entry in
+	// GameDirectories (a different separator, or a redundant "./"), and the map key
+	// would then never match the directory it belongs to — the label survived the
+	// prune but became unreachable, so the sidebar section silently disappeared.
+	// Re-keying also prunes labels for directories that are no longer configured.
+	//
+	// Keys are visited in sorted order so the result does not depend on Go's map
+	// iteration order when two spellings collapse onto the same directory.
+	keys := make([]string, 0, len(c.GameDirectoryLabels))
 	for key := range c.GameDirectoryLabels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	canonicalLabels := make(map[string][]string, len(c.GameDirectoryLabels))
+	for _, key := range keys {
 		canonical := NormalizeDir(root, key)
 		if canonical == "" || !configured[canonical] {
-			delete(c.GameDirectoryLabels, key)
+			continue
+		}
+		for _, label := range c.GameDirectoryLabels[key] {
+			if label == "" || containsLabel(canonicalLabels[canonical], label) {
+				continue
+			}
+			canonicalLabels[canonical] = append(canonicalLabels[canonical], label)
 		}
 	}
+	c.GameDirectoryLabels = canonicalLabels
 
 	for _, dir := range c.GameDirectories {
 		if !looksLikeSteamLibrary(dir) {

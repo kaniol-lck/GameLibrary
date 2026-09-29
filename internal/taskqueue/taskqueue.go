@@ -470,15 +470,19 @@ func (q *Queue) processNext() bool {
 		q.worker(q.ctx, task)
 	}
 
+	elapsed := time.Since(start)
+
+	// The finish state is written under the lock. Status() walks the queue and
+	// reads task.Status, so setting it here in the open would race with another
+	// worker's snapshot — which is exactly what the race detector reported.
+	q.mu.Lock()
 	task.FinishedAt = time.Now()
 	if task.Error != "" {
 		task.Status = StatusError
 	} else {
 		task.Status = StatusDone
 	}
-	logger.QueueTaskFinished(task.GameID, string(task.Type), errorOf(task), time.Since(start))
 
-	q.mu.Lock()
 	// Retire the task: keeping finished tasks in the slice made Status() depend on
 	// how long the application had been running.
 	for i, candidate := range q.tasks {
@@ -507,7 +511,12 @@ func (q *Queue) processNext() bool {
 		q.completed++
 	}
 	onTaskDone := q.onTaskDone
+	taskErr := errorOf(task)
 	q.mu.Unlock()
+
+	// Logging and callbacks run outside the lock, on a task no longer reachable
+	// from the queue.
+	logger.QueueTaskFinished(task.GameID, string(task.Type), taskErr, elapsed)
 
 	if onTaskDone != nil {
 		onTaskDone(task)

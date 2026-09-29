@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"GameLibrary/internal/config"
+	"GameLibrary/internal/fsutil"
 	"GameLibrary/internal/game"
 	"GameLibrary/internal/library"
 	"GameLibrary/internal/scraper"
@@ -39,6 +40,11 @@ func newTestApp(t *testing.T) *App {
 	if err := app.buildState(cfg); err != nil {
 		t.Fatalf("buildState: %v", err)
 	}
+
+	// A configuration change starts a background scan that writes gameinfo.json.
+	// Waiting for it keeps that write from racing the removal of the temporary
+	// directory at the end of the test.
+	t.Cleanup(app.waitForBackgroundWork)
 	return app
 }
 
@@ -126,8 +132,12 @@ func TestSaveConfigRebuildsScannerForScanDepth(t *testing.T) {
 	}
 }
 
-// TestSaveConfigNormalisesSloppyInput checks that paths typed by hand are stored
-// in the portable form.
+// TestSaveConfigNormalisesSloppyInput checks that paths typed by hand collapse to
+// one stored entry each and still resolve to the directory the user meant.
+//
+// The assertion is on the resolved path rather than on the stored string: the
+// stored form uses the host's separator, so comparing text would only hold on
+// Windows, while resolving is what the application actually relies on.
 func TestSaveConfigNormalisesSloppyInput(t *testing.T) {
 	app := newTestApp(t)
 
@@ -138,13 +148,18 @@ func TestSaveConfigNormalisesSloppyInput(t *testing.T) {
 	}
 
 	got := app.GetConfig().GameDirectories
-	want := []string{".\\Games", ".\\Extra\\deep2"}
-	if len(got) != len(want) {
-		t.Fatalf("expected %v, got %v", want, got)
+	if len(got) != 2 {
+		t.Fatalf("expected the four spellings of Games to collapse to one entry plus deep2, got %v", got)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("expected %v, got %v", want, got)
+
+	want := []string{
+		filepath.Join(app.exeDir, "Games"),
+		filepath.Join(app.exeDir, "Extra", "deep2"),
+	}
+	for i, expected := range want {
+		resolved := fsutil.Resolve(app.exeDir, got[i])
+		if !samePath(resolved, expected) {
+			t.Errorf("entry %d (%q) resolves to %q, want %q", i, got[i], resolved, expected)
 		}
 	}
 }
@@ -465,12 +480,24 @@ func TestCommonPathsResolvesDirectories(t *testing.T) {
 	if paths["exeDir"] != app.exeDir {
 		t.Errorf("expected exeDir %q, got %q", app.exeDir, paths["exeDir"])
 	}
-	resolved, ok := paths[".\\Games"]
-	if !ok {
-		t.Fatalf("expected an entry for the configured directory, got %v", paths)
+
+	// The map is keyed by the stored (host-separated) directory string, so the
+	// entry is located by what it resolves to rather than by spelling the key.
+	want := filepath.Join(app.exeDir, "Games")
+	found := false
+	for key, resolved := range paths {
+		if key == "exeDir" {
+			continue
+		}
+		if !filepath.IsAbs(resolved) {
+			t.Errorf("expected an absolute path for %q, got %q", key, resolved)
+		}
+		if samePath(resolved, want) {
+			found = true
+		}
 	}
-	if !filepath.IsAbs(resolved) {
-		t.Errorf("expected an absolute path, got %q", resolved)
+	if !found {
+		t.Errorf("expected an entry resolving to %q, got %v", want, paths)
 	}
 }
 
@@ -500,7 +527,7 @@ func TestDescribeScrapeError(t *testing.T) {
 
 // --- path handling ----------------------------------------------------------
 
-// TestOpenDirectoryRejectsNothingAndResolves checks that a relative configured
+// TestOpenDirectoryResolvesRelativePaths checks that a relative configured
 // directory resolves against the library root rather than the process working
 // directory.
 func TestOpenDirectoryResolvesRelativePaths(t *testing.T) {
@@ -508,8 +535,11 @@ func TestOpenDirectoryResolvesRelativePaths(t *testing.T) {
 	dir := makeGame(t, app.exeDir, "Games/Alpha")
 
 	// OpenPath shells out, so instead assert the resolution logic the method uses.
-	if got := config.NormalizeDir(app.exeDir, "Games/Alpha"); got != ".\\Games\\Alpha" {
-		t.Fatalf("expected a portable relative path, got %q", got)
+	// The stored form carries the host separator, so the round trip is asserted
+	// rather than the literal string.
+	stored := config.NormalizeDir(app.exeDir, "Games/Alpha")
+	if resolved := fsutil.Resolve(app.exeDir, stored); !samePath(resolved, dir) {
+		t.Fatalf("%q resolves to %q, want %q", stored, resolved, dir)
 	}
 	if !samePath(dir, filepath.Join(app.exeDir, "Games", "Alpha")) {
 		t.Fatal("fixture layout is not what the test expects")

@@ -360,8 +360,11 @@ func (a *App) SaveConfig(cfg *config.Config) error {
 	a.emit(eventLibraryChanged, map[string]any{"configSaved": true})
 
 	// Discovering games in newly added directories is expensive on a share, so it
-	// happens in the background rather than blocking the settings dialog.
+	// happens in the background rather than blocking the settings dialog. It is
+	// tracked so shutdown — and tests — can wait for the writes to finish.
+	a.bgWork.Add(1)
 	go func() {
+		defer a.bgWork.Done()
 		a.scanMu.Lock()
 		defer a.scanMu.Unlock()
 		state := a.snapshot()

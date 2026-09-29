@@ -31,6 +31,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
+      - name: Provide an embedded frontend directory
+        # main.go embeds frontend/dist, which is build output and therefore absent
+        # from a fresh checkout; //go:embed fails outright when nothing matches.
+        # The real bundle is produced by the frontend job and by the release
+        # workflow, so a placeholder is enough for compiling and testing here.
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
       - name: Verify gofmt
         run: |
           unformatted="$(gofmt -l $(git ls-files '*.go'))"

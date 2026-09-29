@@ -45,6 +45,14 @@ the application writes a log and explains itself:
 2. Check the log in `%LOCALAPPDATA%\GameLibrary\logs`.
 3. If the WebView2 runtime is missing or damaged, install or repair it from
    <https://developer.microsoft.com/microsoft-edge/webview2/>.
+4. A folder with unusual permissions can also stop the WebView2 sandbox from
+   starting. If the log reports a failure to create the WebView2 controller, copy
+   the executable to an ordinary folder (your NAS share is fine) and run it from
+   there.
+
+The log is opened before the window is created, so a failure that happens too early
+to show anything is still recorded — and the next launch reports the previous one
+in a dialog.
 
 ## Verification
 

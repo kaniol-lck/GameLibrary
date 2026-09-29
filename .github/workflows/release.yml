@@ -39,6 +39,13 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
+      - name: Provide an embedded frontend directory
+        shell: bash
+        # The test step compiles package main, which embeds frontend/dist. That
+        # directory is build output, so it does not exist until `wails build` runs
+        # further down; a placeholder keeps the compile step working.
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
       - name: Test
         shell: bash
         # Explicit patterns: ./... would also descend into frontend/node_modules.

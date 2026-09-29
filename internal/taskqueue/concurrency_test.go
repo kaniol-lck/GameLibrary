@@ -168,6 +168,25 @@ func TestFailuresAreCapped(t *testing.T) {
 	}
 }
 
+// TestSetConcurrencyAfterStopIsIgnored keeps a stopped queue from growing its pool.
+//
+// Adding to a WaitGroup while another goroutine waits on it is a misuse that
+// panics, and Stop waits on the same group, so a late reconfiguration must not
+// start workers.
+func TestSetConcurrencyAfterStopIsIgnored(t *testing.T) {
+	queue := New(func(context.Context, *Task) {})
+	queue.Stop()
+
+	// Must not panic, and must not revive the queue.
+	queue.SetConcurrency(8)
+	queue.SetConcurrency(0)
+
+	if queue.Submit(&Task{Type: TaskScrape, GameID: "g1", Title: "First"}) {
+		t.Error("a stopped queue must not accept work after reconfiguration")
+	}
+	queue.Stop() // idempotent
+}
+
 // TestConcurrentQueuesAreRaceFree is only meaningful under -race: several workers
 // mutating and reading the same bookkeeping at once.
 func TestConcurrentQueuesAreRaceFree(t *testing.T) {

@@ -93,13 +93,24 @@ type Status struct {
 	Failures []Failure `json:"failures"`
 }
 
+// runningEntry is a task in flight.
+//
+// The queue keeps its own copy of the display fields rather than reading them off
+// the Task: the worker goroutine rewrites Task.Title and Task.Error when it
+// finishes, and Status() must not read a field another goroutine is writing.
+type runningEntry struct {
+	task   *Task
+	title  string
+	gameID string
+}
+
 // Queue runs tasks on a worker pool.
 type Queue struct {
 	worker Worker
 
 	mu          sync.Mutex
 	tasks       []*Task
-	running     []*Task
+	running     []runningEntry
 	paused      bool
 	stopped     bool
 	concurrency int
@@ -155,6 +166,10 @@ func (q *Queue) SetConcurrency(n int) {
 		n = maxConcurrency
 	}
 	q.mu.Lock()
+	if q.stopped {
+		q.mu.Unlock()
+		return
+	}
 	q.concurrency = n
 	q.mu.Unlock()
 
@@ -173,12 +188,17 @@ func (q *Queue) Concurrency() int {
 // ensureWorkers starts workers until the configured pool size is reached.
 func (q *Queue) ensureWorkers() {
 	q.mu.Lock()
+	defer q.mu.Unlock()
+	// Adding to the WaitGroup once Stop is waiting on it is a misuse that panics,
+	// so a stopped queue never grows its pool.
+	if q.stopped {
+		return
+	}
 	for q.started < q.concurrency {
 		q.started++
 		q.wg.Add(1)
 		go q.run()
 	}
-	q.mu.Unlock()
 }
 
 // SetObserver installs the state-change callbacks. Either may be nil.
@@ -213,7 +233,7 @@ func (q *Queue) Submit(task *Task) bool {
 		}
 	}
 	for _, running := range q.running {
-		if running.GameID == task.GameID && running.Type == task.Type {
+		if running.gameID == task.GameID && running.task.Type == task.Type {
 			q.mu.Unlock()
 			return false
 		}
@@ -301,9 +321,9 @@ func (q *Queue) statusLocked() Status {
 		Failures:      append([]Failure{}, q.failures...),
 	}
 
-	for _, task := range q.running {
+	for _, entry := range q.running {
 		status.Running++
-		status.RunningTitles = append(status.RunningTitles, task.Title)
+		status.RunningTitles = append(status.RunningTitles, entry.title)
 	}
 	for _, task := range q.tasks {
 		if task.Status == StatusPending {
@@ -312,8 +332,8 @@ func (q *Queue) statusLocked() Status {
 		}
 	}
 	if len(q.running) > 0 {
-		status.CurrentTitle = q.running[0].Title
-		status.CurrentGameID = q.running[0].GameID
+		status.CurrentTitle = q.running[0].title
+		status.CurrentGameID = q.running[0].gameID
 	}
 	status.Total = status.Pending + status.Running + status.Completed + status.Failed
 	return status
@@ -438,7 +458,7 @@ func (q *Queue) processNext() bool {
 		q.mu.Unlock()
 		return false
 	}
-	q.running = append(q.running, task)
+	q.running = append(q.running, runningEntry{task: task, title: task.Title, gameID: task.GameID})
 	q.mu.Unlock()
 
 	q.emit()
@@ -467,8 +487,8 @@ func (q *Queue) processNext() bool {
 			break
 		}
 	}
-	for i, candidate := range q.running {
-		if candidate == task {
+	for i, entry := range q.running {
+		if entry.task == task {
 			q.running = append(q.running[:i], q.running[i+1:]...)
 			break
 		}

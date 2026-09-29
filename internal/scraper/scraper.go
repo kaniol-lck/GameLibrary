@@ -110,6 +110,11 @@ type SourceResult struct {
 
 // Pipeline runs the configured providers.
 type Pipeline struct {
+	// mu guards cfg. The application builds a fresh pipeline when settings change
+	// rather than reconfiguring a live one, but a scrape may run on several
+	// goroutines at once, so the configuration pointer is read under the lock
+	// rather than left as an unguarded field.
+	mu      sync.RWMutex
 	cfg     *config.Config
 	sources map[string]Source
 	http    *HTTPClient
@@ -153,13 +158,20 @@ func (p *Pipeline) Registered() []string {
 // provider set required restarting the application.
 func (p *Pipeline) Configure(cfg *config.Config) error {
 	if cfg != nil {
+		p.mu.Lock()
 		p.cfg = cfg
+		p.mu.Unlock()
 	}
+
+	p.mu.RLock()
+	current := p.cfg
+	p.mu.RUnlock()
+
 	var firstErr error
 	for key, src := range p.sources {
 		srcCfg := SourceConfig{
-			Language: ParseLang(p.cfg.Language),
-			APIKey:   p.cfg.SourceSettings(key)["apiKey"],
+			Language: ParseLang(current.Language),
+			APIKey:   current.SourceSettings(key)["apiKey"],
 			HTTP:     p.http,
 			Timeout:  20 * time.Second,
 		}
@@ -172,8 +184,12 @@ func (p *Pipeline) Configure(cfg *config.Config) error {
 
 // enabledSources returns the providers to query, in configured priority order.
 func (p *Pipeline) enabledSources() []Source {
-	ordered := make([]Source, 0, len(p.cfg.Sources))
-	for _, srcCfg := range p.cfg.Sources {
+	p.mu.RLock()
+	configured := append([]config.MetadataSource(nil), p.cfg.Sources...)
+	p.mu.RUnlock()
+
+	ordered := make([]Source, 0, len(configured))
+	for _, srcCfg := range configured {
 		if !srcCfg.Enabled {
 			continue
 		}

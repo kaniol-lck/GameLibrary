@@ -707,6 +707,7 @@ go build -ldflags "-X main.version=0.8.0 -X main.buildTime=2026-09-29T10:00:00Z"
 | 包划分与测试 | 按职责放入 `internal/` 子包，`package main` 按 API 面拆分；测试与源文件同目录（`*_test.go` / `*.test.ts`），新增测试一律用 `t.TempDir()` 而不向仓库写文件，可复用的模拟游戏目录放在 `testdata/` |
 | 生成代码与产物 | `frontend/wailsjs/` 提交但不参与 lint；`build/`、`frontend/dist/`、`config.json`、`Games/`、`logs/`、覆盖率文件、`.gocache/`、`.npm-cache/`、`.tmp-*/` 均被忽略 |
 | 文档更新 | 新功能与配置模型变更更新 `CHANGELOG.md`（必要时含 `DESIGN.md` 对应章节）；Bug 修复更新 `CHANGELOG.md`；发布更新 `DESIGN.md` 路线图 |
+| 开发方式 | 本项目在 **DeepSeek Harness** 辅助下开发。改动以「能编译、能测试、能运行」为准：新增或修改的行为要有对应测试，交付前跑一遍 `gofmt` / `go vet` / `go test` 与前端 `tsc` / `lint` / `test`，涉及启动路径的改动要真正启动一次产物验证，而不只是构建通过 |
 
 `CHANGELOG.md` 采用中英双行：中文为主描述，英文斜体为辅，按 `Added` / `Changed` / `Fixed` / `Removed` 分类：
 
@@ -740,7 +741,7 @@ go build -ldflags "-X main.version=0.8.0 -X main.buildTime=2026-09-29T10:00:00Z"
 |--------|------|
 | `Pipeline.Scrape`：按优先级选第一个匹配的源并返回 | 已删除，只有 `ScrapeAll`（收集所有匹配），首选源由 `scrapeOne` 裁决 |
 | `.gamemanager/meta/` 快照可被读回并用于恢复元数据 | 只有写入，没有读回功能，`LoadMeta` 仅被测试使用 |
-| `igdb` 是一个可配置的数据源 | 已从 `DefaultSources()` 移除，也没有注册 provider，永远不会运行；配置文件中遗留的 `igdb` 条目会被 `SyncSources` 保留（它只追加缺失项、不删除已有项），刮削时按「未注册」跳过 |
+| `igdb` 是一个可配置的数据源 | 已从 `DefaultSources()` 移除，也没有注册 provider，永远不会运行；`SyncSources` 会**删除**配置中遗留的 `igdb` 条目（只保留有实现的数据源，否则设置页会出现一行既无说明又无法配置的死条目） |
 | 封面经 `GetGameCover` / `GetGameCoverLandscape` 以 base64 data URI 通过 IPC 传输 | 已删除，改由 asset server 提供 `GET /covers/{id}/{variant}` |
 | `UpdateGameInfo`、`ScrapeAllGames`、`GetGameCover*` 系列 API | 已删除 |
 | 旧文档中的 `.gamemanager/thumbnails/`、`meta/steam.json` 布局 | 实际是 `.gamemanager/covers/` 与 `.gamemanager/meta/` |
@@ -762,14 +763,18 @@ go build -ldflags "-X main.version=0.8.0 -X main.buildTime=2026-09-29T10:00:00Z"
 
 ### Phase 2.5 — 重构与优化 ✅ (0.8.0)
 
-- [x] `internal/library` 并发安全缓存（读取返回深拷贝）与 `internal/fsutil` 原子写入、`ToPortable` 路径处理
+- [x] `internal/library` 并发安全缓存（读取返回深拷贝）与 `internal/fsutil` 原子写入、`ToPortable` 路径处理、BOM 容错
 - [x] `runtimeState` 重建：设置保存后立即生效，不必重启
 - [x] 共享 HTTP 客户端（超时、重试退避、按主机限流、context 取消）与类型化刮削错误
+- [x] **并行刮削**：队列工作线程池（默认 4）+ 同一游戏各数据源并发，结果仍按优先级顺序装配
+- [x] **任务列表界面**：真实进度、全部在跑任务、等待列表折叠、失败原因与单条重试
 - [x] 封面改由 HTTP 服务提供并由版本参数驱动缓存失效
+- [x] **启动失败诊断**：日志先于窗口创建初始化并逐级回退目录；上次未创建窗口会在下次启动弹窗说明
 - [x] 修正 Bangumi 与 VNDB 的接口契约（此前两者从未返回过结果）
 - [x] 强制重扫保留用户数据；`ForceScanGames` 真正可用；游戏 ID 基于相对库根路径，跨库不再冲突
+- [x] 扫描器不再因目录含 exe 而停止递归；「游戏目录」定义统一
 - [x] 前端统一走 `api/client.ts`，事件订阅在卸载时退订
-- [x] Windows 收敛；CI（gofmt / vet / race / 覆盖率）与前端工具链基线
+- [x] Windows 收敛；CI（gofmt / vet / race / 覆盖率）与前端工具链基线；Go 覆盖率 27.6% → 75.1%
 
 ### Phase 3 — 启动与锁 📋 (0.9.0)
 

@@ -8,12 +8,12 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v2-DF0000?logo=wails)](https://wails.io/)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](https://github.com/kaniol-lck/GameLibrary/releases)
-[![AI](https://img.shields.io/badge/AI--assisted-DeepSeek%20Harness-8A2BE2)](https://github.com/deepseek-ai)
+![AI](https://img.shields.io/badge/AI--assisted-DeepSeek%20Harness-8A2BE2)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> 本项目在 **DeepSeek Harness** 辅助下开发。
+> 本项目在 **DeepSeek Harness** 辅助下开发。所有改动均经过本地构建、测试与运行验证。
 >
-> *Developed with assistance from DeepSeek Harness.*
+> *Developed with assistance from DeepSeek Harness. Every change is verified by building, testing and running it locally.*
 
 跨机器、便携式的游戏库管理器。将管理程序与游戏文件一同放在 NAS 网络挂载路径中，通过相对路径管理游戏库，支持自动识别与多源元数据刮削。
 

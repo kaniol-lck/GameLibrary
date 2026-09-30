@@ -71,6 +71,66 @@ jobs:
           path: coverage.out
           if-no-files-found: error
 
+  # The shipping platform, so it gets its own job.
+  #
+  # Tests carry Windows-only branches — drive letters, backslash separators,
+  # registry lookups — that the Linux job never executes, and a failure there used
+  # to surface only when a release tag was pushed. The race detector is skipped
+  # here because it needs cgo and a C compiler the runner does not reliably have;
+  # the Linux job covers that.
+  backend-windows:
+    name: Backend (Go, Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Provide an embedded frontend directory
+        shell: pwsh
+        # main.go embeds frontend/dist, which is build output and therefore absent
+        # from a fresh checkout; //go:embed fails outright when nothing matches.
+        run: |
+          New-Item -ItemType Directory -Path frontend/dist -Force | Out-Null
+          New-Item -ItemType File -Path frontend/dist/.gitkeep -Force | Out-Null
+
+      - name: gofmt
+        shell: pwsh
+        run: |
+          $files = git ls-files '*.go'
+          $unformatted = gofmt -l $files
+          if ($unformatted) {
+            Write-Output "::error::These Go files are not gofmt-formatted:"
+            Write-Output $unformatted
+            exit 1
+          }
+
+      - name: go vet
+        shell: pwsh
+        run: go vet ./internal/... .
+
+      - name: Test
+        shell: pwsh
+        # A failed test run is published as the job summary so it can be read back
+        # from the API without authenticated log access.
+        run: |
+          go test -count=1 ./internal/... . 2>&1 | Tee-Object -FilePath go-test.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            "### Go test failures" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            '```' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Get-Content go-test.log | Select-Object -First 300 | ForEach-Object {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $_
+            }
+            '```' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+          exit $code
+
   frontend:
     name: Frontend (React)
     runs-on: ubuntu-22.04

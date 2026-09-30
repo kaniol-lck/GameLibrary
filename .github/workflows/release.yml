@@ -47,9 +47,21 @@ jobs:
         run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
       - name: Test
-        shell: bash
-        # Explicit patterns: ./... would also descend into frontend/node_modules.
-        run: go test -count=1 ./internal/... .
+        shell: pwsh
+        # A failed test run is published as the job summary so it can be read back
+        # from the API without authenticated log access.
+        run: |
+          go test -count=1 ./internal/... . 2>&1 | Tee-Object -FilePath go-test.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            "### Go test failures" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            '```' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Get-Content go-test.log | Select-Object -First 300 | ForEach-Object {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $_
+            }
+            '```' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+          exit $code
 
       - name: Build
         shell: bash

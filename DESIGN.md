@@ -729,7 +729,9 @@ go build -ldflags "-X main.version=0.8.0 -X main.buildTime=2026-09-29T10:00:00Z"
 | Backend (Go) | `ubuntu-22.04` + `libgtk-3-dev`/`libwebkit2gtk-4.0-dev`；gofmt 校验 → `go vet ./internal/... .` → `go build ./internal/... .` → `go test -race -count=1 ./internal/... .` → 覆盖率并上传 artifact |
 | Frontend (React) | Node 版本取自 `frontend/.nvmrc`；`npm ci` → `npm run lint` → `npm run format:check` → `npm run typecheck` → `npm run test` → `npm run build` |
 
-**发布（`.github/workflows/release.yml`）** 仅在推送 `v*` tag 时运行：`windows-latest` → 跑一遍 Go 测试 → `wails build -platform windows/amd64 -ldflags="-X main.version=$VERSION -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -clean` → 产出 `GameLibrary-windows-amd64.exe` 与同名 `.sha256` → 用 `.github/RELEASE_TEMPLATE.md` 作为正文创建 pre-release。
+**发布（`.github/workflows/release.yml`）** 仅在推送 `v*` tag 时运行：`windows-latest` → 跑一遍 Go 测试 → `wails build -platform windows/amd64 -ldflags="-X main.version=$VERSION -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -clean` → 产出 `GameLibrary-windows-amd64.exe`、同名 `.sha256`，并附带 `scripts/run-with-console.cmd`、`CHANGELOG.md` 与 `LICENSE` → 用 `.github/RELEASE_TEMPLATE.md` 作为正文创建 release。**只有含 `-alpha` 的 tag 标记为 pre-release**，其余为正式 release（`v0.8.0` 即正式）。
+
+> 发布说明里承诺的 `run-with-console.cmd` 必须由工作流一并上传：它原先只存在于本机的发布目录，而该目录被 gitignore，导致说明提到的文件在 release 里并不存在。因此脚本存放在受版本控制的 `scripts/` 下。
 
 ---
 

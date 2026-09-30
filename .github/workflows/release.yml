@@ -76,7 +76,13 @@ jobs:
           files: |
             ${{ env.ASSET }}
             ${{ env.ASSET }}.sha256
+            scripts/run-with-console.cmd
+            CHANGELOG.md
+            LICENSE
           generate_release_notes: true
-          prerelease: true
+          # Only pre-release versions are marked as such, matching the versioning
+          # convention: an -alpha suffix means work in progress, anything else is a
+          # release people are expected to run.
+          prerelease: ${{ contains(github.ref_name, '-alpha') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

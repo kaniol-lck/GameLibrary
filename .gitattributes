@@ -1,0 +1,15 @@
+# Line endings.
+#
+# Everything is stored as LF and checked out as LF, on every platform, whatever
+# the local git configuration says.
+#
+# This matters on Windows, where git's system configuration sets
+# core.autocrlf=true: a checkout then rewrites every text file to CRLF, and
+# `gofmt -l` reports the entire source tree as unformatted. The Linux job checks
+# out LF and stays green, so without this the difference only appears in the
+# Windows job and at release time.
+* text=auto eol=lf
+
+# Batch scripts keep CRLF; cmd.exe is most predictable with it.
+*.cmd text eol=crlf
+*.bat text eol=crlf

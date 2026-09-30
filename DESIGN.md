@@ -703,6 +703,7 @@ go build -ldflags "-X main.version=0.8.0 -X main.buildTime=2026-09-29T10:00:00Z"
 | 约定 | 说明 |
 |------|------|
 | `gofmt` | CI 中强制：`gofmt -l $(git ls-files '*.go')` 非空即失败；golangci-lint 另启用 goimports（`local-prefixes: GameLibrary`） |
+| 行尾符 | 仓库内一律 LF，并由 `.gitattributes` 强制以 LF 签出（`*.cmd` / `*.bat` 用 CRLF）。Windows 上 git 的系统配置默认 `core.autocrlf=true`，签出会把文本文件全变成 CRLF，而 `gofmt -l` 会把整棵源码树判为未格式化；Linux 作业签出的是 LF 所以永远绿，这个差异只在 Windows 作业与发布时才暴露 |
 | Go 命令的包模式 | **必须显式写成 `./internal/... .`**：`frontend/node_modules` 恰好带有一个无关的 Go 包，`./...` 会把它一并扫进来；CI、README 与 golangci 排除列表都遵循这条 |
 | 包划分与测试 | 按职责放入 `internal/` 子包，`package main` 按 API 面拆分；测试与源文件同目录（`*_test.go` / `*.test.ts`），新增测试一律用 `t.TempDir()` 而不向仓库写文件，可复用的模拟游戏目录放在 `testdata/` |
 | 生成代码与产物 | `frontend/wailsjs/` 提交但不参与 lint；`build/`、`frontend/dist/`、`config.json`、`Games/`、`logs/`、覆盖率文件、`.gocache/`、`.npm-cache/`、`.tmp-*/` 均被忽略 |
